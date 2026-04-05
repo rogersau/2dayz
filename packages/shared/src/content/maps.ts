@@ -26,6 +26,16 @@ export const lootPointSchema = z
   })
   .strict();
 
+export const interactablePlacementSchema = z
+  .object({
+    placementId: z.string().min(1),
+    kind: z.enum(["door", "crate", "stash", "terminal"]),
+    position: vector2Schema,
+    interactionRadius: z.number().positive(),
+    prompt: z.string().min(1),
+  })
+  .strict();
+
 export const navigationNodeSchema = z
   .object({
     nodeId: z.string().min(1),
@@ -62,11 +72,13 @@ export const mapDefinitionSchema = z
     zombieSpawnZones: z.array(zombieSpawnZoneSchema).min(1),
     lootPoints: z.array(lootPointSchema).min(1),
     respawnPoints: z.array(respawnPointSchema).min(1),
+    interactablePlacements: z.array(interactablePlacementSchema).min(1),
     navigation: navigationDataSchema,
   })
   .strict();
 
 export type CollisionVolume = z.infer<typeof collisionVolumeSchema>;
+export type InteractablePlacement = z.infer<typeof interactablePlacementSchema>;
 export type LootPoint = z.infer<typeof lootPointSchema>;
 export type NavigationNode = z.infer<typeof navigationNodeSchema>;
 export type NavigationLink = z.infer<typeof navigationLinkSchema>;

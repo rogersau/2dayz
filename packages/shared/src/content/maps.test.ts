@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mapDefinitionSchema } from "./maps";
 
 describe("mapDefinitionSchema", () => {
-  it("requires collision, zombie spawns, loot points, respawn points, and navigation", () => {
+  it("requires collision, zombie spawns, loot points, respawn points, interactables, and navigation", () => {
     expect(
       mapDefinitionSchema.parse({
         mapId: "starter-town",
@@ -39,6 +39,15 @@ describe("mapDefinitionSchema", () => {
             position: { x: 6, y: 6 },
           },
         ],
+        interactablePlacements: [
+          {
+            placementId: "door_1",
+            kind: "door",
+            position: { x: 18, y: 14 },
+            interactionRadius: 1.5,
+            prompt: "Open door",
+          },
+        ],
         navigation: {
           nodes: [
             { nodeId: "n1", position: { x: 6, y: 6 } },
@@ -60,6 +69,7 @@ describe("mapDefinitionSchema", () => {
         zombieSpawnZones: [],
         lootPoints: [],
         respawnPoints: [],
+        interactablePlacements: [],
       }),
     ).toThrow();
   });

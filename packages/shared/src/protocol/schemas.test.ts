@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  combatEventSchema,
   clientMessageSchema,
   deathEventSchema,
   reconnectRequestSchema,
@@ -59,7 +60,6 @@ describe("protocol schemas", () => {
           {
             entityId: "player_1",
             displayName: "Survivor",
-            sessionToken: "session_123",
             inventory: {
               slots: [
                 { itemId: "bandage", quantity: 1 },
@@ -119,6 +119,19 @@ describe("protocol schemas", () => {
         ],
       }),
     ).toMatchObject({ type: "delta", tick: 26 });
+
+    expect(
+      combatEventSchema.parse({
+        type: "combat",
+        roomId: "room_alpha",
+        attackerEntityId: "player_1",
+        targetEntityId: "zombie_1",
+        weaponItemId: "m9",
+        damage: 18,
+        remainingHealth: 42,
+        hitPosition: { x: 12, y: 6 },
+      }),
+    ).toMatchObject({ type: "combat", damage: 18, weaponItemId: "m9" });
 
     expect(
       deathEventSchema.parse({
@@ -182,6 +195,30 @@ describe("protocol schemas", () => {
 
     expect(() =>
       serverMessageSchema.parse({
+        type: "snapshot",
+        tick: 1,
+        roomId: "room_alpha",
+        playerEntityId: "player_1",
+        entities: [],
+        players: [
+          {
+            entityId: "player_1",
+            displayName: "Survivor",
+            sessionToken: "session_123",
+            inventory: {
+              slots: [null, null, null, null, null, null],
+              equippedWeaponSlot: null,
+              ammoStacks: [],
+            },
+          },
+        ],
+        loot: [],
+        zombies: [],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      serverMessageSchema.parse({
         type: "delta",
         tick: 1,
         roomId: "room_alpha",
@@ -207,6 +244,19 @@ describe("protocol schemas", () => {
           ammoStacks: [],
         },
         respawnAt: { x: 2 },
+      }),
+    ).toThrow();
+
+    expect(() =>
+      combatEventSchema.parse({
+        type: "combat",
+        roomId: "room_alpha",
+        attackerEntityId: "player_1",
+        targetEntityId: "zombie_1",
+        weaponItemId: "m9",
+        damage: 0,
+        remainingHealth: -1,
+        hitPosition: { x: 12 },
       }),
     ).toThrow();
   });

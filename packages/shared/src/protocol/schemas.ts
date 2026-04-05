@@ -9,4 +9,4 @@ export {
   serverMessageSchema,
   snapshotMessageSchema,
 } from "./messages";
-export { deathEventSchema, lootPickedUpEventSchema, serverEventSchema } from "./events";
+export { combatEventSchema, deathEventSchema, lootPickedUpEventSchema, serverEventSchema } from "./events";

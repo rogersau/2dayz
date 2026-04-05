@@ -14,6 +14,19 @@ export const lootPickedUpEventSchema = z
   })
   .strict();
 
+export const combatEventSchema = z
+  .object({
+    type: z.literal("combat"),
+    roomId: roomIdSchema,
+    attackerEntityId: entityIdSchema,
+    targetEntityId: entityIdSchema,
+    weaponItemId: itemIdSchema,
+    damage: z.number().positive(),
+    remainingHealth: z.number().nonnegative(),
+    hitPosition: vector2Schema,
+  })
+  .strict();
+
 export const deathEventSchema = z
   .object({
     type: z.literal("death"),
@@ -25,8 +38,13 @@ export const deathEventSchema = z
   })
   .strict();
 
-export const serverEventSchema = z.discriminatedUnion("type", [lootPickedUpEventSchema, deathEventSchema]);
+export const serverEventSchema = z.discriminatedUnion("type", [
+  lootPickedUpEventSchema,
+  combatEventSchema,
+  deathEventSchema,
+]);
 
 export type LootPickedUpEvent = z.infer<typeof lootPickedUpEventSchema>;
+export type CombatEvent = z.infer<typeof combatEventSchema>;
 export type DeathEvent = z.infer<typeof deathEventSchema>;
 export type ServerEvent = z.infer<typeof serverEventSchema>;

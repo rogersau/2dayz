@@ -55,7 +55,6 @@ export const playerStateSchema = z
   .object({
     entityId: entityIdSchema,
     displayName: z.string().min(1),
-    sessionToken: sessionTokenSchema,
     inventory: inventorySchema,
     health: healthSchema.optional(),
   })
