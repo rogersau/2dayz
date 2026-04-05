@@ -328,4 +328,49 @@ describe("loadMapDefinition", () => {
       }),
     ).toThrow(/respawn point|navigation node/i);
   });
+
+  it("rejects duplicate navigation node ids before graph loading", () => {
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_duplicate-nav-nodes",
+        name: "Duplicate Nav Nodes",
+        bounds: { width: 10, height: 10 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_safe",
+            kind: "box",
+            position: { x: 8, y: 8 },
+            size: { width: 1, height: 1 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_ok",
+            center: { x: 5, y: 5 },
+            radius: 1,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 1, y: 1 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 1, y: 8 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 1, y: 2 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_dup", position: { x: 1, y: 4 } },
+            { nodeId: "node_dup", position: { x: 1, y: 8 } },
+          ],
+          links: [{ from: "node_dup", to: "node_dup", cost: 4 }],
+        },
+      }),
+    ).toThrow(/duplicate navigation node/i);
+  });
 });

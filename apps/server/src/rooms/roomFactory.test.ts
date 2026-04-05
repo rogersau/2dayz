@@ -35,6 +35,7 @@ const authoredTestMap: MapDefinition = {
   respawnPoints: [
     { pointId: "point_respawn-a", position: { x: 4.4, y: 4 } },
     { pointId: "point_respawn-b", position: { x: 10, y: 10 } },
+    { pointId: "point_respawn-c", position: { x: 14, y: 14 } },
   ],
   interactablePlacements: [
     {
@@ -106,5 +107,27 @@ describe("createRoomFactory", () => {
     });
     expect(room.simulationState.world.map.mapId).toBe("map_test-live-room");
     expect(room.simulationState.world.navigation.nodes.get("node_a")?.position).toEqual({ x: 2, y: 8 });
+  });
+
+  it("prefers an unoccupied authored respawn point over round-robin reuse", () => {
+    const room = createRoomFactory({
+      roomCapacity: 12,
+      loadMap: () => authoredTestMap,
+    })();
+
+    const firstJoin = room.joinPlayer({ displayName: "Avery" });
+    const secondJoin = room.joinPlayer({ displayName: "Blair" });
+    const thirdJoin = room.joinPlayer({ displayName: "Casey" });
+    room.tick();
+
+    expect(room.releasePlayer(secondJoin.playerEntityId)).toBe(true);
+    room.tick();
+
+    const fourthJoin = room.joinPlayer({ displayName: "Devon" });
+    room.tick();
+
+    expect(room.simulationState.players.get(firstJoin.playerEntityId)?.transform).toMatchObject({ x: 4.4, y: 4 });
+    expect(room.simulationState.players.get(thirdJoin.playerEntityId)?.transform).toMatchObject({ x: 14, y: 14 });
+    expect(room.simulationState.players.get(fourthJoin.playerEntityId)?.transform).toMatchObject({ x: 10, y: 10 });
   });
 });

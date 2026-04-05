@@ -93,7 +93,6 @@ export const createSimulationRoomRuntime = ({
   const playerSessions = new Map<string, PlayerSession>();
   const roomSystems = systems ?? [createLifecycleSystem(), createMovementSystem()];
   let playerSequence = 0;
-  let respawnPointIndex = 0;
   let healthy = true;
   let status: RoomStatus = "active";
 
@@ -103,9 +102,15 @@ export const createSimulationRoomRuntime = ({
       return { x: 0, y: 0 };
     }
 
-    const point = respawnPoints[respawnPointIndex % respawnPoints.length];
-    respawnPointIndex += 1;
-    return point;
+    const occupiedPoints = new Set(
+      [
+        ...[...simulationState.players.values()].map((player) => `${player.transform.x}:${player.transform.y}`),
+        ...simulationState.pendingSpawns.map((spawn) => `${spawn.position.x}:${spawn.position.y}`),
+      ],
+    );
+
+    const availablePoint = respawnPoints.find((point) => !occupiedPoints.has(`${point.x}:${point.y}`));
+    return availablePoint ?? respawnPoints[0];
   };
 
   const getConnectedPlayerIds = (): string[] => {

@@ -59,14 +59,21 @@ const assertSpatialInvariants = (map: MapDefinition): void => {
     }
   }
 
-  const nodesById = new Map(map.navigation.nodes.map((node) => [node.nodeId, node]));
+  const seenNodeIds = new Set<string>();
   for (const node of map.navigation.nodes) {
+    if (seenNodeIds.has(node.nodeId)) {
+      throw new Error(`duplicate navigation node ${node.nodeId}`);
+    }
+
+    seenNodeIds.add(node.nodeId);
     assertPointWithinBounds(map, node.position, `navigation node ${node.nodeId}`);
 
     if (isCirclePositionBlocked(collision, node.position, entityRadius)) {
       throw new Error(`navigation node ${node.nodeId} is inside blocking collision`);
     }
   }
+
+  const nodesById = new Map(map.navigation.nodes.map((node) => [node.nodeId, node]));
 
   for (const link of map.navigation.links) {
     const from = nodesById.get(link.from);
