@@ -43,30 +43,65 @@ export const createServerRuntime = ({
   createHttpServer,
   tickIntervalMs = 1_000,
 }: CreateServerRuntimeOptions): ServerRuntime => {
-  const server = (createHttpServer ?? (() => buildHttpServer({ roomManager, startedAt: Date.now() })))();
-  const socketServer = createSocketServer(server);
+  let server: HttpServer | null = null;
+  let socketServer: ManagedSocketServer | null = null;
   let tickHandle: ReturnType<typeof setInterval> | null = null;
+
+  const stopTicking = (): void => {
+    if (tickHandle) {
+      clearInterval(tickHandle);
+      tickHandle = null;
+    }
+  };
 
   return {
     async start() {
-      await new Promise<void>((resolve) => {
-        server.listen(config.port, config.host, () => resolve());
-      });
+      server = (createHttpServer ?? (() => buildHttpServer({ roomManager, startedAt: Date.now() })))();
+      socketServer = createSocketServer(server);
 
-      tickHandle = setInterval(() => {
-        roomManager.tickAllRooms();
-      }, tickIntervalMs);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const handleError = (error: Error) => {
+            server?.off("error", handleError);
+            reject(error);
+          };
 
-      return { server, socketServer };
+          server?.once("error", handleError);
+          server?.listen(config.port, config.host, () => {
+            server?.off("error", handleError);
+            resolve();
+          });
+        });
+
+        tickHandle = setInterval(() => {
+          roomManager.tickAllRooms();
+        }, tickIntervalMs);
+
+        return { server, socketServer };
+      } catch (error) {
+        stopTicking();
+        socketServer.close();
+        try {
+          await closeHttpServer(server);
+        } catch {
+          // ignore close errors during startup rollback
+        }
+        socketServer = null;
+        server = null;
+        throw error;
+      }
     },
     async stop() {
-      if (tickHandle) {
-        clearInterval(tickHandle);
-        tickHandle = null;
+      stopTicking();
+
+      if (!server || !socketServer) {
+        return;
       }
 
       socketServer.close();
       await closeHttpServer(server);
+      socketServer = null;
+      server = null;
     },
   };
 };
