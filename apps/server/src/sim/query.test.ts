@@ -63,6 +63,12 @@ describe("simulation query replication", () => {
           transform: { x: 1, y: 1, rotation: 0 },
         },
         {
+          entityId: "loot_test-1",
+          itemId: "item_bandage",
+          quantity: 1,
+          position: { x: 2, y: 2 },
+        },
+        {
           entityId: "zombie_test-1",
           transform: { x: 3, y: 3, rotation: 0 },
           velocity: { x: 0.5, y: 0 },
@@ -82,5 +88,28 @@ describe("simulation query replication", () => {
       "loot_test-removed",
       "zombie_test-removed",
     ]);
+  });
+
+  it("includes dirty loot entities in deltas so incremental replication does not require a full snapshot", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    state.loot.set("loot_test-drop", {
+      entityId: "loot_test-drop",
+      itemId: "item_revolver",
+      quantity: 1,
+      position: { x: 5, y: 6 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+    state.dirtyLootIds.add("loot_test-drop");
+
+    expect(createRoomReplicationDelta(state).entityUpdates).toContainEqual(
+      expect.objectContaining({
+        entityId: "loot_test-drop",
+        itemId: "item_revolver",
+        quantity: 1,
+        position: { x: 5, y: 6 },
+      }),
+    );
   });
 });

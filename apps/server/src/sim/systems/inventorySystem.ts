@@ -66,6 +66,7 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
     state.loot.delete(loot.entityId);
     state.dirtyLootIds.delete(loot.entityId);
     state.removedEntityIds.add(loot.entityId);
+    state.dirtyPlayerIds.add(player.entityId);
     return;
   }
 
@@ -86,6 +87,7 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
   state.loot.delete(loot.entityId);
   state.dirtyLootIds.delete(loot.entityId);
   state.removedEntityIds.add(loot.entityId);
+  state.dirtyPlayerIds.add(player.entityId);
 };
 
 const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void => {

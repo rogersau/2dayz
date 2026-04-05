@@ -103,6 +103,7 @@ describe("createInventorySystem", () => {
 
     expect(state.players.get("player_test-equip")?.inventory.slots[2]).toEqual({ itemId: "item_revolver", quantity: 1 });
     expect(state.players.get("player_test-equip")?.inventory.equippedWeaponSlot).toBe(2);
+    expect(state.dirtyPlayerIds.has("player_test-equip")).toBe(true);
   });
 
   it("consumes reserve ammo to refill a magazine and leaves leftovers stacked", () => {
@@ -231,5 +232,42 @@ describe("createInventorySystem", () => {
 
     expect(player.inventory.slots[0]).toBeNull();
     expect(state.loot.has("loot_test-bandage")).toBe(true);
+  });
+
+  it("marks players dirty when pickups mutate inventory state", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    queueSpawnPlayer(state, {
+      entityId: "player_test-dirty",
+      displayName: "Avery",
+      position: { x: 1, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+    state.dirtyPlayerIds.clear();
+
+    state.loot.set("loot_test-ammo", {
+      entityId: "loot_test-ammo",
+      itemId: "item_pistol-ammo",
+      quantity: 12,
+      position: { x: 1.2, y: 1 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+
+    queueInputIntent(state, "player_test-dirty", {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: {
+        inventory: {
+          type: "pickup",
+          pickupEntityId: "loot_test-ammo",
+          toSlot: 0,
+        },
+      },
+    });
+
+    createInventorySystem().update(state, 0);
+
+    expect(state.dirtyPlayerIds.has("player_test-dirty")).toBe(true);
   });
 });

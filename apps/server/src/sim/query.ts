@@ -64,6 +64,15 @@ const createZombieDelta = (zombie: SimZombie): DeltaMessage["entityUpdates"][num
   };
 };
 
+const createLootDelta = (loot: SimLoot): DeltaMessage["entityUpdates"][number] => {
+  return {
+    entityId: loot.entityId,
+    itemId: loot.itemId,
+    quantity: loot.quantity,
+    position: loot.position,
+  };
+};
+
 export const getPlayer = (state: RoomSimulationState, entityId: string): SimPlayer | undefined => {
   return state.players.get(entityId);
 };
@@ -101,6 +110,10 @@ export const createRoomReplicationDelta = (state: RoomSimulationState): RoomRepl
         .map((entityId) => state.players.get(entityId))
         .filter((player): player is SimPlayer => player !== undefined)
         .map(createPlayerDelta),
+      ...[...state.dirtyLootIds]
+        .map((entityId) => state.loot.get(entityId))
+        .filter((loot): loot is SimLoot => loot !== undefined)
+        .map(createLootDelta),
       ...[...state.dirtyZombieIds]
         .map((entityId) => state.zombies.get(entityId))
         .filter((zombie): zombie is SimZombie => zombie !== undefined)

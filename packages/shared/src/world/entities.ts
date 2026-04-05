@@ -21,9 +21,21 @@ export const entityDeltaSchema = z
     transform: transformSchema.optional(),
     velocity: velocitySchema.optional(),
     health: healthSchema.optional(),
+    itemId: itemIdSchema.optional(),
+    quantity: z.number().int().positive().optional(),
+    position: vector2Schema.optional(),
   })
   .strict()
-  .refine((value) => value.transform !== undefined || value.velocity !== undefined || value.health !== undefined, {
+  .refine((value) => {
+    return (
+      value.transform !== undefined ||
+      value.velocity !== undefined ||
+      value.health !== undefined ||
+      value.itemId !== undefined ||
+      value.quantity !== undefined ||
+      value.position !== undefined
+    );
+  }, {
     message: "entity delta requires at least one update",
   });
 
