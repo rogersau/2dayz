@@ -107,4 +107,53 @@ describe("inputController", () => {
 
     controller.destroy();
   });
+
+  it("clears latched movement and fire state on blur and visibility changes", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    element.getBoundingClientRect = () => ({
+      bottom: 220,
+      height: 120,
+      left: 10,
+      right: 210,
+      top: 100,
+      width: 200,
+      x: 10,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    const controller = createInputController({ element });
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "w" }));
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
+
+    window.dispatchEvent(new Event("blur"));
+
+    expect(controller.pollInput(1)).toEqual({
+      actions: {},
+      aim: { x: 60, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" }));
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
+    Object.defineProperty(document, "visibilityState", {
+      configurable: true,
+      value: "hidden",
+    });
+    document.dispatchEvent(new Event("visibilitychange"));
+
+    expect(controller.pollInput(2)).toEqual({
+      actions: {},
+      aim: { x: 60, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
 });

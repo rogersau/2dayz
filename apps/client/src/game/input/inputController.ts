@@ -21,6 +21,11 @@ export const createInputController = ({
   const aim = { x: 0, y: 0 };
   let isFiring = false;
 
+  const clearLatchedState = () => {
+    pressedKeys.clear();
+    isFiring = false;
+  };
+
   const updateAim = (event: MouseEvent) => {
     const bounds = element.getBoundingClientRect();
     const centerX = bounds.left + bounds.width / 2;
@@ -70,8 +75,16 @@ export const createInputController = ({
     }
   };
 
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") {
+      clearLatchedState();
+    }
+  };
+
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("blur", clearLatchedState);
+  document.addEventListener("visibilitychange", handleVisibilityChange);
   element.addEventListener("mousemove", updateAim);
   element.addEventListener("mousedown", handleMouseDown);
   element.addEventListener("mouseup", handleMouseUp);
@@ -81,6 +94,8 @@ export const createInputController = ({
     destroy() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", clearLatchedState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       element.removeEventListener("mousemove", updateAim);
       element.removeEventListener("mousedown", handleMouseDown);
       element.removeEventListener("mouseup", handleMouseUp);

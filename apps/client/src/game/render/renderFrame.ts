@@ -46,6 +46,12 @@ export const renderFrame = ({
       lastProcessedSequence: selfPlayer.lastProcessedInputSequence ?? -1,
     });
 
+    camera.position.x = selfPlayer.transform.x + 18;
+    camera.position.z = selfPlayer.transform.y + 18;
+    if ("lookAt" in camera && typeof camera.lookAt === "function") {
+      camera.lookAt(selfPlayer.transform.x, 0, selfPlayer.transform.y);
+    }
+
     localOverrides.set(selfPlayer.entityId, predictionController.advanceSmoothing(deltaSeconds));
   }
 
