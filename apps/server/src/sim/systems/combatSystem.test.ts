@@ -185,4 +185,35 @@ describe("createCombatSystem", () => {
     });
     expect(attacker.inventory.ammoStacks).toEqual([{ ammoItemId: "item_pistol-ammo", quantity: 6 }]);
   });
+
+  it("uses the weapon spread stat when resolving hitscan aim", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-spread-1", "Avery", 0, 0);
+    const target = spawnPlayer(state, "player_test-spread-2", "Blair", 4, 0.8);
+
+    const weaponDefinition = state.weaponDefinitions.get("item_revolver");
+    if (!weaponDefinition) {
+      throw new Error("expected revolver definition");
+    }
+
+    weaponDefinition.spread = 0.2;
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem({ random: () => 1 }).update(state, 0.1);
+
+    expect(target.health.current).toBe(65);
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "combat",
+        attackerEntityId: attacker.entityId,
+        targetEntityId: target.entityId,
+      }),
+    );
+  });
 });

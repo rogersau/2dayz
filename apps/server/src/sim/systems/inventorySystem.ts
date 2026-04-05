@@ -76,6 +76,11 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
     itemId: loot.itemId,
     quantity: loot.quantity,
   };
+
+  if (itemDefinition.category === "firearm") {
+    player.inventory.equippedWeaponSlot = slotIndex;
+  }
+
   state.loot.delete(loot.entityId);
 };
 

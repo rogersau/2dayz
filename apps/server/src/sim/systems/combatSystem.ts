@@ -31,7 +31,28 @@ const applyDamage = (target: SimPlayer | SimZombie, damage: number): void => {
   target.health.isDead = target.health.current === 0;
 };
 
-const findHitTarget = (state: RoomSimulationState, attacker: SimPlayer, aim: { x: number; y: number }, range: number) => {
+const applySpreadToAim = (aim: { x: number; y: number }, spread: number, random: () => number): { x: number; y: number } => {
+  const magnitude = Math.hypot(aim.x, aim.y);
+  if (magnitude === 0 || spread === 0) {
+    return aim;
+  }
+
+  const baseAngle = Math.atan2(aim.y, aim.x);
+  const offset = (random() * 2 - 1) * spread;
+  const finalAngle = baseAngle + offset;
+
+  return {
+    x: Math.cos(finalAngle) * magnitude,
+    y: Math.sin(finalAngle) * magnitude,
+  };
+};
+
+const findHitTarget = (
+  state: RoomSimulationState,
+  attacker: SimPlayer,
+  aim: { x: number; y: number },
+  range: number,
+) => {
   const magnitude = Math.hypot(aim.x, aim.y);
   if (magnitude === 0) {
     return null;
@@ -133,7 +154,7 @@ const canFireShot = (player: SimPlayer, aim: { x: number; y: number }): boolean 
   return !player.weaponState.isReloading && player.weaponState.fireCooldownRemainingMs === 0 && player.weaponState.magazineAmmo > 0 && Math.hypot(aim.x, aim.y) > 0;
 };
 
-export const createCombatSystem = () => {
+export const createCombatSystem = ({ random = Math.random }: { random?: () => number } = {}) => {
   return {
     name: "combat" as const,
     update(state: RoomSimulationState, deltaSeconds: number) {
@@ -166,7 +187,8 @@ export const createCombatSystem = () => {
           player.weaponState.fireCooldownRemainingMs = 1000 / weapon.weaponDefinition.fireRate;
           state.dirtyPlayerIds.add(player.entityId);
 
-          const hitTarget = findHitTarget(state, player, intent.aim, weapon.weaponDefinition.range);
+          const spreadAim = applySpreadToAim(intent.aim, weapon.weaponDefinition.spread, random);
+          const hitTarget = findHitTarget(state, player, spreadAim, weapon.weaponDefinition.range);
           if (hitTarget) {
             hitTarget.apply(weapon.weaponDefinition.damage);
             state.events.push({

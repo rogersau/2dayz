@@ -67,6 +67,44 @@ describe("createInventorySystem", () => {
     expect(state.loot.has("loot_test-gun")).toBe(true);
   });
 
+  it("equips a looted firearm into the chosen slot so it can be used immediately", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-equip",
+      displayName: "Avery",
+      position: { x: 1, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    state.loot.set("loot_test-revolver", {
+      entityId: "loot_test-revolver",
+      itemId: "item_revolver",
+      quantity: 1,
+      position: { x: 1.5, y: 1 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+
+    queueInputIntent(state, "player_test-equip", {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: {
+        inventory: {
+          type: "pickup",
+          pickupEntityId: "loot_test-revolver",
+          toSlot: 2,
+        },
+      },
+    });
+
+    createInventorySystem().update(state, 0);
+
+    expect(state.players.get("player_test-equip")?.inventory.slots[2]).toEqual({ itemId: "item_revolver", quantity: 1 });
+    expect(state.players.get("player_test-equip")?.inventory.equippedWeaponSlot).toBe(2);
+  });
+
   it("consumes reserve ammo to refill a magazine and leaves leftovers stacked", () => {
     const state = createRoomState({ roomId: "room_test" });
     queueSpawnPlayer(state, {
