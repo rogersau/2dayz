@@ -60,45 +60,14 @@ describe("createCombatSystem", () => {
   });
 
   it("rejects blocked or otherwise invalid fire requests without consuming ammo", () => {
-    const state = createRoomState({
-      roomId: "room_test",
-      world: {
-        map: {
-          mapId: "map_test",
-          name: "Test",
-          bounds: { width: 20, height: 20 },
-          collisionVolumes: [],
-          zombieSpawnZones: [],
-          lootPoints: [],
-          respawnPoints: [],
-          interactablePlacements: [],
-          navigation: {
-            nodes: [{ nodeId: "node_a", position: { x: 0, y: 0 } }],
-            links: [{ from: "node_a", to: "node_a", cost: 1 }],
-          },
-        },
-        collision: createCollisionIndex([
-          {
-            volumeId: "volume_wall",
-            kind: "box",
-            position: { x: 2, y: -1 },
-            size: { width: 1, height: 2 },
-          },
-        ]),
-        navigation: {
-          nodes: new Map(),
-          neighbors: new Map(),
-        },
-        respawnPoints: [],
-      },
-    });
+    const state = createRoomState({ roomId: "room_test" });
     const attacker = spawnPlayer(state, "player_test-3", "Casey", 0, 0);
     const target = spawnPlayer(state, "player_test-4", "Devon", 4, 0);
 
     queueInputIntent(state, attacker.entityId, {
       sequence: 1,
       movement: { x: 0, y: 0 },
-      aim: { x: 1, y: 0 },
+      aim: { x: 0, y: 0 },
       actions: { fire: true },
     });
     createCombatSystem().update(state, 0.1);
@@ -120,6 +89,67 @@ describe("createCombatSystem", () => {
     expect(attacker.weaponState?.magazineAmmo).toBe(0);
     expect(target.health.current).toBe(100);
     expect(state.events).toHaveLength(0);
+  });
+
+  it("consumes ammo and applies fire-rate cooldown when a valid shot misses", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 0, y: 0 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: createCollisionIndex([
+          {
+            volumeId: "volume_wall",
+            kind: "box",
+            position: { x: 2, y: 0 },
+            size: { width: 1, height: 4 },
+          },
+        ]),
+        navigation: {
+          nodes: new Map(),
+          neighbors: new Map(),
+        },
+        respawnPoints: [],
+      },
+    });
+    const attacker = spawnPlayer(state, "player_test-6", "Finley", 0, 0);
+    spawnPlayer(state, "player_test-7", "Gray", 4, 0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(attacker.weaponState.magazineAmmo).toBe(5);
+    expect(attacker.weaponState.fireCooldownRemainingMs).toBeGreaterThan(0);
+    expect(state.events).toHaveLength(0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 2,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(attacker.weaponState.magazineAmmo).toBe(5);
   });
 
   it("keeps reload timing authoritative and refills the magazine from carried ammo", () => {

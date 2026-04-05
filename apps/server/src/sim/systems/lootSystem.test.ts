@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { canPlayerPickUpLoot, createLootSystem } from "./lootSystem";
-import { createRoomState, queueSpawnPlayer } from "../state";
+import { createRoomSimulationConfig, createRoomState, queueSpawnPlayer } from "../state";
 
 describe("createLootSystem", () => {
   it("spawns room loot from typed map points and weighted loot tables", () => {
@@ -69,5 +69,40 @@ describe("createLootSystem", () => {
 
     state.loot.get("loot_test-1")!.ownerEntityId = null;
     expect(canPlayerPickUpLoot(state, "player_test-2", "loot_test-1")).toBe(false);
+  });
+
+  it("caps room loot population at maxDroppedItems", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxDroppedItems: 2 }),
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [
+            { pointId: "point_loot-a", position: { x: 2, y: 2 }, tableId: "loot_residential" },
+            { pointId: "point_loot-b", position: { x: 4, y: 4 }, tableId: "loot_police" },
+            { pointId: "point_loot-c", position: { x: 6, y: 6 }, tableId: "loot_residential" },
+          ],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 1, y: 1 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: { nodes: new Map(), neighbors: new Map() },
+        respawnPoints: [],
+      },
+    });
+
+    createLootSystem({ random: () => 0 }).update(state, 0);
+
+    expect(state.loot.size).toBe(2);
+    expect(state.spawnedLootPointIds).toEqual(new Set(["point_loot-a", "point_loot-b"]));
   });
 });

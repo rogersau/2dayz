@@ -129,6 +129,10 @@ const updateWeaponTimers = (state: RoomSimulationState, deltaSeconds: number): v
   }
 };
 
+const canFireShot = (player: SimPlayer, aim: { x: number; y: number }): boolean => {
+  return !player.weaponState.isReloading && player.weaponState.fireCooldownRemainingMs === 0 && player.weaponState.magazineAmmo > 0 && Math.hypot(aim.x, aim.y) > 0;
+};
+
 export const createCombatSystem = () => {
   return {
     name: "combat" as const,
@@ -157,16 +161,13 @@ export const createCombatSystem = () => {
           state.dirtyPlayerIds.add(player.entityId);
         }
 
-        if (
-          intent.actions.fire &&
-          !player.weaponState.isReloading &&
-          player.weaponState.fireCooldownRemainingMs === 0 &&
-          player.weaponState.magazineAmmo > 0
-        ) {
+        if (intent.actions.fire && canFireShot(player, intent.aim)) {
+          player.weaponState.magazineAmmo -= 1;
+          player.weaponState.fireCooldownRemainingMs = 1000 / weapon.weaponDefinition.fireRate;
+          state.dirtyPlayerIds.add(player.entityId);
+
           const hitTarget = findHitTarget(state, player, intent.aim, weapon.weaponDefinition.range);
           if (hitTarget) {
-            player.weaponState.magazineAmmo -= 1;
-            player.weaponState.fireCooldownRemainingMs = 1000 / weapon.weaponDefinition.fireRate;
             hitTarget.apply(weapon.weaponDefinition.damage);
             state.events.push({
               type: "combat",
@@ -178,7 +179,6 @@ export const createCombatSystem = () => {
               remainingHealth: hitTarget.healthCurrent(),
               hitPosition: hitTarget.position,
             });
-            state.dirtyPlayerIds.add(player.entityId);
             state.dirtyPlayerIds.add(hitTarget.entityId);
           }
         }

@@ -4,6 +4,10 @@ import type { RoomSimulationState, SimLoot } from "../state";
 
 const pickupRadius = 2;
 
+export const hasLootCapacity = (state: RoomSimulationState): boolean => {
+  return state.loot.size < state.config.maxDroppedItems;
+};
+
 const pickWeightedEntry = (entries: LootTableEntry[], random: number): LootTableEntry => {
   const totalWeight = entries.reduce((sum, entry) => sum + entry.weight, 0);
   let cursor = random * totalWeight;
@@ -57,6 +61,10 @@ export const createLootSystem = ({ random = Math.random }: { random?: () => numb
       for (const point of lootPoints) {
         if (state.spawnedLootPointIds.has(point.pointId)) {
           continue;
+        }
+
+        if (!hasLootCapacity(state)) {
+          break;
         }
 
         const table = state.lootTables.get(point.tableId);

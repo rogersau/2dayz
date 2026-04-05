@@ -4,6 +4,67 @@ import type { RoomSimulationState, SimZombie } from "../state";
 const targetLossMs = 1_500;
 const attackCooldownMs = 500;
 
+const getAliveZombieCount = (state: RoomSimulationState): number => {
+  return [...state.zombies.values()].filter((zombie) => !zombie.health.isDead).length;
+};
+
+const moveToward = (zombie: SimZombie, targetPosition: { x: number; y: number }, speed: number, deltaSeconds: number): void => {
+  const distance = Math.hypot(targetPosition.x - zombie.transform.x, targetPosition.y - zombie.transform.y);
+  if (distance === 0) {
+    zombie.velocity = { x: 0, y: 0 };
+    return;
+  }
+
+  const direction = {
+    x: (targetPosition.x - zombie.transform.x) / distance,
+    y: (targetPosition.y - zombie.transform.y) / distance,
+  };
+  zombie.velocity = {
+    x: direction.x * speed,
+    y: direction.y * speed,
+  };
+  zombie.transform = {
+    x: zombie.transform.x + zombie.velocity.x * deltaSeconds,
+    y: zombie.transform.y + zombie.velocity.y * deltaSeconds,
+    rotation: Math.atan2(direction.y, direction.x),
+  };
+};
+
+const roamWhileIdle = (state: RoomSimulationState, zombie: SimZombie, deltaSeconds: number, speed: number): void => {
+  const graph = state.world?.navigation;
+  const nodes = graph ? [...graph.nodes.values()] : [];
+
+  if (nodes.length === 0) {
+    zombie.state = "idle";
+    zombie.velocity = { x: 0, y: 0 };
+    return;
+  }
+
+  const nearestNode = nodes.reduce((closest, node) => {
+    const closestDistance = Math.hypot(closest.position.x - zombie.transform.x, closest.position.y - zombie.transform.y);
+    const nodeDistance = Math.hypot(node.position.x - zombie.transform.x, node.position.y - zombie.transform.y);
+    return nodeDistance < closestDistance ? node : closest;
+  });
+  const neighbors = graph?.neighbors.get(zombie.roamingTargetNodeId ?? nearestNode.nodeId) ?? [];
+  const targetNodeId = neighbors[0]?.nodeId ?? nearestNode.nodeId;
+  const targetNode = graph?.nodes.get(targetNodeId);
+
+  if (!targetNode) {
+    zombie.state = "idle";
+    zombie.velocity = { x: 0, y: 0 };
+    return;
+  }
+
+  zombie.roamingTargetNodeId = targetNode.nodeId;
+  zombie.state = "roaming";
+  moveToward(zombie, targetNode.position, speed * 0.5, deltaSeconds);
+
+  if (Math.hypot(targetNode.position.x - zombie.transform.x, targetNode.position.y - zombie.transform.y) <= 0.2) {
+    const nextNeighbors = graph?.neighbors.get(targetNode.nodeId) ?? [];
+    zombie.roamingTargetNodeId = nextNeighbors[0]?.nodeId ?? nearestNode.nodeId;
+  }
+};
+
 const createZombieEntity = (state: RoomSimulationState, sourceZoneId: string, archetypeId: string, position: { x: number; y: number }): SimZombie => {
   const archetype = state.zombieArchetypes.get(archetypeId);
   if (!archetype) {
@@ -31,6 +92,7 @@ const createZombieEntity = (state: RoomSimulationState, sourceZoneId: string, ar
     attackCooldownRemainingMs: 0,
     lostTargetMs: 0,
     sourceZoneId,
+    roamingTargetNodeId: undefined,
   };
 };
 
@@ -38,11 +100,16 @@ const spawnZombiesForZones = (state: RoomSimulationState): void => {
   const zones = state.world?.map.zombieSpawnZones ?? [];
 
   for (const zone of zones) {
+    if (getAliveZombieCount(state) >= state.config.maxZombies) {
+      break;
+    }
+
     const aliveInZone = [...state.zombies.values()].filter(
       (zombie) => zombie.sourceZoneId === zone.zoneId && !zombie.health.isDead,
     ).length;
 
-    for (let index = aliveInZone; index < Math.min(zone.maxAlive, state.config.maxZombies); index += 1) {
+    const roomCapacityRemaining = state.config.maxZombies - getAliveZombieCount(state);
+    for (let index = aliveInZone; index < aliveInZone + Math.min(zone.maxAlive - aliveInZone, roomCapacityRemaining); index += 1) {
       const archetypeId = zone.archetypeIds[0];
       if (!archetypeId) {
         continue;
@@ -90,9 +157,8 @@ export const createZombieSystem = () => {
 
         if (!target) {
           zombie.aggroTargetEntityId = null;
-          zombie.state = "idle";
-          zombie.velocity = { x: 0, y: 0 };
           zombie.lostTargetMs = 0;
+          roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
           continue;
         }
 
@@ -103,9 +169,8 @@ export const createZombieSystem = () => {
           zombie.lostTargetMs += deltaSeconds * 1000;
           if (zombie.lostTargetMs >= targetLossMs) {
             zombie.aggroTargetEntityId = null;
-            zombie.state = "idle";
-            zombie.velocity = { x: 0, y: 0 };
             zombie.lostTargetMs = 0;
+            roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
             continue;
           }
         } else {
@@ -127,20 +192,8 @@ export const createZombieSystem = () => {
           continue;
         }
 
-        const direction = {
-          x: (target.transform.x - zombie.transform.x) / distance,
-          y: (target.transform.y - zombie.transform.y) / distance,
-        };
         zombie.state = "chasing";
-        zombie.velocity = {
-          x: direction.x * archetype.moveSpeed,
-          y: direction.y * archetype.moveSpeed,
-        };
-        zombie.transform = {
-          x: zombie.transform.x + zombie.velocity.x * deltaSeconds,
-          y: zombie.transform.y + zombie.velocity.y * deltaSeconds,
-          rotation: Math.atan2(direction.y, direction.x),
-        };
+        moveToward(zombie, target.transform, archetype.moveSpeed, deltaSeconds);
       }
     },
   };

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { createZombieSystem } from "./zombieSystem";
-import { createRoomState, queueSpawnPlayer } from "../state";
+import { createRoomSimulationConfig, createRoomState, queueSpawnPlayer } from "../state";
 
 describe("createZombieSystem", () => {
   it("spawns zombies from typed zones, acquires aggro, chases, and later drops aggro", () => {
@@ -94,5 +94,105 @@ describe("createZombieSystem", () => {
 
     zombieSystem.update(state, 0.5);
     expect(state.players.get("player_test-2")?.health.current).toBe(76);
+  });
+
+  it("enforces maxZombies as a room-wide cap across spawn zones", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxZombies: 2 }),
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [
+            {
+              zoneId: "zone_a",
+              center: { x: 1, y: 1 },
+              radius: 2,
+              maxAlive: 2,
+              archetypeIds: ["zombie_shambler"],
+            },
+            {
+              zoneId: "zone_b",
+              center: { x: 10, y: 10 },
+              radius: 2,
+              maxAlive: 2,
+              archetypeIds: ["zombie_shambler"],
+            },
+          ],
+          lootPoints: [],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 1, y: 1 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: { nodes: new Map(), neighbors: new Map() },
+        respawnPoints: [],
+      },
+    });
+
+    createZombieSystem().update(state, 0.1);
+
+    expect(state.zombies.size).toBe(2);
+  });
+
+  it("roams while idle when no player has aggro", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [
+            {
+              zoneId: "zone_test",
+              center: { x: 5, y: 5 },
+              radius: 2,
+              maxAlive: 1,
+              archetypeIds: ["zombie_shambler"],
+            },
+          ],
+          lootPoints: [],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [
+              { nodeId: "node_a", position: { x: 5, y: 5 } },
+              { nodeId: "node_b", position: { x: 6, y: 5 } },
+            ],
+            links: [
+              { from: "node_a", to: "node_b", cost: 1 },
+              { from: "node_b", to: "node_a", cost: 1 },
+            ],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: {
+          nodes: new Map([
+            ["node_a", { nodeId: "node_a", position: { x: 5, y: 5 } }],
+            ["node_b", { nodeId: "node_b", position: { x: 6, y: 5 } }],
+          ]),
+          neighbors: new Map([
+            ["node_a", [{ nodeId: "node_b", cost: 1 }]],
+            ["node_b", [{ nodeId: "node_a", cost: 1 }]],
+          ]),
+        },
+        respawnPoints: [],
+      },
+    });
+
+    const zombieSystem = createZombieSystem();
+    zombieSystem.update(state, 0.5);
+
+    const zombie = [...state.zombies.values()][0];
+    expect(zombie?.state).toBe("roaming");
+    expect(zombie?.transform.x).toBeGreaterThan(5);
   });
 });

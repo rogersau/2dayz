@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { consumeAmmoForReload, createInventorySystem } from "./inventorySystem";
-import { createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
+import { createRoomSimulationConfig, createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
 
 describe("createInventorySystem", () => {
   it("keeps a compact inventory, stacks ammo, and validates nearby pickup ownership", () => {
@@ -122,5 +122,33 @@ describe("createInventorySystem", () => {
       { itemId: "item_bandage", quantity: 2 },
       { itemId: "item_pistol-ammo", quantity: 10 },
     ]);
+  });
+
+  it("limits death drops to maxDroppedItems so room loot stays bounded", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxDroppedItems: 2 }),
+    });
+    queueSpawnPlayer(state, {
+      entityId: "player_test-4",
+      displayName: "Devon",
+      position: { x: 4, y: 5 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-4");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.inventory.slots[0] = { itemId: "item_revolver", quantity: 1 };
+    player.inventory.slots[1] = { itemId: "item_bandage", quantity: 2 };
+    player.inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 10 }];
+    player.health = { current: 0, max: 100, isDead: true };
+
+    createInventorySystem().update(state, 0);
+
+    expect(state.loot.size).toBe(2);
+    expect([...state.loot.values()].map((loot) => loot.itemId)).toEqual(["item_revolver", "item_bandage"]);
   });
 });

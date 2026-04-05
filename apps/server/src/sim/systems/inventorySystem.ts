@@ -2,7 +2,7 @@ import { INVENTORY_SLOT_COUNT } from "@2dayz/shared";
 
 import { queuePlayerRespawn, selectRespawnPoint } from "../../rooms/respawn";
 import type { RoomSimulationState, SimPlayer } from "../state";
-import { canPlayerPickUpLoot } from "./lootSystem";
+import { canPlayerPickUpLoot, hasLootCapacity } from "./lootSystem";
 
 const dropOffsetStep = 0.15;
 
@@ -92,6 +92,10 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
   let dropOffset = 0;
 
   for (const slot of player.inventory.slots) {
+    if (!hasLootCapacity(state)) {
+      break;
+    }
+
     if (!slot) {
       continue;
     }
@@ -113,6 +117,10 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
   }
 
   for (const ammoStack of player.inventory.ammoStacks) {
+    if (!hasLootCapacity(state)) {
+      break;
+    }
+
     const entityId = createDroppedLootEntityId(state);
 
     state.loot.set(entityId, {

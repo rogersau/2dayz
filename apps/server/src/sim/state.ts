@@ -77,6 +77,7 @@ export type SimZombie = {
   attackCooldownRemainingMs: number;
   lostTargetMs: number;
   sourceZoneId?: string;
+  roamingTargetNodeId?: string;
 };
 
 export type SpawnPlayerRequest = {
