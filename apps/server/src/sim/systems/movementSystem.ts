@@ -49,6 +49,7 @@ export const createMovementSystem = (): MovementSystem => {
         };
         player.velocity = blocked ? { x: 0, y: 0 } : velocity;
         state.inputIntents.delete(player.entityId);
+        state.lastProcessedInputSequence.set(player.entityId, intent.sequence);
         state.dirtyPlayerIds.add(player.entityId);
       }
     },

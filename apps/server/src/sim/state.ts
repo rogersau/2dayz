@@ -2,8 +2,6 @@ import { INVENTORY_SLOT_COUNT, ROOM_PLAYER_CAPACITY, SERVER_TICK_RATE, type Heal
 
 export const MIN_ROOM_PLAYER_CAPACITY = 8;
 export const MAX_ROOM_PLAYER_CAPACITY = 12;
-export const MIN_TICK_RATE_HZ = 20;
-export const MAX_TICK_RATE_HZ = 30;
 export const DEFAULT_MAX_ZOMBIES = 24;
 export const DEFAULT_MAX_DROPPED_ITEMS = 64;
 export const DEFAULT_MAX_PLAYER_SPEED = 4;
@@ -42,6 +40,7 @@ export type RoomSimulationState = {
   pendingSpawns: SpawnPlayerRequest[];
   pendingDespawns: string[];
   inputIntents: Map<string, PlayerInputIntent>;
+  lastProcessedInputSequence: Map<string, number>;
   dirtyPlayerIds: Set<string>;
   removedEntityIds: Set<string>;
   events: ServerEvent[];
@@ -75,8 +74,15 @@ const assertPositive = (value: number, label: string): void => {
   }
 };
 
+const assertFixedTickRate = (value: number): void => {
+  if (value !== SERVER_TICK_RATE) {
+    throw new Error(`fixed tick rate must be ${SERVER_TICK_RATE}`);
+  }
+};
+
 export const createRoomSimulationConfig = (
-  overrides: Partial<Omit<RoomSimulationConfig, "isPositionBlocked">> & {
+  overrides: Partial<Omit<RoomSimulationConfig, "tickRateHz" | "isPositionBlocked">> & {
+    tickRateHz?: number;
     isPositionBlocked?: RoomSimulationConfig["isPositionBlocked"];
   } = {},
 ): RoomSimulationConfig => {
@@ -90,7 +96,7 @@ export const createRoomSimulationConfig = (
   };
 
   assertInRange(config.playerCapacity, MIN_ROOM_PLAYER_CAPACITY, MAX_ROOM_PLAYER_CAPACITY, "player capacity");
-  assertInRange(config.tickRateHz, MIN_TICK_RATE_HZ, MAX_TICK_RATE_HZ, "tick rate");
+  assertFixedTickRate(config.tickRateHz);
   assertPositive(config.maxZombies, "zombie cap");
   assertPositive(config.maxDroppedItems, "dropped item cap");
   assertPositive(config.maxPlayerSpeed, "player speed");
@@ -113,6 +119,7 @@ export const createRoomState = ({
     pendingSpawns: [],
     pendingDespawns: [],
     inputIntents: new Map<string, PlayerInputIntent>(),
+    lastProcessedInputSequence: new Map<string, number>(),
     dirtyPlayerIds: new Set<string>(),
     removedEntityIds: new Set<string>(),
     events: [],
@@ -128,6 +135,17 @@ export const queueDespawnEntity = (state: RoomSimulationState, entityId: string)
 };
 
 export const queueInputIntent = (state: RoomSimulationState, entityId: string, intent: PlayerInputIntent): void => {
+  const queuedIntent = state.inputIntents.get(entityId);
+  const lastProcessedSequence = state.lastProcessedInputSequence.get(entityId) ?? -1;
+
+  if (intent.sequence <= lastProcessedSequence) {
+    return;
+  }
+
+  if (queuedIntent && intent.sequence <= queuedIntent.sequence) {
+    return;
+  }
+
   state.inputIntents.set(entityId, intent);
 };
 

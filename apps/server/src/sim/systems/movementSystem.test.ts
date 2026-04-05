@@ -127,4 +127,35 @@ describe("createMovementSystem", () => {
       ],
     });
   });
+
+  it("ignores stale input sequences after a newer authoritative intent has already been queued", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxPlayerSpeed: 4 }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-5",
+      displayName: "Elliot",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-5", {
+      ...defaultIntent,
+      sequence: 2,
+      movement: { x: 1, y: 0 },
+    });
+    queueInputIntent(state, "player_test-5", {
+      ...defaultIntent,
+      sequence: 1,
+      movement: { x: 0, y: 1 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-5");
+    expect(player?.transform).toMatchObject({ x: 4, y: 0, rotation: 0 });
+    expect(player?.velocity).toEqual({ x: 4, y: 0 });
+  });
 });

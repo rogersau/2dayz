@@ -57,7 +57,7 @@ export interface SimulationRoomRuntime extends RoomRuntime {
 
 type CreateSimulationRoomRuntimeOptions = {
   roomId: string;
-  config?: Partial<Omit<RoomSimulationConfig, "isPositionBlocked">> & {
+  config?: Partial<Omit<RoomSimulationConfig, "tickRateHz" | "isPositionBlocked">> & {
     isPositionBlocked?: RoomSimulationConfig["isPositionBlocked"];
   };
   systems?: SimulationSystem[];
