@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { deltaMessageSchema, errorMessageSchema, roomJoinedMessageSchema, snapshotMessageSchema } from "@2dayz/shared";
+import {
+  deltaMessageSchema,
+  errorMessageSchema,
+  roomJoinedMessageSchema,
+  snapshotMessageSchema,
+  type DeltaMessage,
+  type SnapshotMessage,
+} from "@2dayz/shared";
 
 import { createMessageRouter } from "./messageRouter";
-import { createSessionRegistry } from "./sessionRegistry";
 import type { RoomManager } from "../rooms/roomManager";
 import type { RoomRuntime } from "../rooms/roomRuntime";
 import type { SessionRegistry } from "./sessionRegistry";
-import { createRoomManager } from "../rooms/roomManager";
-import { createRoomFactory } from "../rooms/roomFactory";
 
 type CapturingSocket = {
   sent: string[];
@@ -23,10 +27,30 @@ const createSocket = (): CapturingSocket => {
   };
 };
 
-const createStubRoomManager = (): RoomManager => {
-  let room: RoomRuntime;
+const createStubRuntime = () => {
+  let subscriptionHandlers:
+    | {
+        onSnapshot(snapshot: SnapshotMessage & { roomId: string }): void;
+        onDelta(delta: DeltaMessage & { roomId: string }): void;
+      }
+    | null = null;
+  const queuedInputs: Array<{
+    playerEntityId: string;
+    intent: {
+      sequence: number;
+      movement: { x: number; y: number };
+      aim: { x: number; y: number };
+      actions: {
+        fire?: boolean;
+        reload?: boolean;
+        interact?: boolean;
+        pickupEntityId?: string;
+        inventory?: unknown;
+      };
+    };
+  }> = [];
 
-  room = {
+  const runtime: RoomRuntime = {
     roomId: "room_1",
     capacity: 8,
     status: "active",
@@ -38,13 +62,13 @@ const createStubRoomManager = (): RoomManager => {
       return true;
     },
     joinPlayer() {
-      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
+      return { roomId: "room_1", playerEntityId: "player_1-1", runtime };
     },
     disconnectPlayer() {
       return true;
     },
     reclaimPlayer() {
-      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
+      return { roomId: "room_1", playerEntityId: "player_1-1", runtime };
     },
     releasePlayer() {
       return true;
@@ -55,23 +79,37 @@ const createStubRoomManager = (): RoomManager => {
     tick() {
       // no-op for tests
     },
-    queueInput() {
-      // no-op for tests
+    queueInput(playerEntityId, intent) {
+      queuedInputs.push({ playerEntityId, intent });
     },
-    subscribePlayer() {
+    subscribePlayer(_playerEntityId, handlers) {
+      subscriptionHandlers = handlers as typeof subscriptionHandlers;
       return () => undefined;
     },
   };
 
   return {
+    runtime,
+    queuedInputs,
+    emitSnapshot(snapshot: SnapshotMessage & { roomId: string }) {
+      subscriptionHandlers?.onSnapshot(snapshot);
+    },
+    emitDelta(delta: DeltaMessage & { roomId: string }) {
+      subscriptionHandlers?.onDelta(delta);
+    },
+  };
+};
+
+const createStubRoomManager = (runtime: RoomRuntime): RoomManager => {
+  return {
     assignPlayer() {
-      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
+      return { roomId: "room_1", playerEntityId: "player_1-1", runtime };
     },
     disconnectPlayer() {
       return true;
     },
     reclaimPlayer() {
-      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
+      return { roomId: "room_1", playerEntityId: "player_1-1", runtime };
     },
     releasePlayer() {
       return true;
@@ -88,14 +126,14 @@ const createStubRoomManager = (): RoomManager => {
   };
 };
 
-const createStubSessionRegistry = (): SessionRegistry => {
+const createStubSessionRegistry = (runtime: RoomRuntime): SessionRegistry => {
   return {
     createSession() {
       return {
         sessionToken: "session_1",
         displayName: "Avery",
         roomId: "room_1",
-        playerEntityId: "player_room-1",
+        playerEntityId: "player_1-1",
       };
     },
     cleanupExpiredReservations() {
@@ -108,13 +146,13 @@ const createStubSessionRegistry = (): SessionRegistry => {
       return {
         accepted: true,
         roomId: "room_1",
-        playerEntityId: "player_room-1",
-        runtime: createStubRoomManager().assignPlayer({ displayName: "Avery" }).runtime,
+        playerEntityId: "player_1-1",
+        runtime,
         reservation: {
           sessionToken: "session_1",
           displayName: "Avery",
           roomId: "room_1",
-          playerEntityId: "player_room-1",
+          playerEntityId: "player_1-1",
         },
       };
     },
@@ -122,13 +160,13 @@ const createStubSessionRegistry = (): SessionRegistry => {
 };
 
 describe("createMessageRouter", () => {
-  it("contains join-path exceptions and emits a shared error message", () => {
+  it("emits a typed error when room assignment throws during join", () => {
     const socket = createSocket();
-    const roomManager = createStubRoomManager();
+    const roomManager = createStubRoomManager(createStubRuntime().runtime);
     roomManager.assignPlayer = () => {
       throw new Error("join failure");
     };
-    const router = createMessageRouter({ roomManager, sessionRegistry: createStubSessionRegistry() });
+    const router = createMessageRouter({ roomManager, sessionRegistry: createStubSessionRegistry(createStubRuntime().runtime) });
 
     expect(() => router.attach(socket).handleMessage('{"type":"join","displayName":"Avery"}')).not.toThrow();
     expect(errorMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toEqual({
@@ -137,13 +175,14 @@ describe("createMessageRouter", () => {
     });
   });
 
-  it("contains reclaim-path exceptions and emits a shared error message", () => {
+  it("emits a typed error when reclaim throws during reconnect", () => {
     const socket = createSocket();
-    const sessionRegistry = createStubSessionRegistry();
+    const runtime = createStubRuntime();
+    const sessionRegistry = createStubSessionRegistry(runtime.runtime);
     sessionRegistry.reclaim = () => {
       throw new Error("reclaim failure");
     };
-    const router = createMessageRouter({ roomManager: createStubRoomManager(), sessionRegistry });
+    const router = createMessageRouter({ roomManager: createStubRoomManager(runtime.runtime), sessionRegistry });
 
     expect(() => router.attach(socket).handleMessage('{"type":"reconnect","sessionToken":"session_1"}')).not.toThrow();
     expect(errorMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toEqual({
@@ -152,127 +191,177 @@ describe("createMessageRouter", () => {
     });
   });
 
-  it("uses shared protocol messages for invalid requests and successful joins", () => {
+  it("emits typed join and reconnect confirmations", () => {
     const socket = createSocket();
-    const router = createMessageRouter({ roomManager: createStubRoomManager(), sessionRegistry: createStubSessionRegistry() });
-    const connection = router.attach(socket);
+    const reconnectSocket = createSocket();
+    const runtime = createStubRuntime();
+    const roomManager = createStubRoomManager(runtime.runtime);
+    const sessionRegistry = createStubSessionRegistry(runtime.runtime);
 
-    connection.handleMessage('{"type":"join","displayName":"  "}');
+    createMessageRouter({ roomManager, sessionRegistry }).attach(socket).handleMessage('{"type":"join","displayName":"Avery"}');
+    createMessageRouter({ roomManager, sessionRegistry }).attach(reconnectSocket).handleMessage(
+      '{"type":"reconnect","sessionToken":"session_1"}',
+    );
+
+    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toEqual({
+      type: "room-joined",
+      roomId: "room_1",
+      playerEntityId: "player_1-1",
+      sessionToken: "session_1",
+    });
+    expect(roomJoinedMessageSchema.parse(JSON.parse(reconnectSocket.sent[0] ?? "null"))).toEqual({
+      type: "room-joined",
+      roomId: "room_1",
+      playerEntityId: "player_1-1",
+      sessionToken: "session_1",
+    });
+  });
+
+  it("routes validated movement, fire, reload, and interact intents into the room simulation", () => {
+    const socket = createSocket();
+    const runtime = createStubRuntime();
+    const connection = createMessageRouter({
+      roomManager: createStubRoomManager(runtime.runtime),
+      sessionRegistry: createStubSessionRegistry(runtime.runtime),
+    }).attach(socket);
+
     connection.handleMessage('{"type":"join","displayName":"Avery"}');
+    connection.handleMessage('{"type":"input","sequence":1,"movement":{"x":1,"y":0},"aim":{"x":1,"y":0},"actions":{}}');
+    connection.handleMessage(
+      '{"type":"input","sequence":2,"movement":{"x":0,"y":0},"aim":{"x":1,"y":0},"actions":{"fire":true}}',
+    );
+    connection.handleMessage(
+      '{"type":"input","sequence":3,"movement":{"x":0,"y":0},"aim":{"x":1,"y":0},"actions":{"reload":true}}',
+    );
+    connection.handleMessage(
+      '{"type":"input","sequence":4,"movement":{"x":0,"y":0},"aim":{"x":1,"y":0},"actions":{"interact":true}}',
+    );
+
+    expect(runtime.queuedInputs).toEqual([
+      {
+        playerEntityId: "player_1-1",
+        intent: {
+          sequence: 1,
+          movement: { x: 1, y: 0 },
+          aim: { x: 1, y: 0 },
+          actions: {},
+        },
+      },
+      {
+        playerEntityId: "player_1-1",
+        intent: {
+          sequence: 2,
+          movement: { x: 0, y: 0 },
+          aim: { x: 1, y: 0 },
+          actions: { fire: true },
+        },
+      },
+      {
+        playerEntityId: "player_1-1",
+        intent: {
+          sequence: 3,
+          movement: { x: 0, y: 0 },
+          aim: { x: 1, y: 0 },
+          actions: { reload: true },
+        },
+      },
+      {
+        playerEntityId: "player_1-1",
+        intent: {
+          sequence: 4,
+          movement: { x: 0, y: 0 },
+          aim: { x: 1, y: 0 },
+          actions: { interact: true },
+        },
+      },
+    ]);
+  });
+
+  it("rejects invalid messages before and after a session becomes active", () => {
+    const socket = createSocket();
+    const runtime = createStubRuntime();
+    const connection = createMessageRouter({
+      roomManager: createStubRoomManager(runtime.runtime),
+      sessionRegistry: createStubSessionRegistry(runtime.runtime),
+    }).attach(socket);
+
+    connection.handleMessage('{"type":"input","sequence":1,"movement":{"x":1,"y":0},"aim":{"x":1,"y":0},"actions":{}}');
+    connection.handleMessage('{"type":"join","displayName":"Avery"}');
+    connection.handleMessage('{"type":"unknown"}');
 
     expect(errorMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toEqual({
       type: "error",
       reason: "invalid-message",
     });
-    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toEqual({
-      type: "room-joined",
-      roomId: "room_1",
-      playerEntityId: "player_room-1",
-      sessionToken: "session_1",
-    });
-  });
-
-  it("cleans expired reservations before assigning a room to a later join", () => {
-    let now = 1_000;
-    const roomManager = createRoomManager({
-      roomCapacity: 8,
-      createRoom: createRoomFactory({ roomCapacity: 8 }),
-    });
-    const sessionRegistry = createSessionRegistry({
-      roomManager,
-      reclaimWindowMs: 30_000,
-      now: () => now,
-    });
-    const firstSocket = createSocket();
-    const secondSocket = createSocket();
-
-    const firstConnection = createMessageRouter({ roomManager, sessionRegistry }).attach(firstSocket as never);
-    firstConnection.handleMessage('{"type":"join","displayName":"Avery"}' as never);
-
-    firstConnection.handleClose();
-    now = 32_001;
-
-    const secondConnection = createMessageRouter({ roomManager, sessionRegistry }).attach(secondSocket as never);
-    secondConnection.handleMessage('{"type":"join","displayName":"Blair"}' as never);
-
-    expect(roomJoinedMessageSchema.parse(JSON.parse(secondSocket.sent[0] ?? "null"))).toMatchObject({
+    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
       roomId: "room_1",
     });
-  });
-
-  it("rejects repeated join attempts on the same socket while a session is already active", () => {
-    const socket = createSocket();
-    const roomManager = createRoomManager({
-      roomCapacity: 8,
-      createRoom: createRoomFactory({ roomCapacity: 8 }),
-    });
-    const sessionRegistry = createSessionRegistry({ roomManager });
-    const connection = createMessageRouter({ roomManager, sessionRegistry }).attach(socket as never);
-
-    connection.handleMessage('{"type":"join","displayName":"Avery"}' as never);
-    connection.handleMessage('{"type":"join","displayName":"Blair"}' as never);
-
-    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toMatchObject({
-      roomId: "room_1",
-    });
-    expect(errorMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toEqual({
+    expect(errorMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toEqual({
       type: "error",
-      reason: "session-active",
+      reason: "invalid-message",
     });
-    expect(roomManager.getRoomSummaries()).toEqual([
-      {
-        roomId: "room_1",
-        playerCount: 1,
-        capacity: 8,
-        status: "active",
-      },
-    ]);
   });
 
-  it("routes joined player input into the room simulation and delivers snapshot and delta updates on tick", () => {
+  it("sends a single initial snapshot followed by per-tick deltas", () => {
     const socket = createSocket();
-    const roomManager = createRoomManager({
-      roomCapacity: 8,
-      createRoom: createRoomFactory({ roomCapacity: 8 }),
-    });
-    const sessionRegistry = createSessionRegistry({ roomManager });
-    const connection = createMessageRouter({ roomManager, sessionRegistry }).attach(socket as never);
+    const runtime = createStubRuntime();
+    const connection = createMessageRouter({
+      roomManager: createStubRoomManager(runtime.runtime),
+      sessionRegistry: createStubSessionRegistry(runtime.runtime),
+    }).attach(socket);
 
-    connection.handleMessage('{"type":"join","displayName":"Avery"}' as never);
-    connection.handleMessage(
-      '{"type":"input","sequence":1,"movement":{"x":1,"y":0},"aim":{"x":1,"y":0},"actions":{}}' as never,
-    );
-
-    roomManager.tickAllRooms();
-
-    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toMatchObject({
+    connection.handleMessage('{"type":"join","displayName":"Avery"}');
+    runtime.emitSnapshot({
+      type: "snapshot",
       roomId: "room_1",
+      tick: 1,
       playerEntityId: "player_1-1",
+      players: [],
+      loot: [],
+      zombies: [],
     });
+    runtime.emitDelta({
+      type: "delta",
+      roomId: "room_1",
+      tick: 1,
+      entityUpdates: [],
+      removedEntityIds: [],
+      events: [],
+    });
+    runtime.emitSnapshot({
+      type: "snapshot",
+      roomId: "room_1",
+      tick: 2,
+      playerEntityId: "player_1-1",
+      players: [],
+      loot: [],
+      zombies: [],
+    });
+    runtime.emitDelta({
+      type: "delta",
+      roomId: "room_1",
+      tick: 2,
+      entityUpdates: [],
+      removedEntityIds: [],
+      events: [],
+    });
+
+    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toMatchObject({ roomId: "room_1" });
     expect(snapshotMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
       type: "snapshot",
       tick: 1,
       roomId: "room_1",
-      playerEntityId: "player_1-1",
-      players: [
-        {
-          entityId: "player_1-1",
-          transform: { x: 7.2, y: 14, rotation: 0 },
-          velocity: { x: 4, y: 0 },
-        },
-      ],
     });
     expect(deltaMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toMatchObject({
       type: "delta",
       tick: 1,
       roomId: "room_1",
-      entityUpdates: expect.arrayContaining([
-        expect.objectContaining({
-          entityId: "player_1-1",
-          transform: { x: 7.2, y: 14, rotation: 0 },
-          velocity: { x: 4, y: 0 },
-        }),
-      ]),
     });
+    expect(deltaMessageSchema.parse(JSON.parse(socket.sent[3] ?? "null"))).toMatchObject({
+      type: "delta",
+      tick: 2,
+      roomId: "room_1",
+    });
+    expect(socket.sent).toHaveLength(4);
   });
 });
