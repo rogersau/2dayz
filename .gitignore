@@ -1,1 +1,8 @@
 .worktrees/
+node_modules/
+dist/
+coverage/
+.pnpm-store/
+*.log
+.DS_Store
+tmp/

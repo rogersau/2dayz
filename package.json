@@ -1,0 +1,10 @@
+{
+  "name": "2dayz",
+  "private": true,
+  "packageManager": "pnpm@10.7.1",
+  "scripts": {
+    "test": "pnpm -r --filter @2dayz/shared --filter @2dayz/server --filter @2dayz/client test",
+    "build": "pnpm -r --filter @2dayz/shared --filter @2dayz/server --filter @2dayz/client build",
+    "lint": "pnpm -r --filter @2dayz/shared --filter @2dayz/server --filter @2dayz/client lint"
+  }
+}
