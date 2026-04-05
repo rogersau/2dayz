@@ -4,6 +4,14 @@ import { consumeAmmoForReload } from "./inventorySystem";
 
 const hitRadius = 0.75;
 
+type HitTarget = {
+  entityId: string;
+  position: { x: number; y: number };
+  apply(damage: number): void;
+  healthCurrent(): number;
+  markDirty(): void;
+};
+
 const getEquippedWeapon = (state: RoomSimulationState, player: SimPlayer) => {
   const slotIndex = player.inventory.equippedWeaponSlot;
   if (slotIndex === null) {
@@ -52,7 +60,7 @@ const findHitTarget = (
   attacker: SimPlayer,
   aim: { x: number; y: number },
   range: number,
-) => {
+): HitTarget | null => {
   const magnitude = Math.hypot(aim.x, aim.y);
   if (magnitude === 0) {
     return null;
@@ -62,9 +70,7 @@ const findHitTarget = (
     x: aim.x / magnitude,
     y: aim.y / magnitude,
   };
-  let closest:
-    | { entityId: string; position: { x: number; y: number }; apply(damage: number): void; healthCurrent(): number; markDirty(): void }
-    | null = null;
+  let closest: HitTarget | null = null;
 
   const considerTarget = (
     entityId: string,
