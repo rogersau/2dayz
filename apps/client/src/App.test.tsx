@@ -126,7 +126,7 @@ describe("App join and reconnect flow", () => {
       },
     });
 
-    window.localStorage.setItem("2dayz:session-token", "session_saved");
+    window.sessionStorage.setItem("2dayz:session-token", "session_saved");
     window.localStorage.setItem("2dayz:display-name", "Saved Survivor");
 
     render(<App />);
@@ -155,7 +155,7 @@ describe("App join and reconnect flow", () => {
         sessionToken: "session_saved",
       });
 
-    window.localStorage.setItem("2dayz:session-token", "session_saved");
+    window.sessionStorage.setItem("2dayz:session-token", "session_saved");
     window.localStorage.setItem("2dayz:display-name", "Saved Survivor");
 
     render(<App />);
@@ -170,7 +170,7 @@ describe("App join and reconnect flow", () => {
   it("keeps the expired banner visible until the user explicitly retries into a fresh run", async () => {
     reconnectMock.mockRejectedValueOnce(new SocketClientError("expired"));
 
-    window.localStorage.setItem("2dayz:session-token", "session_expired");
+    window.sessionStorage.setItem("2dayz:session-token", "session_expired");
     window.localStorage.setItem("2dayz:display-name", "Expired Survivor");
 
     render(<App />);
@@ -180,7 +180,7 @@ describe("App join and reconnect flow", () => {
     });
 
     expect(screen.getByLabelText(/display name/i)).toHaveValue("Expired Survivor");
-    expect(window.localStorage.getItem("2dayz:session-token")).toBeNull();
+    expect(window.sessionStorage.getItem("2dayz:session-token")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /retry join/i }));
 
@@ -289,7 +289,7 @@ describe("App join and reconnect flow", () => {
     });
 
     firstRender.unmount();
-    window.localStorage.removeItem("2dayz:session-token");
+    window.sessionStorage.removeItem("2dayz:session-token");
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/display name/i), {

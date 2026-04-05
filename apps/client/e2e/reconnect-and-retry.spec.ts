@@ -198,25 +198,19 @@ test("reconnects inside the reclaim window using the stored session token", asyn
   await joinIntoHud(page, "Reconnect Scout");
   const sessionBeforeReconnect = await readSessionHud(page);
 
-  await page.close();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
 
-  const reconnectPage = await context.newPage();
-  await reconnectPage.goto("/");
-  await expect(reconnectPage.getByRole("heading", { name: "Session HUD" })).toBeVisible();
-
-  await expect.poll(() => readSessionHud(reconnectPage)).toEqual(sessionBeforeReconnect);
+  await expect.poll(() => readSessionHud(page)).toEqual(sessionBeforeReconnect);
 });
 
 test("reconnect completes in under 5 seconds during the reclaim window", async ({ context, page }) => {
   await installReconnectSocketMock(context);
   await joinIntoHud(page, "Fast Reconnect Scout");
-  await page.close();
-
-  const reconnectPage = await context.newPage();
 
   const startedAt = Date.now();
-  await reconnectPage.goto("/");
-  await expect(reconnectPage.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
 
   const reconnectDurationMs = Date.now() - startedAt;
   expect(
@@ -230,7 +224,7 @@ test("falls back to a fresh run after an expired stored token", async ({ page })
   await page.goto("/");
   await page.evaluate(() => {
     window.localStorage.setItem("2dayz:display-name", "Expired Scout");
-    window.localStorage.setItem("2dayz:session-token", "session_missing");
+    window.sessionStorage.setItem("2dayz:session-token", "session_missing");
   });
 
   await page.reload();

@@ -16,7 +16,7 @@ const readSessionToken = () => {
     return null;
   }
 
-  return window.localStorage.getItem(SESSION_TOKEN_KEY);
+  return window.sessionStorage.getItem(SESSION_TOKEN_KEY);
 };
 
 export const useSessionToken = () => {
@@ -37,14 +37,14 @@ export const useSessionToken = () => {
   const setSessionToken = useCallback((value: string) => {
     setSessionTokenState(value);
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(SESSION_TOKEN_KEY, value);
+      window.sessionStorage.setItem(SESSION_TOKEN_KEY, value);
     }
   }, []);
 
   const clearSessionToken = useCallback(() => {
     setSessionTokenState(null);
     if (typeof window !== "undefined") {
-      window.localStorage.removeItem(SESSION_TOKEN_KEY);
+      window.sessionStorage.removeItem(SESSION_TOKEN_KEY);
     }
   }, []);
 
