@@ -16,6 +16,7 @@ type CreateSessionInput = {
 
 export type SessionRegistry = {
   createSession(input: CreateSessionInput): SessionReservation;
+  cleanupExpiredReservations(): void;
   markDisconnected(sessionToken: string): void;
   reclaim(sessionToken: string): ReturnType<ReconnectRegistry["reclaim"]>;
 };
@@ -41,6 +42,9 @@ export const createSessionRegistry = ({
   };
 
   return {
+    cleanupExpiredReservations() {
+      purgeExpiredReservations();
+    },
     createSession(input) {
       purgeExpiredReservations();
       return registry.issueReservation({ ...input, now: now() });

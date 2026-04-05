@@ -98,6 +98,7 @@ export const errorReasonSchema = z.enum([
   "expired",
   "not-disconnected",
   "room-unavailable",
+  "session-active",
   "internal-error",
 ]);
 

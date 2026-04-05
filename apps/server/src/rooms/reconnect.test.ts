@@ -115,6 +115,35 @@ describe("createReconnectRegistry", () => {
     });
   });
 
+  it("releases expired disconnected reservations before a new room assignment decision", () => {
+    let now = 1_000;
+    const roomManager = createRoomManager({
+      roomCapacity: 1,
+      createRoom: () => createRuntimeRoom(`room_${now}`),
+    });
+    const sessionRegistry = createSessionRegistry({
+      reclaimWindowMs: 30_000,
+      roomManager,
+      now: () => now,
+    });
+    const first = roomManager.assignPlayer({ displayName: "Scout" });
+    const reservation = sessionRegistry.createSession({
+      displayName: "Scout",
+      roomId: first.roomId,
+      playerEntityId: first.playerEntityId,
+    });
+
+    now = 2_000;
+    sessionRegistry.markDisconnected(reservation.sessionToken);
+
+    now = 32_001;
+    sessionRegistry.cleanupExpiredReservations();
+
+    const replacement = roomManager.assignPlayer({ displayName: "Blair" });
+
+    expect(replacement.roomId).toBe(first.roomId);
+  });
+
   it("rejects a reconnect token once its reserved room has been removed", () => {
     let now = 1_000;
     const doomedRoom = createRuntimeRoom("room_alpha");

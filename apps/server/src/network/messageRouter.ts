@@ -82,8 +82,14 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
             return;
           }
 
+          if (activeSessionToken) {
+            sendError(socket, "session-active");
+            return;
+          }
+
           try {
             if (message.type === "join") {
+              sessionRegistry.cleanupExpiredReservations();
               const assignment = roomManager.assignPlayer({ displayName: message.displayName });
               const session = sessionRegistry.createSession({
                 displayName: message.displayName,
