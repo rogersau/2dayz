@@ -246,4 +246,61 @@ describe("createReplicationSystem", () => {
       }).delta.entityUpdates.map((update) => update.entityId),
     ).not.toContain("player_test-4");
   });
+
+  it("includes newly visible entities in a subscriber delta even when they were not globally dirty", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    spawnPlayer(state, "player_test-1", "Avery", 0, 0);
+    spawnPlayer(state, "player_test-2", "Blair", 25, 0);
+
+    state.dirtyPlayerIds.clear();
+
+    const rawDelta = createRoomReplicationDelta(state);
+    const replication = createReplicationSystem({
+      nearbyRadius: 10,
+      maxNearbyPlayers: 2,
+    });
+
+    state.players.get("player_test-2")!.transform = { x: 2, y: 0, rotation: 0 };
+
+    expect(
+      replication.createDeltaForPlayer({
+        delta: rawDelta,
+        state,
+        playerEntityId: "player_test-1",
+        visibleEntityIds: new Set(["player_test-1"]),
+      }).delta.entityUpdates,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityId: "player_test-2",
+          transform: { x: 2, y: 0, rotation: 0 },
+        }),
+      ]),
+    );
+  });
+
+  it("emits a synthetic removal when a previously visible entity leaves range", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    spawnPlayer(state, "player_test-1", "Avery", 0, 0);
+    spawnPlayer(state, "player_test-2", "Blair", 2, 0);
+
+    state.dirtyPlayerIds.clear();
+
+    const rawDelta = createRoomReplicationDelta(state);
+    const replication = createReplicationSystem({
+      nearbyRadius: 10,
+      maxNearbyPlayers: 2,
+    });
+
+    state.players.get("player_test-2")!.transform = { x: 25, y: 0, rotation: 0 };
+
+    expect(
+      replication.createDeltaForPlayer({
+        delta: rawDelta,
+        state,
+        playerEntityId: "player_test-1",
+        visibleEntityIds: new Set(["player_test-1", "player_test-2"]),
+      }).delta.removedEntityIds,
+    ).toContain("player_test-2");
+  });
 });

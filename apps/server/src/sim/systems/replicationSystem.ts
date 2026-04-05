@@ -22,6 +22,40 @@ type CreateDeltaForPlayerResult = {
   visibleEntityIds: Set<string>;
 };
 
+const createEntityUpdateFromState = (state: RoomSimulationState, entityId: string): RoomReplicationDelta["entityUpdates"][number] | null => {
+  const player = state.players.get(entityId);
+  if (player) {
+    return {
+      entityId: player.entityId,
+      transform: player.transform,
+      velocity: player.velocity,
+      health: player.health,
+    };
+  }
+
+  const loot = state.loot.get(entityId);
+  if (loot) {
+    return {
+      entityId: loot.entityId,
+      itemId: loot.itemId,
+      quantity: loot.quantity,
+      position: loot.position,
+    };
+  }
+
+  const zombie = state.zombies.get(entityId);
+  if (zombie) {
+    return {
+      entityId: zombie.entityId,
+      transform: zombie.transform,
+      velocity: zombie.velocity,
+      health: zombie.health,
+    };
+  }
+
+  return null;
+};
+
 const DEFAULT_NEARBY_RADIUS = 18;
 const DEFAULT_MAX_NEARBY_PLAYERS = 8;
 const DEFAULT_MAX_NEARBY_LOOT = 16;
@@ -110,15 +144,30 @@ export const createReplicationSystem = ({
       ...visibleSnapshot.loot.map((loot) => loot.entityId),
       ...visibleSnapshot.zombies.map((zombie) => zombie.entityId),
     ]);
+    const enteringEntityIds = [...nextVisibleEntityIds].filter((entityId) => !visibleEntityIds.has(entityId));
+    const leavingEntityIds = [...visibleEntityIds].filter((entityId) => !nextVisibleEntityIds.has(entityId));
+    const syntheticEnteringUpdates = enteringEntityIds
+      .map((entityId) => createEntityUpdateFromState(state, entityId))
+      .filter((update): update is NonNullable<typeof update> => update !== null);
+    const visibleEntityUpdates = delta.entityUpdates.filter((update) => nextVisibleEntityIds.has(update.entityId));
+    const mergedEntityUpdates = new Map<string, RoomReplicationDelta["entityUpdates"][number]>();
+
+    for (const update of [...visibleEntityUpdates, ...syntheticEnteringUpdates]) {
+      mergedEntityUpdates.set(update.entityId, update);
+    }
+    const removedEntityIds = new Set<string>([
+      ...delta.removedEntityIds.filter((entityId) => visibleEntityIds.has(entityId)),
+      ...leavingEntityIds,
+    ]);
 
     return {
       delta: {
         ...createDelta(delta),
-        entityUpdates: delta.entityUpdates.filter((update) => nextVisibleEntityIds.has(update.entityId)),
-        removedEntityIds: delta.removedEntityIds.filter((entityId) => visibleEntityIds.has(entityId)),
+        entityUpdates: [...mergedEntityUpdates.values()],
+        removedEntityIds: [...removedEntityIds],
       },
       visibleEntityIds: new Set(
-        [...nextVisibleEntityIds].filter((entityId) => !delta.removedEntityIds.includes(entityId)),
+        [...nextVisibleEntityIds].filter((entityId) => !removedEntityIds.has(entityId)),
       ),
     };
   };
