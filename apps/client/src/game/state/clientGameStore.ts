@@ -276,17 +276,21 @@ export const createClientGameStore = () => {
       playerEntityId: string;
       roomId: string;
     }) {
-      update((current) => ({
-        ...current,
-        connectionState: { phase: "joined" },
-        health: current.health,
-        inventory: current.inventory,
-        isDead: current.playerEntityId === playerEntityId ? current.isDead : false,
-        isInventoryOpen: false,
-        lastJoinDisplayName: displayName,
-        playerEntityId,
-        roomId,
-      }));
+      update((current) => {
+        const isSameIdentity = current.playerEntityId === playerEntityId;
+
+        return {
+          ...current,
+          connectionState: { phase: "joined" },
+          health: isSameIdentity ? current.health : null,
+          inventory: isSameIdentity ? current.inventory : createEmptyInventory(),
+          isDead: isSameIdentity ? current.isDead : false,
+          isInventoryOpen: false,
+          lastJoinDisplayName: displayName,
+          playerEntityId,
+          roomId,
+        };
+      });
     },
     failConnection(reason: ErrorReason) {
       update((current) => ({

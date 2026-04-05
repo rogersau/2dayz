@@ -215,4 +215,60 @@ describe("clientGameStore", () => {
       transform: { rotation: 0.2, x: 1, y: 0 },
     });
   });
+
+  it("resets stale HUD state when a completed join resolves to a different player identity", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Saved Survivor",
+      playerEntityId: "player_old",
+      roomId: "room_browser-v1",
+    });
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_old",
+      players: [
+        {
+          displayName: "Saved Survivor",
+          entityId: "player_old",
+          health: { current: 86, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              { itemId: "bandage", quantity: 2 },
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 1,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    store.completeJoin({
+      displayName: "Fresh Survivor",
+      playerEntityId: "player_new",
+      roomId: "room_browser-v1",
+    });
+
+    expect(store.getState()).toMatchObject({
+      health: null,
+      inventory: {
+        ammoStacks: [],
+        equippedWeaponSlot: null,
+        slots: [null, null, null, null, null, null],
+      },
+      isDead: false,
+      playerEntityId: "player_new",
+    });
+  });
 });
