@@ -92,7 +92,24 @@ export const roomJoinedMessageSchema = z
   })
   .strict();
 
+export const errorReasonSchema = z.enum([
+  "invalid-message",
+  "invalid",
+  "expired",
+  "not-disconnected",
+  "room-unavailable",
+  "internal-error",
+]);
+
+export const errorMessageSchema = z
+  .object({
+    type: z.literal("error"),
+    reason: errorReasonSchema,
+  })
+  .strict();
+
 export const serverMessageSchema = z.discriminatedUnion("type", [
+  errorMessageSchema,
   roomJoinedMessageSchema,
   snapshotMessageSchema,
   deltaMessageSchema,
@@ -105,5 +122,7 @@ export type ClientMessage = z.infer<typeof clientMessageSchema>;
 export type PlayerState = z.infer<typeof playerStateSchema>;
 export type SnapshotMessage = z.infer<typeof snapshotMessageSchema>;
 export type DeltaMessage = z.infer<typeof deltaMessageSchema>;
+export type ErrorReason = z.infer<typeof errorReasonSchema>;
+export type ErrorMessage = z.infer<typeof errorMessageSchema>;
 export type RoomJoinedMessage = z.infer<typeof roomJoinedMessageSchema>;
 export type ServerMessage = z.infer<typeof serverMessageSchema>;

@@ -1,6 +1,7 @@
 export {
   clientMessageSchema,
   deltaMessageSchema,
+  errorMessageSchema,
   inputMessageSchema,
   joinRequestSchema,
   playerStateSchema,

@@ -1,8 +1,10 @@
 import type { RawData, WebSocket } from "ws";
 import {
+  errorMessageSchema,
   joinRequestSchema,
   reconnectRequestSchema,
   roomJoinedMessageSchema,
+  type ErrorReason,
   type JoinRequest,
   type ReconnectRequest,
 } from "@2dayz/shared";
@@ -44,6 +46,15 @@ const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | null => {
 };
 
 export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRouterOptions) => {
+  const sendError = (socket: WebSocket, reason: ErrorReason) => {
+    const message = errorMessageSchema.parse({
+      type: "error",
+      reason,
+    });
+
+    socket.send(JSON.stringify(message));
+  };
+
   const sendRoomJoined = (socket: WebSocket, payload: {
     roomId: string;
     playerEntityId: string;
@@ -67,39 +78,43 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
         handleMessage(raw) {
           const message = parseMessage(raw);
           if (!message) {
-            socket.send(JSON.stringify({ type: "error", reason: "invalid-message" }));
+            sendError(socket, "invalid-message");
             return;
           }
 
-          if (message.type === "join") {
-            const assignment = roomManager.assignPlayer({ displayName: message.displayName });
-            const session = sessionRegistry.createSession({
-              displayName: message.displayName,
-              roomId: assignment.roomId,
-              playerEntityId: assignment.playerEntityId,
-            });
+          try {
+            if (message.type === "join") {
+              const assignment = roomManager.assignPlayer({ displayName: message.displayName });
+              const session = sessionRegistry.createSession({
+                displayName: message.displayName,
+                roomId: assignment.roomId,
+                playerEntityId: assignment.playerEntityId,
+              });
 
-            activeSessionToken = session.sessionToken;
+              activeSessionToken = session.sessionToken;
+              sendRoomJoined(socket, {
+                roomId: assignment.roomId,
+                playerEntityId: assignment.playerEntityId,
+                sessionToken: session.sessionToken,
+              });
+              return;
+            }
+
+            const reclaimResult = sessionRegistry.reclaim(message.sessionToken);
+            if (!reclaimResult.accepted) {
+              sendError(socket, reclaimResult.reason);
+              return;
+            }
+
+            activeSessionToken = reclaimResult.reservation.sessionToken;
             sendRoomJoined(socket, {
-              roomId: assignment.roomId,
-              playerEntityId: assignment.playerEntityId,
-              sessionToken: session.sessionToken,
+              roomId: reclaimResult.reservation.roomId,
+              playerEntityId: reclaimResult.reservation.playerEntityId,
+              sessionToken: reclaimResult.reservation.sessionToken,
             });
-            return;
+          } catch {
+            sendError(socket, "internal-error");
           }
-
-          const reclaimResult = sessionRegistry.reclaim(message.sessionToken);
-          if (!reclaimResult.accepted) {
-            socket.send(JSON.stringify({ type: "error", reason: reclaimResult.reason }));
-            return;
-          }
-
-          activeSessionToken = reclaimResult.reservation.sessionToken;
-          sendRoomJoined(socket, {
-            roomId: reclaimResult.reservation.roomId,
-            playerEntityId: reclaimResult.reservation.playerEntityId,
-            sessionToken: reclaimResult.reservation.sessionToken,
-          });
         },
         handleClose() {
           if (activeSessionToken) {

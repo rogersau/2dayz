@@ -130,12 +130,7 @@ export const createRoomManager = ({ createRoom, initialRooms = [] }: RoomManager
         return false;
       }
 
-      const released = room.releasePlayer(playerEntityId);
-      if (room.playerCount === 0) {
-        removeRoom(roomId, "empty");
-      }
-
-      return released;
+      return room.releasePlayer(playerEntityId);
     },
     tickAllRooms() {
       for (const room of [...rooms.values()]) {

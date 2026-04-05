@@ -114,4 +114,29 @@ describe("createRoomManager", () => {
     expect(replacement.roomId).toBe("room_2");
     expect(manager.reclaimPlayer(first.roomId, first.playerEntityId)).toEqual(first);
   });
+
+  it("keeps an empty room alive so later joins can reuse it", () => {
+    const room = createFakeRoom("room_1", 2);
+    const manager = createRoomManager({
+      roomCapacity: 2,
+      createRoom: () => createFakeRoom("room_2", 2),
+      initialRooms: [room],
+    });
+
+    const first = manager.assignPlayer({ displayName: "Avery" });
+
+    expect(manager.releasePlayer(first.roomId, first.playerEntityId)).toBe(true);
+    expect(manager.getRoomSummaries()).toEqual([
+      {
+        roomId: "room_1",
+        playerCount: 0,
+        capacity: 2,
+        status: "active",
+      },
+    ]);
+
+    const second = manager.assignPlayer({ displayName: "Blair" });
+
+    expect(second.roomId).toBe("room_1");
+  });
 });
