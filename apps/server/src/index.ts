@@ -8,6 +8,7 @@ import { createLogger } from "./telemetry/logger";
 import type { Logger } from "./telemetry/logger";
 import type { ServerConfig } from "./config";
 import type { ServerRuntime } from "./runtime/serverRuntime";
+import type { CreateRoom } from "./rooms/roomFactory";
 
 type SignalProcess = Pick<NodeJS.Process, "once" | "off">;
 
@@ -22,15 +23,58 @@ type StartServerDependencies = {
   }) => ServerRuntime;
 };
 
+const createTelemetryRoomFactory = (createRoom: CreateRoom, logger: Logger): CreateRoom => {
+  return () => {
+    const room = createRoom();
+    let shutdownLogged = false;
+    const originalShutdown = room.shutdown.bind(room);
+    const originalTick = room.tick.bind(room);
+
+    logger.info("room-created", {
+      roomId: room.roomId,
+      capacity: room.capacity,
+    });
+
+    room.shutdown = (reason) => {
+      if (!shutdownLogged) {
+        shutdownLogged = true;
+        logger.info("room-shutdown", {
+          roomId: room.roomId,
+          reason: reason ?? "unspecified",
+          playerCount: room.playerCount,
+          status: room.status,
+        });
+      }
+
+      originalShutdown(reason);
+    };
+
+    room.tick = () => {
+      try {
+        originalTick();
+      } catch (error) {
+        logger.error("room-runtime-error", {
+          roomId: room.roomId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        throw error;
+      }
+    };
+
+    return room;
+  };
+};
+
 export const startServer = async ({
   config = loadConfig(),
   logger = createLogger(),
   signalProcess = process,
   createRuntime = createServerRuntime,
 }: StartServerDependencies = {}) => {
+  const createRoom = createTelemetryRoomFactory(createRoomFactory({ roomCapacity: config.roomCapacity }), logger);
   const roomManager = createRoomManager({
     roomCapacity: config.roomCapacity,
-    createRoom: createRoomFactory({ roomCapacity: config.roomCapacity }),
+    createRoom,
   });
   const sessionRegistry = createSessionRegistry({ reclaimWindowMs: config.reclaimWindowMs, roomManager });
   const runtime = createRuntime({

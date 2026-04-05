@@ -81,6 +81,7 @@ type PlayerSession = {
   subscriptions: Set<{
     onSnapshot(snapshot: RoomReplicationSnapshot): void;
     onDelta(delta: RoomReplicationDelta): void;
+    initialSnapshotSent: boolean;
   }>;
 };
 
@@ -149,11 +150,15 @@ export const createSimulationRoomRuntime = ({
       const delta = createRoomReplicationDelta(state);
 
       for (const playerEntityId of getConnectedPlayerIds()) {
-        const snapshot = createRoomReplicationSnapshot(state, playerEntityId);
-        onSnapshot?.(snapshot);
-
         for (const handlers of playerSessions.get(playerEntityId)?.subscriptions ?? []) {
+          if (handlers.initialSnapshotSent) {
+            continue;
+          }
+
+          const snapshot = createRoomReplicationSnapshot(state, playerEntityId);
           handlers.onSnapshot(snapshot);
+          handlers.initialSnapshotSent = true;
+          onSnapshot?.(snapshot);
         }
       }
 
@@ -271,10 +276,22 @@ export const createSimulationRoomRuntime = ({
         return null;
       }
 
-      session.subscriptions.add(handlers);
+      const subscription = {
+        ...handlers,
+        initialSnapshotSent: false,
+      };
+
+      if (simulationState.players.has(playerEntityId)) {
+        const snapshot = createRoomReplicationSnapshot(simulationState, playerEntityId);
+        subscription.onSnapshot(snapshot);
+        subscription.initialSnapshotSent = true;
+        onSnapshot?.(snapshot);
+      }
+
+      session.subscriptions.add(subscription);
 
       return () => {
-        session.subscriptions.delete(handlers);
+        session.subscriptions.delete(subscription);
       };
     },
   };

@@ -302,7 +302,7 @@ describe("createMessageRouter", () => {
     });
   });
 
-  it("sends a single initial snapshot followed by per-tick deltas", () => {
+  it("forwards the runtime's initial snapshot and later deltas without local snapshot gating", () => {
     const socket = createSocket();
     const runtime = createStubRuntime();
     const connection = createMessageRouter({
@@ -327,15 +327,6 @@ describe("createMessageRouter", () => {
       entityUpdates: [],
       removedEntityIds: [],
       events: [],
-    });
-    runtime.emitSnapshot({
-      type: "snapshot",
-      roomId: "room_1",
-      tick: 2,
-      playerEntityId: "player_1-1",
-      players: [],
-      loot: [],
-      zombies: [],
     });
     runtime.emitDelta({
       type: "delta",

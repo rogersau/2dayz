@@ -15,7 +15,6 @@ import { createDeltaMessage, createSnapshotMessage } from "./roomMessages";
 import type { RoomManager } from "../rooms/roomManager";
 import type { RoomRuntime } from "../rooms/roomRuntime";
 import type { SessionRegistry } from "./sessionRegistry";
-import { createReplicationSystem } from "../sim/systems/replicationSystem";
 
 type MessageRouterOptions = {
   roomManager: RoomManager;
@@ -24,7 +23,7 @@ type MessageRouterOptions = {
 
 type RouterConnection = {
   handleMessage(raw: RawData): void;
-  handleClose(): void;
+  handleClose(reason?: string): void;
 };
 
 const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | InputMessage | null => {
@@ -56,8 +55,6 @@ const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | InputMessa
 };
 
 export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRouterOptions) => {
-  const replication = createReplicationSystem();
-
   const sendError = (socket: WebSocket, reason: ErrorReason) => {
     const message = errorMessageSchema.parse({
       type: "error",
@@ -88,24 +85,17 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
       let activePlayerEntityId: string | null = null;
       let activeRoom: RoomRuntime | null = null;
       let unsubscribeRoomUpdates: (() => void) | null = null;
-      let initialSnapshotSent = false;
 
       const subscribeToRoomUpdates = (room: RoomRuntime, playerEntityId: string): void => {
         unsubscribeRoomUpdates?.();
         unsubscribeRoomUpdates = null;
-        initialSnapshotSent = false;
 
         unsubscribeRoomUpdates = room.subscribePlayer(playerEntityId, {
           onSnapshot(snapshot) {
-            if (initialSnapshotSent) {
-              return;
-            }
-
-            initialSnapshotSent = true;
-            socket.send(JSON.stringify(createSnapshotMessage(room.roomId, replication.createInitialSnapshot(snapshot))));
+            socket.send(JSON.stringify(createSnapshotMessage(room.roomId, snapshot)));
           },
           onDelta(delta) {
-            socket.send(JSON.stringify(createDeltaMessage(room.roomId, replication.createDelta(delta))));
+            socket.send(JSON.stringify(createDeltaMessage(room.roomId, delta)));
           },
         });
       };
@@ -184,7 +174,7 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
             sendError(socket, "internal-error");
           }
         },
-        handleClose(_reason) {
+        handleClose(_reason?: string) {
           unsubscribeRoomUpdates?.();
           unsubscribeRoomUpdates = null;
           if (activeSessionToken) {
