@@ -117,7 +117,20 @@ const spawnZombiesForZones = (state: RoomSimulationState): void => {
 
       const zombie = createZombieEntity(state, zone.zoneId, archetypeId, zone.center);
       state.zombies.set(zombie.entityId, zombie);
+      state.dirtyZombieIds.add(zombie.entityId);
     }
+  }
+};
+
+const cleanupDeadZombies = (state: RoomSimulationState): void => {
+  for (const zombie of state.zombies.values()) {
+    if (!zombie.health.isDead) {
+      continue;
+    }
+
+    state.zombies.delete(zombie.entityId);
+    state.dirtyZombieIds.delete(zombie.entityId);
+    state.removedEntityIds.add(zombie.entityId);
   }
 };
 
@@ -133,6 +146,7 @@ export const createZombieSystem = () => {
   return {
     name: "zombie" as const,
     update(state: RoomSimulationState, deltaSeconds: number) {
+      cleanupDeadZombies(state);
       spawnZombiesForZones(state);
 
       for (const zombie of state.zombies.values()) {
@@ -159,6 +173,7 @@ export const createZombieSystem = () => {
           zombie.aggroTargetEntityId = null;
           zombie.lostTargetMs = 0;
           roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
+          state.dirtyZombieIds.add(zombie.entityId);
           continue;
         }
 
@@ -171,6 +186,7 @@ export const createZombieSystem = () => {
             zombie.aggroTargetEntityId = null;
             zombie.lostTargetMs = 0;
             roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
+            state.dirtyZombieIds.add(zombie.entityId);
             continue;
           }
         } else {
@@ -187,6 +203,7 @@ export const createZombieSystem = () => {
             target.health.isDead = target.health.current === 0;
             zombie.attackCooldownRemainingMs = attackCooldownMs;
             state.dirtyPlayerIds.add(target.entityId);
+            state.dirtyZombieIds.add(zombie.entityId);
           }
 
           continue;
@@ -194,6 +211,7 @@ export const createZombieSystem = () => {
 
         zombie.state = "chasing";
         moveToward(zombie, target.transform, archetype.moveSpeed, deltaSeconds);
+        state.dirtyZombieIds.add(zombie.entityId);
       }
     },
   };

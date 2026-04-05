@@ -104,10 +104,12 @@ export type RoomSimulationState = {
   zombies: Map<string, SimZombie>;
   pendingSpawns: SpawnPlayerRequest[];
   pendingDespawns: string[];
-  pendingRespawns: Array<{ entityId: string; respawnAtMs: number }>;
+  pendingRespawns: Array<{ entityId: string; respawnAtMs: number; position: Vector2 }>;
   inputIntents: Map<string, PlayerInputIntent>;
   lastProcessedInputSequence: Map<string, number>;
   dirtyPlayerIds: Set<string>;
+  dirtyLootIds: Set<string>;
+  dirtyZombieIds: Set<string>;
   removedEntityIds: Set<string>;
   handledDeathEntityIds: Set<string>;
   spawnedLootPointIds: Set<string>;
@@ -234,6 +236,8 @@ export const createRoomState = ({
     inputIntents: new Map<string, PlayerInputIntent>(),
     lastProcessedInputSequence: new Map<string, number>(),
     dirtyPlayerIds: new Set<string>(),
+    dirtyLootIds: new Set<string>(),
+    dirtyZombieIds: new Set<string>(),
     removedEntityIds: new Set<string>(),
     handledDeathEntityIds: new Set<string>(),
     spawnedLootPointIds: new Set<string>(),
@@ -272,6 +276,8 @@ export const queueInputIntent = (state: RoomSimulationState, entityId: string, i
 
 export const clearTransientSimulationState = (state: RoomSimulationState): void => {
   state.dirtyPlayerIds.clear();
+  state.dirtyLootIds.clear();
+  state.dirtyZombieIds.clear();
   state.removedEntityIds.clear();
   state.events.length = 0;
 };

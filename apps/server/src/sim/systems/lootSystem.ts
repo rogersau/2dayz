@@ -85,6 +85,7 @@ export const createLootSystem = ({ random = Math.random }: { random?: () => numb
 
         state.spawnedLootPointIds.add(point.pointId);
         state.loot.set(loot.entityId, loot);
+        state.dirtyLootIds.add(loot.entityId);
       }
     },
   };

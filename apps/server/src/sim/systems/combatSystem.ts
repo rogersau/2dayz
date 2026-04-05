@@ -63,7 +63,7 @@ const findHitTarget = (
     y: aim.y / magnitude,
   };
   let closest:
-    | { entityId: string; position: { x: number; y: number }; apply(damage: number): void; healthCurrent(): number }
+    | { entityId: string; position: { x: number; y: number }; apply(damage: number): void; healthCurrent(): number; markDirty(): void }
     | null = null;
 
   const considerTarget = (
@@ -106,6 +106,14 @@ const findHitTarget = (
         },
         healthCurrent() {
           return target.health.current;
+        },
+        markDirty() {
+          if (state.players.has(entityId)) {
+            state.dirtyPlayerIds.add(entityId);
+            return;
+          }
+
+          state.dirtyZombieIds.add(entityId);
         },
       };
     }
@@ -201,7 +209,7 @@ export const createCombatSystem = ({ random = Math.random }: { random?: () => nu
               remainingHealth: hitTarget.healthCurrent(),
               hitPosition: hitTarget.position,
             });
-            state.dirtyPlayerIds.add(hitTarget.entityId);
+            hitTarget.markDirty();
           }
         }
 

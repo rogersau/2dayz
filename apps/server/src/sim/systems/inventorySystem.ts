@@ -64,6 +64,8 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
   if (itemDefinition.category === "ammo") {
     addAmmoToInventory(player, loot.itemId, loot.quantity);
     state.loot.delete(loot.entityId);
+    state.dirtyLootIds.delete(loot.entityId);
+    state.removedEntityIds.add(loot.entityId);
     return;
   }
 
@@ -82,6 +84,8 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
   }
 
   state.loot.delete(loot.entityId);
+  state.dirtyLootIds.delete(loot.entityId);
+  state.removedEntityIds.add(loot.entityId);
 };
 
 const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void => {
@@ -118,6 +122,7 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
       ownerEntityId: null,
       sourcePointId: null,
     });
+    state.dirtyLootIds.add(entityId);
     dropOffset += dropOffsetStep;
   }
 
@@ -139,6 +144,7 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
       ownerEntityId: null,
       sourcePointId: null,
     });
+    state.dirtyLootIds.add(entityId);
     dropOffset += dropOffsetStep;
   }
 

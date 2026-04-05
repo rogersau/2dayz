@@ -266,13 +266,13 @@ describe("createMessageRouter", () => {
       type: "delta",
       tick: 1,
       roomId: "room_1",
-      entityUpdates: [
-        {
+      entityUpdates: expect.arrayContaining([
+        expect.objectContaining({
           entityId: "player_1-1",
           transform: { x: 7.2, y: 14, rotation: 0 },
           velocity: { x: 4, y: 0 },
-        },
-      ],
+        }),
+      ]),
     });
   });
 });

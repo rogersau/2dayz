@@ -25,9 +25,12 @@ export const queuePlayerRespawn = (state: RoomSimulationState, entityId: string,
     return;
   }
 
+  const position = selectRespawnPoint(state);
+
   state.pendingRespawns.push({
     entityId,
     respawnAtMs: state.elapsedMs + delayMs,
+    position,
   });
 };
 
@@ -41,10 +44,9 @@ export const processPendingRespawns = (state: RoomSimulationState): void => {
       continue;
     }
 
-    const position = selectRespawnPoint(state);
     player.transform = {
-      x: position.x,
-      y: position.y,
+      x: respawn.position.x,
+      y: respawn.position.y,
       rotation: 0,
     };
     player.velocity = { x: 0, y: 0 };

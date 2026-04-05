@@ -195,4 +195,27 @@ describe("createZombieSystem", () => {
     expect(zombie?.state).toBe("roaming");
     expect(zombie?.transform.x).toBeGreaterThan(5);
   });
+
+  it("removes dead zombies and marks them as removed for replication", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    state.zombies.set("zombie_test-dead", {
+      entityId: "zombie_test-dead",
+      archetypeId: "zombie_shambler",
+      transform: { x: 1, y: 1, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 0, max: 60, isDead: true },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    state.dirtyZombieIds.add("zombie_test-dead");
+
+    createZombieSystem().update(state, 0.1);
+
+    expect(state.zombies.has("zombie_test-dead")).toBe(false);
+    expect(state.removedEntityIds.has("zombie_test-dead")).toBe(true);
+    expect(state.dirtyZombieIds.has("zombie_test-dead")).toBe(false);
+  });
 });
