@@ -1,0 +1,131 @@
+import { describe, expect, it } from "vitest";
+
+import { createDeltaMessage, createRoomSimulationConfig, createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
+import { createLifecycleSystem } from "./lifecycleSystem";
+import { createMovementSystem } from "./movementSystem";
+
+const defaultIntent = {
+  sequence: 1,
+  movement: { x: 0, y: 0 },
+  aim: { x: 1, y: 0 },
+  actions: {},
+} as const;
+
+describe("createMovementSystem", () => {
+  it("normalizes diagonal input before applying max speed", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxPlayerSpeed: 4 }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-1",
+      displayName: "Avery",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-1", {
+      ...defaultIntent,
+      movement: { x: 1, y: 1 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-1");
+    expect(player?.transform.x).toBeCloseTo(2.8284271247);
+    expect(player?.transform.y).toBeCloseTo(2.8284271247);
+    expect(Math.hypot(player?.velocity.x ?? 0, player?.velocity.y ?? 0)).toBeCloseTo(4);
+  });
+
+  it("clamps movement speed to the configured player max", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxPlayerSpeed: 3 }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-2",
+      displayName: "Blair",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-2", {
+      ...defaultIntent,
+      movement: { x: 1, y: 0 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-2");
+    expect(player?.transform.x).toBeCloseTo(3);
+    expect(player?.transform.y).toBeCloseTo(0);
+    expect(player?.velocity).toEqual({ x: 3, y: 0 });
+  });
+
+  it("blocks movement when the next authoritative position collides", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        maxPlayerSpeed: 4,
+        isPositionBlocked: (position) => position.x >= 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-3",
+      displayName: "Casey",
+      position: { x: 0.5, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-3", {
+      ...defaultIntent,
+      movement: { x: 1, y: 0 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-3");
+    expect(player?.transform).toMatchObject({ x: 0.5, y: 0, rotation: 0 });
+    expect(player?.velocity).toEqual({ x: 0, y: 0 });
+  });
+
+  it("emits authoritative transform corrections in the delta after blocked movement", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        maxPlayerSpeed: 4,
+        isPositionBlocked: (position) => position.x >= 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-4",
+      displayName: "Devon",
+      position: { x: 0.5, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-4", {
+      ...defaultIntent,
+      sequence: 2,
+      movement: { x: 1, y: 0 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    expect(createDeltaMessage(state)).toMatchObject({
+      type: "delta",
+      roomId: "room_test",
+      entityUpdates: [
+        {
+          entityId: "player_test-4",
+          transform: { x: 0.5, y: 0, rotation: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+    });
+  });
+});
