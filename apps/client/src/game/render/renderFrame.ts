@@ -43,20 +43,20 @@ export const renderFrame = ({
   const selfPlayer = state.worldEntities.players.find((entity) => entity.entityId === state.playerEntityId);
 
   if (selfPlayer) {
-    const reconciledTransform = predictionController.reconcile({
+    predictionController.reconcile({
       authoritativeTransform: selfPlayer.transform,
       lastProcessedSequence: selfPlayer.lastProcessedInputSequence ?? -1,
     });
 
-    const predictedTransform = input.movement.x !== 0 || input.movement.y !== 0
-      ? predictionController.applyInput({
+    if (input.movement.x !== 0 || input.movement.y !== 0) {
+      predictionController.applyInput({
         deltaSeconds,
         movement: input.movement,
         sequence: input.sequence,
-      })
-      : reconciledTransform;
+      });
+    }
 
-    localOverrides.set(selfPlayer.entityId, predictedTransform);
+    localOverrides.set(selfPlayer.entityId, predictionController.advanceSmoothing(deltaSeconds));
   }
 
   entityViewStore.render({
@@ -64,6 +64,7 @@ export const renderFrame = ({
     latestTick,
     localOverrides,
     playerEntityId: state.playerEntityId,
+    renderTimeMs: performance.now(),
     renderTick: Math.max(latestTick - 0.35, 0),
   });
 

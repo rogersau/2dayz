@@ -6,14 +6,14 @@ import type {
   RenderPlayerEntity,
   RenderZombieEntity,
 } from "../state/clientGameStore";
-import { interpolateTransform } from "./interpolation";
+import { sampleInterpolatedTransform } from "./interpolation";
 
 type RenderEntity = RenderLootEntity | RenderPlayerEntity | RenderZombieEntity;
 
 type EntityView = {
-  current: { tick: number; transform: Transform };
+  current: { receivedAtMs: number; tick: number; transform: Transform };
   mesh: THREE.Mesh;
-  previous: { tick: number; transform: Transform };
+  previous: { receivedAtMs: number; tick: number; transform: Transform };
 };
 
 const cloneTransform = (transform: Transform): Transform => ({ ...transform });
@@ -74,12 +74,14 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
       latestTick,
       localOverrides,
       playerEntityId,
+      renderTimeMs,
       renderTick,
     }: {
       entities: RenderEntity[];
       latestTick: number;
       localOverrides: Map<string, Transform>;
       playerEntityId: string | null;
+      renderTimeMs: number;
       renderTick: number;
     }) {
       const activeIds = new Set(entities.map((entity) => entity.entityId));
@@ -95,9 +97,9 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
           applyMeshTransform(mesh, initialTransform);
           scene.add(mesh);
           entityViews.set(entity.entityId, {
-            current: { tick: latestTick, transform: cloneTransform(initialTransform) },
+            current: { receivedAtMs: renderTimeMs, tick: latestTick, transform: cloneTransform(initialTransform) },
             mesh,
-            previous: { tick: latestTick, transform: cloneTransform(initialTransform) },
+            previous: { receivedAtMs: renderTimeMs, tick: latestTick, transform: cloneTransform(initialTransform) },
           });
           continue;
         }
@@ -113,10 +115,12 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
             existingView.current.transform.rotation !== nextTransform.rotation)
         ) {
           existingView.previous = {
+            receivedAtMs: existingView.current.receivedAtMs,
             tick: existingView.current.tick,
             transform: cloneTransform(existingView.current.transform),
           };
           existingView.current = {
+            receivedAtMs: renderTimeMs,
             tick: latestTick,
             transform: cloneTransform(nextTransform),
           };
@@ -124,7 +128,7 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
 
         const localTransform = playerEntityId === entity.entityId ? localOverrides.get(entity.entityId) : null;
         const resolvedTransform = localTransform
-          ?? interpolateTransform(existingView.previous, existingView.current, renderTick);
+          ?? sampleInterpolatedTransform(existingView.previous, existingView.current, renderTimeMs);
         applyMeshTransform(existingView.mesh, resolvedTransform);
       }
 

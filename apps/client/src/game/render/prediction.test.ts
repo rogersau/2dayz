@@ -57,7 +57,31 @@ describe("prediction", () => {
       lastProcessedSequence: 1,
     });
 
-    expect(reconciled).toEqual({ rotation: 0, x: 1.8, y: 0 });
+    expect(reconciled).toEqual({ rotation: 0, x: 2, y: 0 });
     expect(prediction.getState().pendingInputs.map((input) => input.sequence)).toEqual([2]);
+    expect(prediction.getState().transform).toEqual({ rotation: 0, x: 1.8, y: 0 });
+  });
+
+  it("smooths a reconciliation correction over later frames instead of snapping immediately", () => {
+    const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    prediction.applyInput({
+      deltaSeconds: 0.25,
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+    });
+
+    const afterReconcile = prediction.reconcile({
+      authoritativeTransform: { rotation: 0, x: 0.4, y: 0 },
+      lastProcessedSequence: 1,
+    });
+
+    expect(afterReconcile).toEqual({ rotation: 0, x: 1, y: 0 });
+
+    const smoothed = prediction.advanceSmoothing(0.1);
+
+    expect(smoothed.x).toBeGreaterThan(0.4);
+    expect(smoothed.x).toBeLessThan(1);
+    expect(prediction.getState().transform).toEqual({ rotation: 0, x: 0.4, y: 0 });
   });
 });
