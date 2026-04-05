@@ -3,6 +3,7 @@ import type { Transform, Vector2 } from "@2dayz/shared";
 const DEFAULT_MOVE_SPEED = 4;
 
 export type PredictedInput = {
+  aim: Vector2;
   deltaSeconds: number;
   movement: Vector2;
   sequence: number;
@@ -46,11 +47,26 @@ const getDistance = (left: Transform, right: Transform) => {
   return Math.hypot(left.x - right.x, left.y - right.y);
 };
 
-const applyMovement = (transform: Transform, input: PredictedInput, moveSpeed: number): Transform => {
+const normalizeMovement = (movement: Vector2): Vector2 => {
+  const magnitude = Math.hypot(movement.x, movement.y);
+  if (magnitude === 0) {
+    return { x: 0, y: 0 };
+  }
+
   return {
-    rotation: input.movement.x === 0 && input.movement.y === 0 ? transform.rotation : Math.atan2(input.movement.y, input.movement.x),
-    x: transform.x + input.movement.x * moveSpeed * input.deltaSeconds,
-    y: transform.y + input.movement.y * moveSpeed * input.deltaSeconds,
+    x: movement.x / magnitude,
+    y: movement.y / magnitude,
+  };
+};
+
+const applyMovement = (transform: Transform, input: PredictedInput, moveSpeed: number): Transform => {
+  const direction = normalizeMovement(input.movement);
+  const aimMagnitude = Math.hypot(input.aim.x, input.aim.y);
+
+  return {
+    rotation: aimMagnitude > 0 ? Math.atan2(input.aim.y, input.aim.x) : transform.rotation,
+    x: transform.x + direction.x * moveSpeed * input.deltaSeconds,
+    y: transform.y + direction.y * moveSpeed * input.deltaSeconds,
   };
 };
 

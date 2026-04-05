@@ -45,6 +45,7 @@ export const bootGame = ({
 
     if (input.movement.x !== 0 || input.movement.y !== 0) {
       predictionController.applyInput({
+        aim: input.aim,
         deltaSeconds: inputDeltaSeconds,
         movement: input.movement,
         sequence: input.sequence,

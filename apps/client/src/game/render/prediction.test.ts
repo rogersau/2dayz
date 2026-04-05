@@ -11,11 +11,13 @@ describe("prediction", () => {
   it("reconciles to authoritative movement without dropping the latest local input", () => {
     const initial = createPredictionState({ rotation: 0, x: 0, y: 0 });
     const afterFirstInput = applyPredictedInput(initial, {
+      aim: { x: 1, y: 0 },
       deltaSeconds: 0.5,
       movement: { x: 1, y: 0 },
       sequence: 1,
     });
     const afterSecondInput = applyPredictedInput(afterFirstInput, {
+      aim: { x: 1, y: 0 },
       deltaSeconds: 0.5,
       movement: { x: 1, y: 0 },
       sequence: 2,
@@ -39,11 +41,13 @@ describe("prediction", () => {
     const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
 
     const firstFrame = prediction.applyInput({
+      aim: { x: 1, y: 0 },
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 1,
     });
     const secondFrame = prediction.applyInput({
+      aim: { x: 1, y: 0 },
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 2,
@@ -72,6 +76,7 @@ describe("prediction", () => {
     });
 
     prediction.applyInput({
+      aim: { x: 1, y: 0 },
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 1,
@@ -91,6 +96,40 @@ describe("prediction", () => {
     expect(prediction.getState().transform).toEqual({ rotation: 0, x: 0.4, y: 0 });
   });
 
+  it("normalizes diagonal movement so local speed matches the server movement rules", () => {
+    const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    const transform = prediction.applyInput({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 1 },
+      sequence: 1,
+    });
+
+    expect(transform.x).toBeCloseTo(Math.SQRT2);
+    expect(transform.y).toBeCloseTo(Math.SQRT2);
+  });
+
+  it("uses aim to predict self rotation while stationary and while strafing", () => {
+    const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    const standingAim = prediction.applyInput({
+      aim: { x: 0, y: 2 },
+      deltaSeconds: 0.25,
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+    });
+    const strafingAim = prediction.applyInput({
+      aim: { x: 0, y: 2 },
+      deltaSeconds: 0.25,
+      movement: { x: -1, y: 0 },
+      sequence: 2,
+    });
+
+    expect(standingAim.rotation).toBeCloseTo(Math.PI / 2);
+    expect(strafingAim.rotation).toBeCloseTo(Math.PI / 2);
+  });
+
   it("snaps immediately to the authoritative transform when identity or sequence resets", () => {
     const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
 
@@ -100,6 +139,7 @@ describe("prediction", () => {
       lastProcessedSequence: 3,
     });
     prediction.applyInput({
+      aim: { x: 1, y: 0 },
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 4,
