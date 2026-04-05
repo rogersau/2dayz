@@ -38,13 +38,15 @@ export type ReconnectRegistry = {
 };
 
 export const createReconnectRegistry = ({ reclaimWindowMs }: ReconnectRegistryOptions): ReconnectRegistry => {
-  let tokenSequence = 0;
   const reservations = new Map<string, StoredReservation>();
+
+  const createSessionToken = () => {
+    return `session_${crypto.randomUUID()}`;
+  };
 
   return {
     issueReservation(input) {
-      tokenSequence += 1;
-      const sessionToken = `session_${tokenSequence}`;
+      const sessionToken = createSessionToken();
       const reservation: StoredReservation = {
         sessionToken,
         displayName: input.displayName,
