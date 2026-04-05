@@ -189,4 +189,47 @@ describe("createInventorySystem", () => {
     expect(state.loot.size).toBe(2);
     expect([...state.loot.values()].map((loot) => loot.itemId)).toEqual(["item_revolver", "item_bandage"]);
   });
+
+  it("does not allow dead players to pick up loot before respawn", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    queueSpawnPlayer(state, {
+      entityId: "player_test-dead",
+      displayName: "Harper",
+      position: { x: 1, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-dead");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.health = { current: 0, max: 100, isDead: true };
+    state.loot.set("loot_test-bandage", {
+      entityId: "loot_test-bandage",
+      itemId: "item_bandage",
+      quantity: 1,
+      position: { x: 1.2, y: 1 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+
+    queueInputIntent(state, "player_test-dead", {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: {
+        inventory: {
+          type: "pickup",
+          pickupEntityId: "loot_test-bandage",
+          toSlot: 0,
+        },
+      },
+    });
+
+    createInventorySystem().update(state, 0);
+
+    expect(player.inventory.slots[0]).toBeNull();
+    expect(state.loot.has("loot_test-bandage")).toBe(true);
+  });
 });

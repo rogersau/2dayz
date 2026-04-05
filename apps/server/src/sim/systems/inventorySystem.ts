@@ -175,8 +175,11 @@ export const createInventorySystem = () => {
     name: "inventory" as const,
     update(state: RoomSimulationState) {
       for (const player of state.players.values()) {
-        handlePickupAction(state, player);
         handleDeathDrops(state, player);
+
+        if (!player.health.isDead) {
+          handlePickupAction(state, player);
+        }
 
         const intent = state.inputIntents.get(player.entityId);
         if (intent) {

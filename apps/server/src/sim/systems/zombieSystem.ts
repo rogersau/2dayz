@@ -1,4 +1,5 @@
 import { hasLineOfSight } from "../../world/lineOfSight";
+import { findNextNavigationStep } from "../../world/navigation";
 import type { RoomSimulationState, SimZombie } from "../state";
 
 const targetLossMs = 1_500;
@@ -28,6 +29,74 @@ const moveToward = (zombie: SimZombie, targetPosition: { x: number; y: number },
     y: zombie.transform.y + zombie.velocity.y * deltaSeconds,
     rotation: Math.atan2(direction.y, direction.x),
   };
+};
+
+const findNearestNodeId = (
+  state: RoomSimulationState,
+  position: { x: number; y: number },
+): string | null => {
+  const nodes = state.world ? [...state.world.navigation.nodes.values()] : [];
+  if (nodes.length === 0) {
+    return null;
+  }
+
+  return nodes.reduce((closestNode, candidate) => {
+    if (!closestNode) {
+      return candidate.nodeId;
+    }
+
+    const closest = state.world?.navigation.nodes.get(closestNode);
+    if (!closest) {
+      return candidate.nodeId;
+    }
+
+    const closestDistance = Math.hypot(closest.position.x - position.x, closest.position.y - position.y);
+    const candidateDistance = Math.hypot(candidate.position.x - position.x, candidate.position.y - position.y);
+    return candidateDistance < closestDistance ? candidate.nodeId : closestNode;
+  }, null as string | null);
+};
+
+const moveZombieTowardTarget = (
+  state: RoomSimulationState,
+  zombie: SimZombie,
+  targetPosition: { x: number; y: number },
+  speed: number,
+  deltaSeconds: number,
+): void => {
+  const directDistance = Math.hypot(targetPosition.x - zombie.transform.x, targetPosition.y - zombie.transform.y);
+  if (directDistance === 0) {
+    zombie.velocity = { x: 0, y: 0 };
+    return;
+  }
+
+  const directDirection = {
+    x: (targetPosition.x - zombie.transform.x) / directDistance,
+    y: (targetPosition.y - zombie.transform.y) / directDistance,
+  };
+  const directNextPosition = {
+    x: zombie.transform.x + directDirection.x * speed * deltaSeconds,
+    y: zombie.transform.y + directDirection.y * speed * deltaSeconds,
+  };
+
+  if (!state.config.isMovementBlocked({ from: zombie.transform, to: directNextPosition, radius: 0.5 }, zombie.entityId)) {
+    moveToward(zombie, targetPosition, speed, deltaSeconds);
+    return;
+  }
+
+  const startNodeId = findNearestNodeId(state, zombie.transform);
+  const targetNodeId = findNearestNodeId(state, targetPosition);
+  if (!state.world || !startNodeId || !targetNodeId) {
+    zombie.velocity = { x: 0, y: 0 };
+    return;
+  }
+
+  const nextStep = findNextNavigationStep(state.world.navigation, startNodeId, targetNodeId);
+  if (!nextStep) {
+    zombie.velocity = { x: 0, y: 0 };
+    return;
+  }
+
+  moveToward(zombie, nextStep.position, speed, deltaSeconds);
 };
 
 const roamWhileIdle = (state: RoomSimulationState, zombie: SimZombie, deltaSeconds: number, speed: number): void => {
@@ -210,7 +279,7 @@ export const createZombieSystem = () => {
         }
 
         zombie.state = "chasing";
-        moveToward(zombie, target.transform, archetype.moveSpeed, deltaSeconds);
+        moveZombieTowardTarget(state, zombie, target.transform, archetype.moveSpeed, deltaSeconds);
         state.dirtyZombieIds.add(zombie.entityId);
       }
     },

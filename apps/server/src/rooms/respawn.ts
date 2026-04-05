@@ -2,6 +2,20 @@ import type { RoomSimulationState } from "../sim/state";
 
 const playerRespawnRadius = 0.5;
 
+const isRespawnPointValid = (state: RoomSimulationState, entityId: string, position: { x: number; y: number }): boolean => {
+  const occupiedPoints = [...state.players.values()]
+    .filter((player) => player.entityId !== entityId)
+    .map((player) => ({ x: player.transform.x, y: player.transform.y }));
+
+  if (state.config.isPositionBlocked(position, entityId)) {
+    return false;
+  }
+
+  return occupiedPoints.every((occupiedPoint) => {
+    return Math.hypot(position.x - occupiedPoint.x, position.y - occupiedPoint.y) >= playerRespawnRadius * 2;
+  });
+};
+
 export const selectRespawnPoint = (state: RoomSimulationState): { x: number; y: number } => {
   const respawnPoints = state.world?.respawnPoints;
   if (!respawnPoints || respawnPoints.length === 0) {
@@ -44,9 +58,18 @@ export const processPendingRespawns = (state: RoomSimulationState): void => {
       continue;
     }
 
+    const position = isRespawnPointValid(state, player.entityId, respawn.position)
+      ? respawn.position
+      : selectRespawnPoint({
+          ...state,
+          players: new Map(
+            [...state.players.entries()].filter(([entityId]) => entityId !== player.entityId),
+          ),
+        });
+
     player.transform = {
-      x: respawn.position.x,
-      y: respawn.position.y,
+      x: position.x,
+      y: position.y,
       rotation: 0,
     };
     player.velocity = { x: 0, y: 0 };

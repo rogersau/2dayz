@@ -186,4 +186,36 @@ describe("createMovementSystem", () => {
     expect(player?.transform).toMatchObject({ x: 2, y: 0, rotation: 0 });
     expect(player?.velocity).toEqual({ x: 0, y: 0 });
   });
+
+  it("does not process movement input for dead players before respawn", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxPlayerSpeed: 4 }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-dead",
+      displayName: "Gray",
+      position: { x: 1, y: 1 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    const player = state.players.get("player_test-dead");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.health = { current: 0, max: 100, isDead: true };
+    queueInputIntent(state, "player_test-dead", {
+      ...defaultIntent,
+      sequence: 2,
+      movement: { x: 1, y: 0 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    expect(player.transform).toMatchObject({ x: 1, y: 1, rotation: 0 });
+    expect(player.velocity).toEqual({ x: 0, y: 0 });
+    expect(state.inputIntents.has("player_test-dead")).toBe(false);
+  });
 });

@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { createCollisionIndex } from "../../world/collision";
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { createZombieSystem } from "./zombieSystem";
 import { createRoomSimulationConfig, createRoomState, queueSpawnPlayer } from "../state";
+import { createNavigationGraph } from "../../world/navigation";
 
 describe("createZombieSystem", () => {
   it("spawns zombies from typed zones, acquires aggro, chases, and later drops aggro", () => {
@@ -217,5 +219,71 @@ describe("createZombieSystem", () => {
     expect(state.zombies.has("zombie_test-dead")).toBe(false);
     expect(state.removedEntityIds.has("zombie_test-dead")).toBe(true);
     expect(state.dirtyZombieIds.has("zombie_test-dead")).toBe(false);
+  });
+
+  it("uses authored pathing instead of moving straight through blockers while chasing", () => {
+    const navigation = {
+      nodes: [
+        { nodeId: "node_left", position: { x: 2, y: 2 } },
+        { nodeId: "node_top-left", position: { x: 2, y: 8 } },
+        { nodeId: "node_top-right", position: { x: 8, y: 8 } },
+        { nodeId: "node_right", position: { x: 8, y: 2 } },
+      ],
+      links: [
+        { from: "node_left", to: "node_top-left", cost: 6 },
+        { from: "node_top-left", to: "node_left", cost: 6 },
+        { from: "node_top-left", to: "node_top-right", cost: 6 },
+        { from: "node_top-right", to: "node_top-left", cost: 6 },
+        { from: "node_top-right", to: "node_right", cost: 6 },
+        { from: "node_right", to: "node_top-right", cost: 6 },
+      ],
+    };
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        isMovementBlocked: ({ from, to }) => from.x < 5 && to.x > 5 && from.y <= 3 && to.y <= 3,
+      }),
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation,
+        },
+        collision: createCollisionIndex([]),
+        navigation: createNavigationGraph(navigation),
+        respawnPoints: [],
+      },
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-path",
+      displayName: "Avery",
+      position: { x: 8, y: 2 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    state.zombies.set("zombie_test-path", {
+      entityId: "zombie_test-path",
+      archetypeId: "zombie_shambler",
+      transform: { x: 2, y: 2, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    createZombieSystem().update(state, 3);
+
+    const zombie = state.zombies.get("zombie_test-path");
+    expect(zombie?.transform.x).toBe(2);
+    expect(zombie?.transform.y).toBeGreaterThan(2);
   });
 });

@@ -28,6 +28,13 @@ export const createMovementSystem = (): MovementSystem => {
           continue;
         }
 
+        if (player.health.isDead) {
+          player.velocity = { x: 0, y: 0 };
+          state.inputIntents.delete(player.entityId);
+          state.lastProcessedInputSequence.set(player.entityId, intent.sequence);
+          continue;
+        }
+
         const direction = normalizeMovement(intent.movement);
         const speed = state.config.maxPlayerSpeed;
         const velocity = {
