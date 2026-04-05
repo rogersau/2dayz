@@ -30,7 +30,7 @@ export const defaultTownMap: MapDefinition = {
   zombieSpawnZones: [
     {
       zoneId: "zone_town-center",
-      center: { x: 24, y: 20 },
+      center: { x: 26, y: 20 },
       radius: 12,
       maxAlive: 5,
       archetypeIds: ["zombie_shambler", "zombie_runner"],

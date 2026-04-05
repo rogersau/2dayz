@@ -80,6 +80,19 @@ describe("loadMapDefinition", () => {
     }
   });
 
+  it("places zombie spawn zones on walkable positions within map bounds", () => {
+    const map = loadMapDefinition();
+    const collision = createCollisionIndex(map.collisionVolumes);
+
+    for (const zone of map.zombieSpawnZones) {
+      expect(zone.center.x).toBeGreaterThanOrEqual(zone.radius);
+      expect(zone.center.y).toBeGreaterThanOrEqual(zone.radius);
+      expect(zone.center.x).toBeLessThanOrEqual(map.bounds.width - zone.radius);
+      expect(zone.center.y).toBeLessThanOrEqual(map.bounds.height - zone.radius);
+      expect(isCirclePositionBlocked(collision, zone.center, 0.5)).toBe(false);
+    }
+  });
+
   it("authors navigation links along traversable corridors", () => {
     const map = loadMapDefinition();
     const collision = createCollisionIndex(map.collisionVolumes);
@@ -138,5 +151,93 @@ describe("loadMapDefinition", () => {
         },
       }),
     ).toThrow(/navigation link/i);
+  });
+
+  it("rejects zombie spawn zones outside map bounds or inside blocking collision", () => {
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_invalid-zones",
+        name: "Invalid Zones",
+        bounds: { width: 10, height: 10 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_wall",
+            kind: "box",
+            position: { x: 5, y: 5 },
+            size: { width: 2, height: 2 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_blocked",
+            center: { x: 5, y: 5 },
+            radius: 1,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 1, y: 1 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 1, y: 8 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 1, y: 2 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_a", position: { x: 1, y: 4 } },
+            { nodeId: "node_b", position: { x: 1, y: 8 } },
+          ],
+          links: [{ from: "node_a", to: "node_b", cost: 4 }],
+        },
+      }),
+    ).toThrow(/zombie spawn zone/i);
+
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_out-of-bounds-zone",
+        name: "Out Of Bounds Zone",
+        bounds: { width: 10, height: 10 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_wall",
+            kind: "box",
+            position: { x: 8, y: 8 },
+            size: { width: 1, height: 1 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_oob",
+            center: { x: 9.5, y: 5 },
+            radius: 1,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 1, y: 1 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 1, y: 8 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 1, y: 2 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_a", position: { x: 1, y: 4 } },
+            { nodeId: "node_b", position: { x: 1, y: 8 } },
+          ],
+          links: [{ from: "node_a", to: "node_b", cost: 4 }],
+        },
+      }),
+    ).toThrow(/zombie spawn zone/i);
   });
 });

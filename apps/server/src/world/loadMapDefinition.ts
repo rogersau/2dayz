@@ -9,6 +9,21 @@ const entityRadius = 0.5;
 const assertSpatialInvariants = (map: MapDefinition): void => {
   const collision = createCollisionIndex(map.collisionVolumes);
 
+  for (const zone of map.zombieSpawnZones) {
+    if (
+      zone.center.x < zone.radius ||
+      zone.center.y < zone.radius ||
+      zone.center.x > map.bounds.width - zone.radius ||
+      zone.center.y > map.bounds.height - zone.radius
+    ) {
+      throw new Error(`zombie spawn zone ${zone.zoneId} exceeds map bounds`);
+    }
+
+    if (isCirclePositionBlocked(collision, zone.center, entityRadius)) {
+      throw new Error(`zombie spawn zone ${zone.zoneId} is inside blocking collision`);
+    }
+  }
+
   for (const respawnPoint of map.respawnPoints) {
     if (isCirclePositionBlocked(collision, respawnPoint.position, entityRadius)) {
       throw new Error(`respawn point ${respawnPoint.pointId} is inside blocking collision`);
