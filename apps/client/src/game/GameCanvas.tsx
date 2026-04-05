@@ -5,6 +5,14 @@ import type { ClientGameStore } from "./state/clientGameStore";
 
 import { bootGame } from "./boot";
 
+const getRuntimeErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return `Three.js runtime failed to start: ${error.message}`;
+  }
+
+  return "Three.js runtime failed to start: unknown error";
+};
+
 export const GameCanvas = ({
   socketClient,
   store,
@@ -13,24 +21,19 @@ export const GameCanvas = ({
   store: ClientGameStore;
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [hasRuntimeError, setHasRuntimeError] = useState(false);
+  const [runtimeError, setRuntimeError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!canvasRef.current) {
       return;
     }
 
-    if (/jsdom/i.test(window.navigator.userAgent)) {
-      setHasRuntimeError(true);
-      return;
-    }
-
     try {
       const dispose = bootGame({ canvas: canvasRef.current, socketClient, store });
-      setHasRuntimeError(false);
+      setRuntimeError(null);
       return dispose;
-    } catch {
-      setHasRuntimeError(true);
+    } catch (error) {
+      setRuntimeError(getRuntimeErrorMessage(error));
       return;
     }
   }, [socketClient, store]);
@@ -38,7 +41,7 @@ export const GameCanvas = ({
   return (
     <div className="game-canvas-shell">
       <canvas aria-label="game world" className="game-canvas" ref={canvasRef} />
-      {hasRuntimeError ? <p className="game-runtime-error">Three.js runtime unavailable in this environment.</p> : null}
+      {runtimeError ? <p className="game-runtime-error">{runtimeError}</p> : null}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-import type { InputMessage } from "@2dayz/shared";
 import type * as THREE from "three";
 
 import type { PredictionController } from "./prediction";
@@ -21,7 +20,6 @@ export const renderFrame = ({
   camera,
   deltaSeconds,
   entityViewStore,
-  input,
   predictionController,
   renderer,
   scene,
@@ -30,7 +28,6 @@ export const renderFrame = ({
   camera: THREE.Camera;
   deltaSeconds: number;
   entityViewStore: ReturnType<typeof createEntityViewStore>;
-  input: InputMessage;
   predictionController: PredictionController;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -48,14 +45,6 @@ export const renderFrame = ({
       entityId: selfPlayer.entityId,
       lastProcessedSequence: selfPlayer.lastProcessedInputSequence ?? -1,
     });
-
-    if (input.movement.x !== 0 || input.movement.y !== 0) {
-      predictionController.applyInput({
-        deltaSeconds,
-        movement: input.movement,
-        sequence: input.sequence,
-      });
-    }
 
     localOverrides.set(selfPlayer.entityId, predictionController.advanceSmoothing(deltaSeconds));
   }

@@ -1,4 +1,5 @@
 import type { ClientGameStore } from "./state/clientGameStore";
+import { SERVER_TICK_RATE } from "@2dayz/shared";
 
 import { createCamera } from "./createCamera";
 import { createRenderer } from "./createRenderer";
@@ -20,7 +21,7 @@ export const bootGame = ({
 }) => {
   const { renderer, resize: resizeRenderer } = createRenderer(canvas);
   const { camera, resize: resizeCamera } = createCamera(canvas);
-  const scene = createScene();
+  const { dispose: disposeScene, scene } = createScene();
   const inputController = createInputController({
     element: canvas,
     onToggleInventory: () => store.toggleInventory(),
@@ -29,8 +30,27 @@ export const bootGame = ({
   const predictionController = createPredictionController({ rotation: 0, x: 0, y: 0 });
   let animationFrame = 0;
   let isDisposed = false;
+  let inputLoop = 0;
   let sequence = 0;
   let previousFrameTime = performance.now();
+  const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
+
+  const sendInput = () => {
+    if (isDisposed) {
+      return;
+    }
+
+    const input = inputController.pollInput(sequence++);
+    socketClient.sendInput(input);
+
+    if (input.movement.x !== 0 || input.movement.y !== 0) {
+      predictionController.applyInput({
+        deltaSeconds: inputDeltaSeconds,
+        movement: input.movement,
+        sequence: input.sequence,
+      });
+    }
+  };
 
   const resize = () => {
     resizeRenderer();
@@ -44,15 +64,11 @@ export const bootGame = ({
 
     const deltaSeconds = Math.min((frameTime - previousFrameTime) / 1000, 0.05);
     previousFrameTime = frameTime;
-    const input = inputController.pollInput(sequence++);
-
-    socketClient.sendInput(input);
 
     renderFrame({
       camera,
       deltaSeconds,
       entityViewStore,
-      input,
       predictionController,
       renderer,
       scene,
@@ -64,14 +80,17 @@ export const bootGame = ({
 
   window.addEventListener("resize", resize);
   resize();
+  inputLoop = window.setInterval(sendInput, inputDeltaSeconds * 1000);
   animationFrame = window.requestAnimationFrame(tick);
 
   return () => {
     isDisposed = true;
     window.cancelAnimationFrame(animationFrame);
+    window.clearInterval(inputLoop);
     window.removeEventListener("resize", resize);
     inputController.destroy();
     entityViewStore.dispose();
+    disposeScene();
     renderer.dispose();
   };
 };

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  clearIntervalMock,
   destroyInputControllerMock,
   entityViewDisposeMock,
   pollInputMock,
@@ -9,7 +10,10 @@ const {
   rendererDisposeMock,
   resizeCameraMock,
   resizeRendererMock,
+  sceneDisposeMock,
+  setIntervalMock,
 } = vi.hoisted(() => ({
+  clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
   entityViewDisposeMock: vi.fn(),
   pollInputMock: vi.fn(),
@@ -18,6 +22,8 @@ const {
   rendererDisposeMock: vi.fn(),
   resizeCameraMock: vi.fn(),
   resizeRendererMock: vi.fn(),
+  sceneDisposeMock: vi.fn(),
+  setIntervalMock: vi.fn(),
 }));
 
 import { bootGame } from "./boot";
@@ -37,7 +43,7 @@ vi.mock("./createCamera", () => ({
 }));
 
 vi.mock("./createScene", () => ({
-  createScene: () => ({ kind: "scene" }),
+  createScene: () => ({ dispose: sceneDisposeMock, scene: { kind: "scene" } }),
 }));
 
 vi.mock("./input/inputController", () => ({
@@ -60,10 +66,14 @@ vi.mock("./render/renderFrame", () => ({
 describe("bootGame", () => {
   let requestAnimationFrameSpy: { mockRestore: () => void };
   let cancelAnimationFrameSpy: { mockRestore: () => void };
+  let setIntervalSpy: { mockRestore: () => void };
+  let clearIntervalSpy: { mockRestore: () => void };
+  let scheduledInterval: (() => void) | null;
   let scheduledFrame: FrameRequestCallback | null;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    scheduledInterval = null;
     scheduledFrame = null;
     pollInputMock.mockReturnValue({
       actions: { fire: true },
@@ -77,14 +87,24 @@ describe("bootGame", () => {
       return 7;
     });
     cancelAnimationFrameSpy = vi.spyOn(window, "cancelAnimationFrame").mockImplementation(() => undefined);
+    setIntervalSpy = vi.spyOn(window, "setInterval").mockImplementation(((callback: TimerHandler) => {
+      scheduledInterval = callback as () => void;
+      setIntervalMock();
+      return 11;
+    }) as typeof window.setInterval);
+    clearIntervalSpy = vi.spyOn(window, "clearInterval").mockImplementation(((id?: number) => {
+      clearIntervalMock(id);
+    }) as typeof window.clearInterval);
   });
 
   afterEach(() => {
     requestAnimationFrameSpy.mockRestore();
     cancelAnimationFrameSpy.mockRestore();
+    setIntervalSpy.mockRestore();
+    clearIntervalSpy.mockRestore();
   });
 
-  it("polls typed input each frame and sends it through the socket client", () => {
+  it("sends typed input on a fixed interval instead of every render frame", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
 
@@ -96,6 +116,9 @@ describe("bootGame", () => {
 
     scheduledFrame?.(16);
 
+    expect(sendInput).not.toHaveBeenCalled();
+    scheduledInterval?.();
+
     expect(sendInput).toHaveBeenCalledWith({
       actions: { fire: true },
       aim: { x: 12, y: -4 },
@@ -104,5 +127,22 @@ describe("bootGame", () => {
       type: "input",
     });
     expect(renderFrameMock).toHaveBeenCalled();
+  });
+
+  it("cleans up scene resources and the input send interval on dispose", () => {
+    const canvas = document.createElement("canvas");
+
+    const dispose = bootGame({
+      canvas,
+      socketClient: { sendInput: vi.fn() },
+      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+    });
+
+    dispose();
+
+    expect(clearIntervalMock).toHaveBeenCalledWith(11);
+    expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
+    expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
+    expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
   });
 });
