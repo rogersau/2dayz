@@ -257,7 +257,7 @@ describe("createMessageRouter", () => {
       players: [
         {
           entityId: "player_1-1",
-          transform: { x: 0.2, y: 0, rotation: 0 },
+          transform: { x: 7.2, y: 14, rotation: 0 },
           velocity: { x: 4, y: 0 },
         },
       ],
@@ -269,7 +269,7 @@ describe("createMessageRouter", () => {
       entityUpdates: [
         {
           entityId: "player_1-1",
-          transform: { x: 0.2, y: 0, rotation: 0 },
+          transform: { x: 7.2, y: 14, rotation: 0 },
           velocity: { x: 4, y: 0 },
         },
       ],

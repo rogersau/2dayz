@@ -9,6 +9,7 @@ import {
   type PlayerInputIntent,
   type RoomSimulationConfig,
   type RoomSimulationState,
+  type RoomWorldState,
 } from "../sim/state";
 import { createRoomReplicationDelta, createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../sim/query";
 import { createLifecycleSystem } from "../sim/systems/lifecycleSystem";
@@ -57,6 +58,7 @@ export interface SimulationRoomRuntime extends RoomRuntime {
 
 type CreateSimulationRoomRuntimeOptions = {
   roomId: string;
+  world?: RoomWorldState | null;
   config?: Partial<Omit<RoomSimulationConfig, "tickRateHz" | "isPositionBlocked">> & {
     isPositionBlocked?: RoomSimulationConfig["isPositionBlocked"];
   };
@@ -80,18 +82,31 @@ const createPlayerEntityId = (roomId: string, playerNumber: number): string => {
 
 export const createSimulationRoomRuntime = ({
   roomId,
+  world,
   config: configOverrides,
   systems,
   onSnapshot,
   onDelta,
 }: CreateSimulationRoomRuntimeOptions): SimulationRoomRuntime => {
   const config = createRoomSimulationConfig(configOverrides);
-  const simulationState = createRoomState({ roomId, config });
+  const simulationState = createRoomState({ roomId, config, world });
   const playerSessions = new Map<string, PlayerSession>();
   const roomSystems = systems ?? [createLifecycleSystem(), createMovementSystem()];
   let playerSequence = 0;
+  let respawnPointIndex = 0;
   let healthy = true;
   let status: RoomStatus = "active";
+
+  const getNextRespawnPoint = () => {
+    const respawnPoints = simulationState.world?.respawnPoints;
+    if (!respawnPoints || respawnPoints.length === 0) {
+      return { x: 0, y: 0 };
+    }
+
+    const point = respawnPoints[respawnPointIndex % respawnPoints.length];
+    respawnPointIndex += 1;
+    return point;
+  };
 
   const getConnectedPlayerIds = (): string[] => {
     return [...playerSessions.entries()]
@@ -169,7 +184,7 @@ export const createSimulationRoomRuntime = ({
       queueSpawnPlayer(simulationState, {
         entityId: playerEntityId,
         displayName: player.displayName,
-        position: { x: 0, y: 0 },
+        position: getNextRespawnPoint(),
       });
       updateStatus();
 

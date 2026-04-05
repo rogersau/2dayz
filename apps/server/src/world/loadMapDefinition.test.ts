@@ -240,4 +240,92 @@ describe("loadMapDefinition", () => {
       }),
     ).toThrow(/zombie spawn zone/i);
   });
+
+  it("rejects authored points and navigation nodes outside map bounds", () => {
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_out-of-bounds-points",
+        name: "Out Of Bounds Points",
+        bounds: { width: 10, height: 10 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_safe",
+            kind: "box",
+            position: { x: 8, y: 8 },
+            size: { width: 1, height: 1 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_ok",
+            center: { x: 5, y: 5 },
+            radius: 1,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 11, y: 1 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 1, y: 8 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 1, y: 2 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_a", position: { x: 1, y: 4 } },
+            { nodeId: "node_b", position: { x: 1, y: 8 } },
+          ],
+          links: [{ from: "node_a", to: "node_b", cost: 4 }],
+        },
+      }),
+    ).toThrow(/loot point/i);
+
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_out-of-bounds-nav",
+        name: "Out Of Bounds Nav",
+        bounds: { width: 10, height: 10 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_safe",
+            kind: "box",
+            position: { x: 8, y: 8 },
+            size: { width: 1, height: 1 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_ok",
+            center: { x: 5, y: 5 },
+            radius: 1,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 1, y: 1 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 11, y: 8 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 1, y: 2 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_a", position: { x: 1, y: 4 } },
+            { nodeId: "node_b", position: { x: 12, y: 8 } },
+          ],
+          links: [{ from: "node_a", to: "node_b", cost: 4 }],
+        },
+      }),
+    ).toThrow(/respawn point|navigation node/i);
+  });
 });

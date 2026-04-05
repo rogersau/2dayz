@@ -1,4 +1,7 @@
-import { INVENTORY_SLOT_COUNT, ROOM_PLAYER_CAPACITY, SERVER_TICK_RATE, type Health, type InputMessage, type Inventory, type ServerEvent, type Transform, type Vector2, type Velocity } from "@2dayz/shared";
+import { INVENTORY_SLOT_COUNT, ROOM_PLAYER_CAPACITY, SERVER_TICK_RATE, type Health, type InputMessage, type Inventory, type MapDefinition, type ServerEvent, type Transform, type Vector2, type Velocity } from "@2dayz/shared";
+
+import type { CollisionIndex } from "../world/collision";
+import type { NavigationGraph } from "../world/navigation";
 
 export const MIN_ROOM_PLAYER_CAPACITY = 8;
 export const MAX_ROOM_PLAYER_CAPACITY = 12;
@@ -32,10 +35,18 @@ export type SpawnPlayerRequest = {
   position: Vector2;
 };
 
+export type RoomWorldState = {
+  map: MapDefinition;
+  collision: CollisionIndex;
+  navigation: NavigationGraph;
+  respawnPoints: Vector2[];
+};
+
 export type RoomSimulationState = {
   roomId: string;
   tick: number;
   config: RoomSimulationConfig;
+  world: RoomWorldState | null;
   players: Map<string, SimPlayer>;
   pendingSpawns: SpawnPlayerRequest[];
   pendingDespawns: string[];
@@ -107,14 +118,17 @@ export const createRoomSimulationConfig = (
 export const createRoomState = ({
   roomId,
   config = createRoomSimulationConfig(),
+  world = null,
 }: {
   roomId: string;
   config?: RoomSimulationConfig;
+  world?: RoomWorldState | null;
 }): RoomSimulationState => {
   return {
     roomId,
     tick: 0,
     config,
+    world,
     players: new Map<string, SimPlayer>(),
     pendingSpawns: [],
     pendingDespawns: [],
