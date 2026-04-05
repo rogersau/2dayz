@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { createDeltaMessage, createRoomSimulationConfig, createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
+import { createRoomReplicationDelta } from "../query";
+import { createRoomSimulationConfig, createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { createMovementSystem } from "./movementSystem";
 
@@ -116,9 +117,7 @@ describe("createMovementSystem", () => {
 
     createMovementSystem().update(state, 1);
 
-    expect(createDeltaMessage(state)).toMatchObject({
-      type: "delta",
-      roomId: "room_test",
+    expect(createRoomReplicationDelta(state)).toMatchObject({
       entityUpdates: [
         {
           entityId: "player_test-4",

@@ -4,6 +4,7 @@ import { deltaMessageSchema, errorMessageSchema, roomJoinedMessageSchema, snapsh
 import { createMessageRouter } from "./messageRouter";
 import { createSessionRegistry } from "./sessionRegistry";
 import type { RoomManager } from "../rooms/roomManager";
+import type { RoomRuntime } from "../rooms/roomRuntime";
 import type { SessionRegistry } from "./sessionRegistry";
 import { createRoomManager } from "../rooms/roomManager";
 import { createRoomFactory } from "../rooms/roomFactory";
@@ -23,21 +24,57 @@ const createSocket = (): CapturingSocket => {
 };
 
 const createStubRoomManager = (): RoomManager => {
-  return {
-    assignPlayer() {
-      return { roomId: "room_1", playerEntityId: "player_room-1" };
+  let room: RoomRuntime;
+
+  room = {
+    roomId: "room_1",
+    capacity: 8,
+    status: "active",
+    playerCount: 0,
+    isHealthy() {
+      return true;
+    },
+    canAcceptPlayers() {
+      return true;
+    },
+    joinPlayer() {
+      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
     },
     disconnectPlayer() {
       return true;
     },
     reclaimPlayer() {
-      return { roomId: "room_1", playerEntityId: "player_room-1" };
+      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
     },
     releasePlayer() {
       return true;
     },
-    getRoomRuntime() {
-      return undefined;
+    shutdown() {
+      // no-op for tests
+    },
+    tick() {
+      // no-op for tests
+    },
+    queueInput() {
+      // no-op for tests
+    },
+    subscribePlayer() {
+      return () => undefined;
+    },
+  };
+
+  return {
+    assignPlayer() {
+      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
+    },
+    disconnectPlayer() {
+      return true;
+    },
+    reclaimPlayer() {
+      return { roomId: "room_1", playerEntityId: "player_room-1", runtime: room };
+    },
+    releasePlayer() {
+      return true;
     },
     tickAllRooms() {
       // no-op for tests
@@ -70,6 +107,9 @@ const createStubSessionRegistry = (): SessionRegistry => {
     reclaim() {
       return {
         accepted: true,
+        roomId: "room_1",
+        playerEntityId: "player_room-1",
+        runtime: createStubRoomManager().assignPlayer({ displayName: "Avery" }).runtime,
         reservation: {
           sessionToken: "session_1",
           displayName: "Avery",

@@ -9,7 +9,9 @@ type IsolationRoom = RoomRuntime & {
 };
 
 const createIsolationRoom = (roomId: string, behavior: "throws" | "healthy"): IsolationRoom => {
-  return {
+  let room: IsolationRoom;
+
+  room = {
     roomId,
     capacity: 2,
     status: "active",
@@ -27,13 +29,14 @@ const createIsolationRoom = (roomId: string, behavior: "throws" | "healthy"): Is
       return {
         roomId,
         playerEntityId: `${roomId}-player-1`,
+        runtime: room,
       };
     },
     disconnectPlayer() {
       return true;
     },
     reclaimPlayer(playerEntityId) {
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime: room };
     },
     releasePlayer() {
       return true;
@@ -48,7 +51,15 @@ const createIsolationRoom = (roomId: string, behavior: "throws" | "healthy"): Is
     shutdown() {
       // no-op for tests
     },
+    queueInput() {
+      // no-op for tests
+    },
+    subscribePlayer() {
+      return () => undefined;
+    },
   };
+
+  return room;
 };
 
 describe("room isolation", () => {

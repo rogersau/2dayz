@@ -9,7 +9,9 @@ type HealthRoom = RoomRuntime & {
 };
 
 const createHealthRoom = (roomId: string, health: boolean, joinedNames: string[] = []): HealthRoom => {
-  return {
+  let room: HealthRoom;
+
+  room = {
     roomId,
     capacity: 2,
     status: health ? "active" : "unhealthy",
@@ -34,13 +36,14 @@ const createHealthRoom = (roomId: string, health: boolean, joinedNames: string[]
       return {
         roomId,
         playerEntityId: `${roomId}-player-${joinedNames.length}`,
+        runtime: room,
       };
     },
     disconnectPlayer() {
       return true;
     },
     reclaimPlayer(playerEntityId) {
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime: room };
     },
     releasePlayer() {
       return true;
@@ -48,7 +51,18 @@ const createHealthRoom = (roomId: string, health: boolean, joinedNames: string[]
     shutdown() {
       this.shutdownCalls += 1;
     },
+    tick() {
+      // no-op for tests
+    },
+    queueInput() {
+      // no-op for tests
+    },
+    subscribePlayer() {
+      return () => undefined;
+    },
   };
+
+  return room;
 };
 
 describe("room health routing", () => {

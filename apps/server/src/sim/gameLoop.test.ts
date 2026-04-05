@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { serverMessageSchema } from "@2dayz/shared";
-
 import { createSimulationRoomRuntime } from "../rooms/roomRuntime";
 import { createLifecycleSystem } from "./systems/lifecycleSystem";
 
@@ -34,13 +32,11 @@ describe("createSimulationRoomRuntime", () => {
     runtime.advance(49);
     runtime.advance(1);
 
-    expect(joined).toEqual({ roomId: "room_test", playerEntityId: "player_test-1" });
+    expect(joined).toMatchObject({ roomId: "room_test", playerEntityId: "player_test-1", runtime });
     expect(callOrder).toEqual(["movement"]);
     expect(snapshots).toHaveLength(1);
     expect(deltas).toHaveLength(1);
     expect(snapshots[0]).toMatchObject({
-      type: "snapshot",
-      roomId: "room_test",
       tick: 1,
       playerEntityId: "player_test-1",
       players: [
@@ -52,19 +48,7 @@ describe("createSimulationRoomRuntime", () => {
       ],
     });
     expect(deltas[0]).toMatchObject({
-      type: "delta",
-      roomId: "room_test",
       tick: 1,
-    });
-    expect(serverMessageSchema.parse(snapshots[0])).toMatchObject({
-      type: "snapshot",
-      players: [
-        {
-          entityId: "player_test-1",
-          transform: { x: 0, y: 0, rotation: 0 },
-          velocity: { x: 0, y: 0 },
-        },
-      ],
     });
   });
 });

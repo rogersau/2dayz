@@ -6,17 +6,20 @@ import type { RoomRuntime } from "./roomRuntime";
 type FakeRoom = RoomRuntime & {
   joinedNames: string[];
   disconnectedPlayerIds: Set<string>;
+  subscriptions: Map<string, Set<unknown>>;
 };
 
 const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
   const joinedNames: string[] = [];
+  let room: FakeRoom;
 
-  return {
+  room = {
     roomId,
     capacity,
     status: "active",
     joinedNames,
     disconnectedPlayerIds: new Set<string>(),
+    subscriptions: new Map<string, Set<unknown>>(),
     get playerCount() {
       return joinedNames.length;
     },
@@ -32,6 +35,7 @@ const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
       return {
         roomId,
         playerEntityId: `${roomId}-player-${joinedNames.length}`,
+        runtime: room,
       };
     },
     disconnectPlayer(playerEntityId) {
@@ -44,7 +48,7 @@ const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
       }
 
       this.disconnectedPlayerIds.delete(playerEntityId);
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime: room };
     },
     releasePlayer(playerEntityId) {
       const playerIndex = Number(playerEntityId.split("-").at(-1) ?? 0) - 1;
@@ -59,7 +63,27 @@ const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
     shutdown() {
       // no-op for tests
     },
+    tick() {
+      // no-op for tests
+    },
+    queueInput() {
+      // no-op for tests
+    },
+    subscribePlayer(playerEntityId, handlers) {
+      const subscriptions = this.subscriptions.get(playerEntityId) ?? new Set();
+      subscriptions.add(handlers);
+      this.subscriptions.set(playerEntityId, subscriptions);
+
+      return () => {
+        subscriptions.delete(handlers);
+        if (subscriptions.size === 0) {
+          this.subscriptions.delete(playerEntityId);
+        }
+      };
+    },
   };
+
+  return room;
 };
 
 describe("createRoomManager", () => {
@@ -78,9 +102,12 @@ describe("createRoomManager", () => {
     const second = manager.assignPlayer({ displayName: "Blair" });
     const third = manager.assignPlayer({ displayName: "Casey" });
 
-    expect(first.roomId).toBe("room_1");
-    expect(second.roomId).toBe("room_1");
-    expect(third.roomId).toBe("room_2");
+    expect(first).toMatchObject({ roomId: "room_1" });
+    expect(second).toMatchObject({ roomId: "room_1" });
+    expect(third).toMatchObject({ roomId: "room_2" });
+    expect(first.runtime).toBeDefined();
+    expect(second.runtime).toBe(first.runtime);
+    expect(third.runtime).not.toBe(first.runtime);
     expect(manager.getRoomSummaries()).toEqual([
       {
         roomId: "room_1",
@@ -112,7 +139,7 @@ describe("createRoomManager", () => {
     const replacement = manager.assignPlayer({ displayName: "Blair" });
 
     expect(replacement.roomId).toBe("room_2");
-    expect(manager.reclaimPlayer(first.roomId, first.playerEntityId)).toEqual(first);
+    expect(manager.reclaimPlayer(first.roomId, first.playerEntityId)).toMatchObject(first);
   });
 
   it("keeps an empty room alive so later joins can reuse it", () => {

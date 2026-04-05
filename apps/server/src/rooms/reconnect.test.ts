@@ -7,8 +7,9 @@ import type { RoomRuntime } from "./roomRuntime";
 
 const createRuntimeRoom = (roomId: string, capacity = 2): RoomRuntime => {
   const players = new Map<string, { displayName: string; connected: boolean }>();
+  let room: RoomRuntime;
 
-  return {
+  room = {
     roomId,
     capacity,
     status: "active",
@@ -24,7 +25,7 @@ const createRuntimeRoom = (roomId: string, capacity = 2): RoomRuntime => {
     joinPlayer(player) {
       const playerEntityId = `${roomId}-player-${players.size + 1}`;
       players.set(playerEntityId, { displayName: player.displayName, connected: true });
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime: room };
     },
     disconnectPlayer(playerEntityId) {
       const state = players.get(playerEntityId);
@@ -42,7 +43,7 @@ const createRuntimeRoom = (roomId: string, capacity = 2): RoomRuntime => {
       }
 
       state.connected = true;
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime: room };
     },
     releasePlayer(playerEntityId) {
       return players.delete(playerEntityId);
@@ -50,7 +51,18 @@ const createRuntimeRoom = (roomId: string, capacity = 2): RoomRuntime => {
     shutdown() {
       // no-op for tests
     },
+    tick() {
+      // no-op for tests
+    },
+    queueInput() {
+      // no-op for tests
+    },
+    subscribePlayer() {
+      return () => undefined;
+    },
   };
+
+  return room;
 };
 
 describe("createReconnectRegistry", () => {
@@ -76,7 +88,7 @@ describe("createReconnectRegistry", () => {
     sessionRegistry.markDisconnected(reservation.sessionToken);
 
     now = 10_000;
-    expect(sessionRegistry.reclaim(reservation.sessionToken)).toEqual({
+    expect(sessionRegistry.reclaim(reservation.sessionToken)).toMatchObject({
       accepted: true,
       reservation: {
         sessionToken: reservation.sessionToken,

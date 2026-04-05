@@ -1,6 +1,7 @@
 import { DEFAULT_RECLAIM_WINDOW_MS } from "../config";
 import { createReconnectRegistry, type ReconnectRegistry, type SessionReservation } from "../rooms/reconnect";
 import type { RoomManager } from "../rooms/roomManager";
+import type { RoomRuntime } from "../rooms/roomRuntime";
 
 type SessionRegistryOptions = {
   reclaimWindowMs?: number;
@@ -19,7 +20,15 @@ export type SessionRegistry = {
   cleanupExpiredReservations(): void;
   markDisconnected(sessionToken: string): void;
   removeSession(sessionToken: string, reason: "expired" | "room-unavailable" | "replaced"): boolean;
-  reclaim(sessionToken: string): ReturnType<ReconnectRegistry["reclaim"]>;
+  reclaim(sessionToken: string):
+    | { accepted: false; reason: "invalid" | "not-disconnected" | "expired" | "room-unavailable" }
+    | {
+        accepted: true;
+        reservation: SessionReservation;
+        roomId: string;
+        playerEntityId: string;
+        runtime: RoomRuntime;
+      };
 };
 
 export const createSessionRegistry = ({
@@ -98,7 +107,17 @@ export const createSessionRegistry = ({
         return { accepted: false, reason: "room-unavailable" };
       }
 
-      return registry.reclaim(sessionToken, now());
+      const reclaimResult = registry.reclaim(sessionToken, now());
+      if (!reclaimResult.accepted) {
+        return reclaimResult;
+      }
+
+      return {
+        ...reclaimResult,
+        roomId: reclaimedPlayer.roomId,
+        playerEntityId: reclaimedPlayer.playerEntityId,
+        runtime: reclaimedPlayer.runtime,
+      };
     },
   };
 };

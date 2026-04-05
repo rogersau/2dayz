@@ -1,4 +1,4 @@
-import { INVENTORY_SLOT_COUNT, ROOM_PLAYER_CAPACITY, SERVER_TICK_RATE, type DeltaMessage, type Health, type InputMessage, type Inventory, type PlayerState, type ServerEvent, type SnapshotMessage, type Transform, type Vector2, type Velocity } from "@2dayz/shared";
+import { INVENTORY_SLOT_COUNT, ROOM_PLAYER_CAPACITY, SERVER_TICK_RATE, type Health, type InputMessage, type Inventory, type ServerEvent, type Transform, type Vector2, type Velocity } from "@2dayz/shared";
 
 export const MIN_ROOM_PLAYER_CAPACITY = 8;
 export const MAX_ROOM_PLAYER_CAPACITY = 12;
@@ -60,26 +60,6 @@ const createDefaultHealth = (): Health => {
     current: 100,
     max: 100,
     isDead: false,
-  };
-};
-
-const createPlayerState = (player: SimPlayer): PlayerState => {
-  return {
-    entityId: player.entityId,
-    displayName: player.displayName,
-    transform: player.transform,
-    velocity: player.velocity,
-    inventory: player.inventory,
-    health: player.health,
-  };
-};
-
-const createPlayerDelta = (player: SimPlayer): DeltaMessage["entityUpdates"][number] => {
-  return {
-    entityId: player.entityId,
-    transform: player.transform,
-    velocity: player.velocity,
-    health: player.health,
   };
 };
 
@@ -149,32 +129,6 @@ export const queueDespawnEntity = (state: RoomSimulationState, entityId: string)
 
 export const queueInputIntent = (state: RoomSimulationState, entityId: string, intent: PlayerInputIntent): void => {
   state.inputIntents.set(entityId, intent);
-};
-
-export const createSnapshotMessage = (state: RoomSimulationState, playerEntityId: string): SnapshotMessage => {
-  return {
-    type: "snapshot",
-    tick: state.tick,
-    roomId: state.roomId,
-    playerEntityId,
-    players: [...state.players.values()].map(createPlayerState),
-    loot: [],
-    zombies: [],
-  };
-};
-
-export const createDeltaMessage = (state: RoomSimulationState): DeltaMessage => {
-  return {
-    type: "delta",
-    tick: state.tick,
-    roomId: state.roomId,
-    entityUpdates: [...state.dirtyPlayerIds]
-      .map((entityId) => state.players.get(entityId))
-      .filter((player): player is SimPlayer => player !== undefined)
-      .map(createPlayerDelta),
-    removedEntityIds: [...state.removedEntityIds],
-    events: [...state.events],
-  };
 };
 
 export const clearTransientSimulationState = (state: RoomSimulationState): void => {

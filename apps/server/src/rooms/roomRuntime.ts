@@ -1,12 +1,8 @@
-import type { DeltaMessage, SnapshotMessage } from "@2dayz/shared";
-
 import { createFixedTickGameLoop, type SimulationSystem } from "../sim/gameLoop";
 import {
   clearTransientSimulationState,
-  createDeltaMessage,
   createRoomSimulationConfig,
   createRoomState,
-  createSnapshotMessage,
   queueDespawnEntity,
   queueInputIntent,
   queueSpawnPlayer,
@@ -14,6 +10,7 @@ import {
   type RoomSimulationConfig,
   type RoomSimulationState,
 } from "../sim/state";
+import { createRoomReplicationDelta, createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../sim/query";
 import { createLifecycleSystem } from "../sim/systems/lifecycleSystem";
 import { createMovementSystem } from "../sim/systems/movementSystem";
 
@@ -26,6 +23,7 @@ export type JoinPlayerInput = {
 export type JoinPlayerResult = {
   roomId: string;
   playerEntityId: string;
+  runtime: RoomRuntime;
 };
 
 export interface RoomRuntime {
@@ -40,13 +38,13 @@ export interface RoomRuntime {
   reclaimPlayer(playerEntityId: string): JoinPlayerResult | null;
   releasePlayer(playerEntityId: string): boolean;
   shutdown(reason?: string): void;
-  tick?(): void;
-  queueInput?(playerEntityId: string, intent: PlayerInputIntent): void;
-  subscribePlayerUpdates?(
+  tick(): void;
+  queueInput(playerEntityId: string, intent: PlayerInputIntent): void;
+  subscribePlayer(
     playerEntityId: string,
     handlers: {
-      onSnapshot(snapshot: SnapshotMessage): void;
-      onDelta(delta: DeltaMessage): void;
+      onSnapshot(snapshot: RoomReplicationSnapshot): void;
+      onDelta(delta: RoomReplicationDelta): void;
     },
   ): (() => void) | null;
 }
@@ -63,8 +61,17 @@ type CreateSimulationRoomRuntimeOptions = {
     isPositionBlocked?: RoomSimulationConfig["isPositionBlocked"];
   };
   systems?: SimulationSystem[];
-  onSnapshot?(snapshot: SnapshotMessage): void;
-  onDelta?(delta: DeltaMessage): void;
+  onSnapshot?(snapshot: RoomReplicationSnapshot): void;
+  onDelta?(delta: RoomReplicationDelta): void;
+};
+
+type PlayerSession = {
+  displayName: string;
+  connected: boolean;
+  subscriptions: Set<{
+    onSnapshot(snapshot: RoomReplicationSnapshot): void;
+    onDelta(delta: RoomReplicationDelta): void;
+  }>;
 };
 
 const createPlayerEntityId = (roomId: string, playerNumber: number): string => {
@@ -80,42 +87,40 @@ export const createSimulationRoomRuntime = ({
 }: CreateSimulationRoomRuntimeOptions): SimulationRoomRuntime => {
   const config = createRoomSimulationConfig(configOverrides);
   const simulationState = createRoomState({ roomId, config });
-  const activePlayers = new Set<string>();
-  const knownPlayers = new Set<string>();
-  const subscriptions = new Map<
-    string,
-    Set<{
-      onSnapshot(snapshot: SnapshotMessage): void;
-      onDelta(delta: DeltaMessage): void;
-    }>
-  >();
+  const playerSessions = new Map<string, PlayerSession>();
   const roomSystems = systems ?? [createLifecycleSystem(), createMovementSystem()];
   let playerSequence = 0;
   let healthy = true;
   let status: RoomStatus = "active";
 
+  const getConnectedPlayerIds = (): string[] => {
+    return [...playerSessions.entries()]
+      .filter(([, session]) => session.connected)
+      .map(([playerEntityId]) => playerEntityId);
+  };
+
   const loop = createFixedTickGameLoop({
     tickRateHz: config.tickRateHz,
     systems: roomSystems,
     onTick(state) {
-      const delta = createDeltaMessage(state);
+      const delta = createRoomReplicationDelta(state);
 
-      for (const playerEntityId of activePlayers) {
-        const snapshot = createSnapshotMessage(state, playerEntityId);
+      for (const playerEntityId of getConnectedPlayerIds()) {
+        const snapshot = createRoomReplicationSnapshot(state, playerEntityId);
         onSnapshot?.(snapshot);
 
-        for (const handlers of subscriptions.get(playerEntityId) ?? []) {
+        for (const handlers of playerSessions.get(playerEntityId)?.subscriptions ?? []) {
           handlers.onSnapshot(snapshot);
         }
       }
 
       onDelta?.(delta);
-      for (const [playerEntityId, handlersSet] of subscriptions.entries()) {
-        if (!activePlayers.has(playerEntityId)) {
+      for (const [playerEntityId, session] of playerSessions.entries()) {
+        if (!session.connected) {
           continue;
         }
 
-        for (const handlers of handlersSet) {
+        for (const handlers of session.subscriptions) {
           handlers.onDelta(delta);
         }
       }
@@ -124,10 +129,12 @@ export const createSimulationRoomRuntime = ({
   });
 
   const updateStatus = (): void => {
-    status = !healthy ? "unhealthy" : knownPlayers.size >= config.playerCapacity ? "full" : "active";
+    status = !healthy ? "unhealthy" : playerSessions.size >= config.playerCapacity ? "full" : "active";
   };
 
-  return {
+  let runtime: SimulationRoomRuntime;
+
+  runtime = {
     roomId,
     capacity: config.playerCapacity,
     get status() {
@@ -137,25 +144,28 @@ export const createSimulationRoomRuntime = ({
       status = nextStatus;
     },
     get playerCount() {
-      return knownPlayers.size;
+      return playerSessions.size;
     },
     simulationState,
     isHealthy() {
       return healthy;
     },
     canAcceptPlayers() {
-      return healthy && knownPlayers.size < config.playerCapacity;
+      return healthy && playerSessions.size < config.playerCapacity;
     },
     joinPlayer(player) {
-      if (!this.canAcceptPlayers()) {
+      if (!runtime.canAcceptPlayers()) {
         throw new Error("room cannot accept players");
       }
 
       playerSequence += 1;
       const playerEntityId = createPlayerEntityId(roomId, playerSequence);
 
-      knownPlayers.add(playerEntityId);
-      activePlayers.add(playerEntityId);
+      playerSessions.set(playerEntityId, {
+        displayName: player.displayName,
+        connected: true,
+        subscriptions: new Set(),
+      });
       queueSpawnPlayer(simulationState, {
         entityId: playerEntityId,
         displayName: player.displayName,
@@ -163,33 +173,33 @@ export const createSimulationRoomRuntime = ({
       });
       updateStatus();
 
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime };
     },
     disconnectPlayer(playerEntityId) {
-      if (!knownPlayers.has(playerEntityId)) {
+      const session = playerSessions.get(playerEntityId);
+      if (!session) {
         return false;
       }
 
-      activePlayers.delete(playerEntityId);
+      session.connected = false;
       updateStatus();
       return true;
     },
     reclaimPlayer(playerEntityId) {
-      if (!knownPlayers.has(playerEntityId) || activePlayers.has(playerEntityId) || !healthy) {
+      const session = playerSessions.get(playerEntityId);
+      if (!session || session.connected || !healthy) {
         return null;
       }
 
-      activePlayers.add(playerEntityId);
+      session.connected = true;
       updateStatus();
-      return { roomId, playerEntityId };
+      return { roomId, playerEntityId, runtime };
     },
     releasePlayer(playerEntityId) {
-      if (!knownPlayers.delete(playerEntityId)) {
+      if (!playerSessions.delete(playerEntityId)) {
         return false;
       }
 
-      activePlayers.delete(playerEntityId);
-      subscriptions.delete(playerEntityId);
       queueDespawnEntity(simulationState, playerEntityId);
       updateStatus();
       return true;
@@ -212,28 +222,21 @@ export const createSimulationRoomRuntime = ({
     queueInput(playerEntityId, intent) {
       queueInputIntent(simulationState, playerEntityId, intent);
     },
-    subscribePlayerUpdates(playerEntityId, handlers) {
-      if (!knownPlayers.has(playerEntityId)) {
+    subscribePlayer(playerEntityId, handlers) {
+      const session = playerSessions.get(playerEntityId);
+      if (!session) {
         return null;
       }
 
-      const playerSubscriptions = subscriptions.get(playerEntityId) ?? new Set();
-      playerSubscriptions.add(handlers);
-      subscriptions.set(playerEntityId, playerSubscriptions);
+      session.subscriptions.add(handlers);
 
       return () => {
-        const currentSubscriptions = subscriptions.get(playerEntityId);
-        if (!currentSubscriptions) {
-          return;
-        }
-
-        currentSubscriptions.delete(handlers);
-        if (currentSubscriptions.size === 0) {
-          subscriptions.delete(playerEntityId);
-        }
+        session.subscriptions.delete(handlers);
       };
     },
   };
+
+  return runtime;
 }
 
 export type ManagedRoom = {
