@@ -22,11 +22,18 @@ type ReservationInput = {
 
 type ReclaimResult =
   | { accepted: true; reservation: SessionReservation }
-  | { accepted: false; reason: "expired" | "invalid" | "not-disconnected" };
+  | { accepted: false; reason: "expired" | "invalid" | "not-disconnected" | "room-unavailable" };
+
+export type StoredReservationSnapshot = SessionReservation & {
+  disconnectedAt: number | null;
+};
 
 export type ReconnectRegistry = {
   issueReservation(input: ReservationInput): SessionReservation;
-  markDisconnected(sessionToken: string, now: number): void;
+  markDisconnected(sessionToken: string, now: number): SessionReservation | null;
+  getReservation(sessionToken: string): StoredReservationSnapshot | null;
+  listReservations(): StoredReservationSnapshot[];
+  invalidate(sessionToken: string): boolean;
   reclaim(sessionToken: string, now: number): ReclaimResult;
 };
 
@@ -57,10 +64,30 @@ export const createReconnectRegistry = ({ reclaimWindowMs }: ReconnectRegistryOp
     markDisconnected(sessionToken, now) {
       const reservation = reservations.get(sessionToken);
       if (!reservation) {
-        return;
+        return null;
       }
 
       reservation.disconnectedAt = now;
+      return {
+        sessionToken: reservation.sessionToken,
+        displayName: reservation.displayName,
+        roomId: reservation.roomId,
+        playerEntityId: reservation.playerEntityId,
+      };
+    },
+    getReservation(sessionToken) {
+      const reservation = reservations.get(sessionToken);
+      if (!reservation) {
+        return null;
+      }
+
+      return { ...reservation };
+    },
+    listReservations() {
+      return [...reservations.values()].map((reservation) => ({ ...reservation }));
+    },
+    invalidate(sessionToken) {
+      return reservations.delete(sessionToken);
     },
     reclaim(sessionToken, now) {
       const reservation = reservations.get(sessionToken);

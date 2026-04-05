@@ -24,6 +24,9 @@ type RoomManagerOptions = {
 
 export type RoomManager = {
   assignPlayer(input: AssignPlayerInput): AssignPlayerResult;
+  disconnectPlayer(roomId: string, playerEntityId: string): boolean;
+  reclaimPlayer(roomId: string, playerEntityId: string): AssignPlayerResult | null;
+  releasePlayer(roomId: string, playerEntityId: string): boolean;
   tickAllRooms(): void;
   getRoomSummaries(): RoomSummary[];
   getRoomCount(): number;
@@ -104,6 +107,35 @@ export const createRoomManager = ({ createRoom, initialRooms = [] }: RoomManager
         const fallbackRoom = getOrCreateRoom();
         return fallbackRoom.joinPlayer(input);
       }
+    },
+    disconnectPlayer(roomId, playerEntityId) {
+      const room = rooms.get(roomId);
+      if (!room || !room.isHealthy()) {
+        return false;
+      }
+
+      return room.disconnectPlayer(playerEntityId);
+    },
+    reclaimPlayer(roomId, playerEntityId) {
+      const room = rooms.get(roomId);
+      if (!room || !room.isHealthy()) {
+        return null;
+      }
+
+      return room.reclaimPlayer(playerEntityId);
+    },
+    releasePlayer(roomId, playerEntityId) {
+      const room = rooms.get(roomId);
+      if (!room) {
+        return false;
+      }
+
+      const released = room.releasePlayer(playerEntityId);
+      if (room.playerCount === 0) {
+        removeRoom(roomId, "empty");
+      }
+
+      return released;
     },
     tickAllRooms() {
       for (const room of [...rooms.values()]) {

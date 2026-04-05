@@ -1,4 +1,11 @@
 import type { RawData, WebSocket } from "ws";
+import {
+  joinRequestSchema,
+  reconnectRequestSchema,
+  roomJoinedMessageSchema,
+  type JoinRequest,
+  type ReconnectRequest,
+} from "@2dayz/shared";
 
 import type { RoomManager } from "../rooms/roomManager";
 import type { SessionRegistry } from "./sessionRegistry";
@@ -13,30 +20,21 @@ type RouterConnection = {
   handleClose(): void;
 };
 
-type JoinMessage = {
-  type: "join";
-  displayName: string;
-};
-
-type ReconnectMessage = {
-  type: "reconnect";
-  sessionToken: string;
-};
-
-const parseMessage = (raw: RawData): JoinMessage | ReconnectMessage | null => {
+const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | null => {
   if (typeof raw !== "string" && !Buffer.isBuffer(raw)) {
     return null;
   }
 
   try {
-    const message = JSON.parse(raw.toString()) as { type?: string; displayName?: string; sessionToken?: string };
-
-    if (message.type === "join" && typeof message.displayName === "string" && message.displayName.trim().length > 0) {
-      return { type: "join", displayName: message.displayName.trim() };
+    const message = JSON.parse(raw.toString()) as unknown;
+    const parsedJoin = joinRequestSchema.safeParse(message);
+    if (parsedJoin.success) {
+      return parsedJoin.data;
     }
 
-    if (message.type === "reconnect" && typeof message.sessionToken === "string") {
-      return { type: "reconnect", sessionToken: message.sessionToken };
+    const parsedReconnect = reconnectRequestSchema.safeParse(message);
+    if (parsedReconnect.success) {
+      return parsedReconnect.data;
     }
   } catch {
     return null;
@@ -46,6 +44,21 @@ const parseMessage = (raw: RawData): JoinMessage | ReconnectMessage | null => {
 };
 
 export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRouterOptions) => {
+  const sendRoomJoined = (socket: WebSocket, payload: {
+    roomId: string;
+    playerEntityId: string;
+    sessionToken: string;
+  }) => {
+    const message = roomJoinedMessageSchema.parse({
+      type: "room-joined",
+      roomId: payload.roomId,
+      playerEntityId: payload.playerEntityId,
+      sessionToken: payload.sessionToken,
+    });
+
+    socket.send(JSON.stringify(message));
+  };
+
   return {
     attach(socket: WebSocket): RouterConnection {
       let activeSessionToken: string | null = null;
@@ -67,12 +80,11 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
             });
 
             activeSessionToken = session.sessionToken;
-            socket.send(JSON.stringify({
-              type: "room-joined",
+            sendRoomJoined(socket, {
               roomId: assignment.roomId,
               playerEntityId: assignment.playerEntityId,
               sessionToken: session.sessionToken,
-            }));
+            });
             return;
           }
 
@@ -83,12 +95,11 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
           }
 
           activeSessionToken = reclaimResult.reservation.sessionToken;
-          socket.send(JSON.stringify({
-            type: "room-joined",
+          sendRoomJoined(socket, {
             roomId: reclaimResult.reservation.roomId,
             playerEntityId: reclaimResult.reservation.playerEntityId,
             sessionToken: reclaimResult.reservation.sessionToken,
-          }));
+          });
         },
         handleClose() {
           if (activeSessionToken) {

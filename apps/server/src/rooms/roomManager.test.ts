@@ -5,6 +5,7 @@ import type { RoomRuntime } from "./roomRuntime";
 
 type FakeRoom = RoomRuntime & {
   joinedNames: string[];
+  disconnectedPlayerIds: Set<string>;
 };
 
 const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
@@ -15,6 +16,7 @@ const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
     capacity,
     status: "active",
     joinedNames,
+    disconnectedPlayerIds: new Set<string>(),
     get playerCount() {
       return joinedNames.length;
     },
@@ -31,6 +33,28 @@ const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
         roomId,
         playerEntityId: `${roomId}-player-${joinedNames.length}`,
       };
+    },
+    disconnectPlayer(playerEntityId) {
+      this.disconnectedPlayerIds.add(playerEntityId);
+      return true;
+    },
+    reclaimPlayer(playerEntityId) {
+      if (!this.disconnectedPlayerIds.has(playerEntityId)) {
+        return null;
+      }
+
+      this.disconnectedPlayerIds.delete(playerEntityId);
+      return { roomId, playerEntityId };
+    },
+    releasePlayer(playerEntityId) {
+      const playerIndex = Number(playerEntityId.split("-").at(-1) ?? 0) - 1;
+      if (playerIndex < 0 || playerIndex >= joinedNames.length) {
+        return false;
+      }
+
+      joinedNames.splice(playerIndex, 1);
+      this.disconnectedPlayerIds.delete(playerEntityId);
+      return true;
     },
     shutdown() {
       // no-op for tests
@@ -71,5 +95,23 @@ describe("createRoomManager", () => {
         status: "active",
       },
     ]);
+  });
+
+  it("keeps a disconnected player slot reserved until that player reclaims it", () => {
+    const room = createFakeRoom("room_1", 1);
+    const manager = createRoomManager({
+      roomCapacity: 1,
+      createRoom: () => createFakeRoom("room_2", 1),
+      initialRooms: [room],
+    });
+
+    const first = manager.assignPlayer({ displayName: "Avery" });
+
+    expect(manager.disconnectPlayer(first.roomId, first.playerEntityId)).toBe(true);
+
+    const replacement = manager.assignPlayer({ displayName: "Blair" });
+
+    expect(replacement.roomId).toBe("room_2");
+    expect(manager.reclaimPlayer(first.roomId, first.playerEntityId)).toEqual(first);
   });
 });

@@ -36,6 +36,15 @@ const createHealthRoom = (roomId: string, health: boolean, joinedNames: string[]
         playerEntityId: `${roomId}-player-${joinedNames.length}`,
       };
     },
+    disconnectPlayer() {
+      return true;
+    },
+    reclaimPlayer(playerEntityId) {
+      return { roomId, playerEntityId };
+    },
+    releasePlayer() {
+      return true;
+    },
     shutdown() {
       this.shutdownCalls += 1;
     },

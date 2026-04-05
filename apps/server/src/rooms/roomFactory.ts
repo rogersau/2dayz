@@ -17,7 +17,7 @@ export const createRoomFactory = ({ roomCapacity }: RoomFactoryOptions): CreateR
     roomSequence += 1;
 
     const roomId = `room_${roomSequence}`;
-    const players: JoinPlayerResult[] = [];
+    const players = new Map<string, { displayName: string; connected: boolean }>();
     let healthy = true;
     let status: RoomStatus = "active";
 
@@ -31,13 +31,13 @@ export const createRoomFactory = ({ roomCapacity }: RoomFactoryOptions): CreateR
         status = nextStatus;
       },
       get playerCount() {
-        return players.length;
+        return players.size;
       },
       isHealthy() {
         return healthy;
       },
       canAcceptPlayers() {
-        return healthy && players.length < roomCapacity;
+        return healthy && players.size < roomCapacity;
       },
       joinPlayer(player: JoinPlayerInput) {
         if (!this.canAcceptPlayers()) {
@@ -46,17 +46,42 @@ export const createRoomFactory = ({ roomCapacity }: RoomFactoryOptions): CreateR
 
         const joinedPlayer = {
           roomId,
-          playerEntityId: createPlayerEntityId(roomId, players.length + 1),
+          playerEntityId: createPlayerEntityId(roomId, players.size + 1),
           displayName: player.displayName,
         };
 
-        players.push(joinedPlayer);
-        status = players.length >= roomCapacity ? "full" : "active";
+        players.set(joinedPlayer.playerEntityId, { displayName: joinedPlayer.displayName, connected: true });
+        status = players.size >= roomCapacity ? "full" : "active";
 
         return {
           roomId: joinedPlayer.roomId,
           playerEntityId: joinedPlayer.playerEntityId,
         };
+      },
+      disconnectPlayer(playerEntityId: string) {
+        const player = players.get(playerEntityId);
+        if (!player) {
+          return false;
+        }
+
+        player.connected = false;
+        return true;
+      },
+      reclaimPlayer(playerEntityId: string) {
+        const player = players.get(playerEntityId);
+        if (!player || player.connected || !healthy) {
+          return null;
+        }
+
+        player.connected = true;
+        return { roomId, playerEntityId };
+      },
+      releasePlayer(playerEntityId: string) {
+        const deleted = players.delete(playerEntityId);
+        if (deleted && players.size < roomCapacity) {
+          status = "active";
+        }
+        return deleted;
       },
       shutdown() {
         healthy = false;

@@ -26,6 +26,9 @@ importers:
 
   apps/server:
     dependencies:
+      '@2dayz/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       ws:
         specifier: ^8.18.1
         version: 8.20.0

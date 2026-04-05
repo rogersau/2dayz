@@ -17,6 +17,9 @@ export interface RoomRuntime {
   isHealthy(): boolean;
   canAcceptPlayers(): boolean;
   joinPlayer(player: JoinPlayerInput): JoinPlayerResult;
+  disconnectPlayer(playerEntityId: string): boolean;
+  reclaimPlayer(playerEntityId: string): JoinPlayerResult | null;
+  releasePlayer(playerEntityId: string): boolean;
   shutdown(reason?: string): void;
   tick?(): void;
 }

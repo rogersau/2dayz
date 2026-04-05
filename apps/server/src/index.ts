@@ -13,7 +13,7 @@ export const startServer = async () => {
     roomCapacity: config.roomCapacity,
     createRoom: createRoomFactory({ roomCapacity: config.roomCapacity }),
   });
-  const sessionRegistry = createSessionRegistry({ reclaimWindowMs: config.reclaimWindowMs });
+  const sessionRegistry = createSessionRegistry({ reclaimWindowMs: config.reclaimWindowMs, roomManager });
   const server = createHttpServer({ roomManager, startedAt: Date.now() });
 
   createSocketServer({ server, roomManager, sessionRegistry });

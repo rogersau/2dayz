@@ -29,6 +29,15 @@ const createIsolationRoom = (roomId: string, behavior: "throws" | "healthy"): Is
         playerEntityId: `${roomId}-player-1`,
       };
     },
+    disconnectPlayer() {
+      return true;
+    },
+    reclaimPlayer(playerEntityId) {
+      return { roomId, playerEntityId };
+    },
+    releasePlayer() {
+      return true;
+    },
     tick() {
       if (behavior === "throws") {
         throw new Error("runtime failure");
