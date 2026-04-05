@@ -132,8 +132,8 @@ describe("createMessageRouter", () => {
   it("cleans expired reservations before assigning a room to a later join", () => {
     let now = 1_000;
     const roomManager = createRoomManager({
-      roomCapacity: 1,
-      createRoom: createRoomFactory({ roomCapacity: 1 }),
+      roomCapacity: 8,
+      createRoom: createRoomFactory({ roomCapacity: 8 }),
     });
     const sessionRegistry = createSessionRegistry({
       roomManager,
@@ -160,8 +160,8 @@ describe("createMessageRouter", () => {
   it("rejects repeated join attempts on the same socket while a session is already active", () => {
     const socket = createSocket();
     const roomManager = createRoomManager({
-      roomCapacity: 1,
-      createRoom: createRoomFactory({ roomCapacity: 1 }),
+      roomCapacity: 8,
+      createRoom: createRoomFactory({ roomCapacity: 8 }),
     });
     const sessionRegistry = createSessionRegistry({ roomManager });
     const connection = createMessageRouter({ roomManager, sessionRegistry }).attach(socket as never);
@@ -180,8 +180,8 @@ describe("createMessageRouter", () => {
       {
         roomId: "room_1",
         playerCount: 1,
-        capacity: 1,
-        status: "full",
+        capacity: 8,
+        status: "active",
       },
     ]);
   });

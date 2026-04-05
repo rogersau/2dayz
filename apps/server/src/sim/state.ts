@@ -67,6 +67,8 @@ const createPlayerState = (player: SimPlayer): PlayerState => {
   return {
     entityId: player.entityId,
     displayName: player.displayName,
+    transform: player.transform,
+    velocity: player.velocity,
     inventory: player.inventory,
     health: player.health,
   };

@@ -1,5 +1,7 @@
 import type { Server as HttpServer } from "node:http";
 
+import { SERVER_TICK_RATE } from "@2dayz/shared";
+
 import type { ServerConfig } from "../config";
 import { createHttpServer as buildHttpServer } from "../http/createHttpServer";
 import type { ManagedSocketServer } from "../network/createSocketServer";
@@ -41,7 +43,7 @@ export const createServerRuntime = ({
   roomManager,
   createSocketServer,
   createHttpServer,
-  tickIntervalMs = 1_000,
+  tickIntervalMs = 1_000 / SERVER_TICK_RATE,
 }: CreateServerRuntimeOptions): ServerRuntime => {
   let server: HttpServer | null = null;
   let socketServer: ManagedSocketServer | null = null;

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { entityIdSchema, roomIdSchema, sessionTokenSchema } from "../ids";
 import { serverEventSchema } from "./events";
 import { entityDeltaSchema, entitySnapshotSchema, lootEntitySchema, zombieEntitySchema } from "../world/entities";
-import { healthSchema, vector2Schema } from "../world/components";
+import { healthSchema, transformSchema, vector2Schema, velocitySchema } from "../world/components";
 import { inventoryActionSchema, inventorySchema } from "../world/inventory";
 
 const axisValueSchema = z.number().min(-1).max(1);
@@ -55,6 +55,8 @@ export const playerStateSchema = z
   .object({
     entityId: entityIdSchema,
     displayName: z.string().min(1),
+    transform: transformSchema,
+    velocity: velocitySchema,
     inventory: inventorySchema,
     health: healthSchema.optional(),
   })

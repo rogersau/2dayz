@@ -52,6 +52,8 @@ describe("protocol schemas", () => {
           {
             entityId: "player_1",
             displayName: "Survivor",
+            transform: { x: 10, y: 5, rotation: 0.4 },
+            velocity: { x: 1, y: 0 },
             inventory: {
               slots: [
                 { itemId: "bandage", quantity: 1 },
@@ -209,7 +211,30 @@ describe("protocol schemas", () => {
           {
             entityId: "player_1",
             displayName: "Survivor",
+            transform: { x: 10, y: 5, rotation: 0 },
             sessionToken: "session_123",
+            inventory: {
+              slots: [null, null, null, null, null, null],
+              equippedWeaponSlot: null,
+              ammoStacks: [],
+            },
+          },
+        ],
+        loot: [],
+        zombies: [],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      serverMessageSchema.parse({
+        type: "snapshot",
+        tick: 1,
+        roomId: "room_alpha",
+        playerEntityId: "player_1",
+        players: [
+          {
+            entityId: "player_1",
+            displayName: "Survivor",
             inventory: {
               slots: [null, null, null, null, null, null],
               equippedWeaponSlot: null,

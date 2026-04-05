@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 
 import type { ServerConfig } from "../config";
+import { SERVER_TICK_RATE } from "@2dayz/shared";
 import { createServerRuntime } from "./serverRuntime";
 
 afterEach(() => {
@@ -84,6 +85,40 @@ describe("createServerRuntime", () => {
     expect(started.socketServer).toBe(socketServer);
 
     await runtime.stop();
+  });
+
+  it("uses the simulation tick cadence by default", async () => {
+    vi.useFakeTimers();
+
+    const roomManager = {
+      tickAllRooms: vi.fn(),
+      getRoomCount: vi.fn(() => 0),
+    };
+    const httpServer = createHttpServerDouble();
+    const socketServer = {
+      close: vi.fn(),
+    };
+    const config: ServerConfig = {
+      host: "127.0.0.1",
+      port: 3011,
+      roomCapacity: 12,
+      reclaimWindowMs: 30_000,
+    };
+
+    const runtime = createServerRuntime({
+      config,
+      roomManager: roomManager as never,
+      createHttpServer: () => httpServer as never,
+      createSocketServer: () => socketServer as never,
+    });
+
+    await runtime.start();
+    await vi.advanceTimersByTimeAsync(151);
+    await runtime.stop();
+
+    expect(roomManager.tickAllRooms).toHaveBeenCalledTimes(3);
+    expect(roomManager.tickAllRooms.mock.calls[0]?.length).toBe(0);
+    expect(1000 / SERVER_TICK_RATE).toBe(50);
   });
 
   it("rejects cleanly on startup errors and closes partially initialized runtime state", async () => {
