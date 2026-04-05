@@ -1,41 +1,22 @@
 import { useEffect, useState } from "react";
 
-import type { ErrorReason } from "@2dayz/shared";
-
-import { SocketClientError, type JoinResult, type SocketClient } from "../net/socketClient";
-
 type JoinScreenProps = {
   initialDisplayName?: string;
-  onJoined?: (result: JoinResult, displayName: string) => void;
-  onJoinFailed?: (reason: ErrorReason, displayName: string) => void;
-  onJoinStarted?: (displayName: string) => void;
-  socketClient: Pick<SocketClient, "join">;
-};
-
-const getJoinErrorReason = (error: unknown): ErrorReason => {
-  if (error instanceof SocketClientError) {
-    return error.reason;
-  }
-
-  return "internal-error";
+  onContinue: (displayName: string) => void;
 };
 
 export const JoinScreen = ({
   initialDisplayName = "",
-  onJoined,
-  onJoinFailed,
-  onJoinStarted,
-  socketClient,
+  onContinue,
 }: JoinScreenProps) => {
   const [displayName, setDisplayName] = useState(initialDisplayName);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setDisplayName(initialDisplayName);
   }, [initialDisplayName]);
 
   const trimmedName = displayName.trim();
-  const canSubmit = trimmedName.length > 0 && !isSubmitting;
+  const canSubmit = trimmedName.length > 0;
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -44,22 +25,13 @@ export const JoinScreen = ({
       return;
     }
 
-    setIsSubmitting(true);
-    onJoinStarted?.(trimmedName);
-
-    try {
-      const result = await socketClient.join({ displayName: trimmedName });
-      onJoined?.(result, trimmedName);
-    } catch (error) {
-      onJoinFailed?.(getJoinErrorReason(error), trimmedName);
-      setIsSubmitting(false);
-    }
+    onContinue(trimmedName);
   };
 
   return (
     <section className="join-card">
       <h2>Join a live session</h2>
-      <p>Enter a display name and drop straight into the current browser room.</p>
+      <p>Enter a display name and review the controls before joining the current browser room.</p>
       <form className="join-form" onSubmit={handleSubmit}>
         <label>
           <span>Display name</span>
@@ -72,10 +44,10 @@ export const JoinScreen = ({
           />
         </label>
         <button className="primary-button" disabled={!canSubmit} type="submit">
-          {isSubmitting ? "Joining..." : "Join now"}
+          Continue
         </button>
       </form>
-      <p>Local mock mode: use any name containing `fail` to simulate a retryable join error.</p>
+      <p>Local mock mode: use any name containing `fail` to simulate a retryable join error after the controls step.</p>
     </section>
   );
 };

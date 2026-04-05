@@ -11,10 +11,10 @@ const readDismissedState = () => {
 };
 
 type ControlsOverlayProps = {
-  onDismiss: () => void;
+  onContinue: () => void;
 };
 
-export const ControlsOverlay = ({ onDismiss }: ControlsOverlayProps) => {
+export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
   const [dismissed, setDismissed] = useState(readDismissedState);
 
   if (dismissed) {
@@ -39,7 +39,7 @@ export const ControlsOverlay = ({ onDismiss }: ControlsOverlayProps) => {
             window.sessionStorage.setItem(CONTROLS_DISMISSED_KEY, "1");
           }
           setDismissed(true);
-          onDismiss();
+          onContinue();
         }}
         type="button"
       >

@@ -65,6 +65,8 @@ type PendingRequest = {
   resolve: (result: JoinResult) => void;
 };
 
+type ConnectionEvent = { type: "open" } | { type: "closed"; reason: ErrorReason };
+
 export type SocketClient = ReturnType<typeof createSocketClient>;
 
 export const createSocketClient = ({
@@ -75,6 +77,13 @@ export const createSocketClient = ({
   let socket: WebSocket | null = null;
   let pendingRequest: PendingRequest | null = null;
   const mockSessions = new Map<string, JoinResult>();
+  const connectionListeners = new Set<(event: ConnectionEvent) => void>();
+
+  const emitConnectionEvent = (event: ConnectionEvent) => {
+    for (const listener of connectionListeners) {
+      listener(event);
+    }
+  };
 
   const resolvedUrl =
     wsUrl ??
@@ -115,7 +124,10 @@ export const createSocketClient = ({
     socket = nextSocket;
 
     await new Promise<void>((resolve, reject) => {
-      nextSocket.addEventListener("open", () => resolve(), { once: true });
+      nextSocket.addEventListener("open", () => {
+        emitConnectionEvent({ type: "open" });
+        resolve();
+      }, { once: true });
       nextSocket.addEventListener(
         "error",
         () => reject(new SocketClientError("internal-error")),
@@ -134,6 +146,7 @@ export const createSocketClient = ({
 
     nextSocket.addEventListener("close", () => {
       socket = null;
+      emitConnectionEvent({ type: "closed", reason: "internal-error" });
       if (pendingRequest) {
         pendingRequest.reject(new SocketClientError("internal-error"));
         pendingRequest = null;
@@ -212,6 +225,12 @@ export const createSocketClient = ({
       }
 
       return await sendRequest(payload);
+    },
+    subscribeToConnection(listener: (event: ConnectionEvent) => void) {
+      connectionListeners.add(listener);
+      return () => {
+        connectionListeners.delete(listener);
+      };
     },
   };
 };

@@ -8,19 +8,6 @@ const createEmptyInventory = (): Inventory => ({
   ammoStacks: [],
 });
 
-const createDemoInventory = (): Inventory => ({
-  slots: [
-    { itemId: "weapon_pistol", quantity: 1 },
-    { itemId: "bandage", quantity: 2 },
-    { itemId: "water", quantity: 1 },
-    null,
-    null,
-    null,
-  ],
-  equippedWeaponSlot: 0,
-  ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 30 }],
-});
-
 type ConnectionState =
   | { phase: "idle" }
   | { phase: "joining" }
@@ -35,7 +22,6 @@ type ClientGameState = {
   isInventoryOpen: boolean;
   lastJoinDisplayName: string;
   roomId: string | null;
-  showControlsOverlay: boolean;
 };
 
 export const createClientGameStore = () => {
@@ -46,7 +32,6 @@ export const createClientGameStore = () => {
     isInventoryOpen: false,
     lastJoinDisplayName: "",
     roomId: null,
-    showControlsOverlay: false,
   };
   const listeners = new Set<() => void>();
 
@@ -79,35 +64,26 @@ export const createClientGameStore = () => {
       displayName,
       playerEntityId: _playerEntityId,
       roomId,
-      reconnected,
     }: {
       displayName: string;
       playerEntityId: string;
       roomId: string;
-      reconnected: boolean;
     }) {
       update((current) => ({
         ...current,
         connectionState: { phase: "joined" },
-        inventory: reconnected && current.inventory.slots.some(Boolean) ? current.inventory : createDemoInventory(),
+        inventory: current.connectionState.phase === "joined" ? current.inventory : createEmptyInventory(),
         isDead: false,
         isInventoryOpen: false,
         lastJoinDisplayName: displayName,
         roomId,
-        showControlsOverlay: true,
-      }));
-    },
-    dismissControlsOverlay() {
-      update((current) => ({
-        ...current,
-        showControlsOverlay: false,
       }));
     },
     failConnection(reason: ErrorReason) {
       update((current) => ({
         ...current,
         connectionState: { phase: "failed", reason },
-        roomId: null,
+        isInventoryOpen: false,
       }));
     },
     getState() {

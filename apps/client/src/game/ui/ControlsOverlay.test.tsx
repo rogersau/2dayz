@@ -5,10 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import { ControlsOverlay } from "./ControlsOverlay";
 
 describe("ControlsOverlay", () => {
-  it("shows the first-join controls list and remembers dismissal for the current browser session", () => {
-    const onDismiss = vi.fn();
+  it("shows the first-join controls list, continues the pending join, and remembers dismissal for the current browser session", () => {
+    const onContinue = vi.fn();
 
-    const firstRender = render(<ControlsOverlay onDismiss={onDismiss} />);
+    const firstRender = render(<ControlsOverlay onContinue={onContinue} />);
 
     expect(screen.getByRole("heading", { name: /before you drop in/i })).toBeInTheDocument();
     expect(screen.getByText(/wasd move/i)).toBeInTheDocument();
@@ -20,10 +20,10 @@ describe("ControlsOverlay", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
 
-    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onContinue).toHaveBeenCalledTimes(1);
 
     firstRender.unmount();
-    render(<ControlsOverlay onDismiss={onDismiss} />);
+    render(<ControlsOverlay onContinue={onContinue} />);
 
     expect(screen.queryByRole("heading", { name: /before you drop in/i })).not.toBeInTheDocument();
   });

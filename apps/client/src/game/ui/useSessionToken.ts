@@ -1,6 +1,15 @@
 import { useCallback, useState } from "react";
 
+const DISPLAY_NAME_KEY = "2dayz:display-name";
 const SESSION_TOKEN_KEY = "2dayz:session-token";
+
+const readDisplayName = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.localStorage.getItem(DISPLAY_NAME_KEY) ?? "";
+};
 
 const readSessionToken = () => {
   if (typeof window === "undefined") {
@@ -11,7 +20,19 @@ const readSessionToken = () => {
 };
 
 export const useSessionToken = () => {
+  const [displayName, setDisplayNameState] = useState(readDisplayName);
   const [sessionToken, setSessionTokenState] = useState<string | null>(readSessionToken);
+
+  const setDisplayName = useCallback((value: string) => {
+    setDisplayNameState(value);
+    if (typeof window !== "undefined") {
+      if (value) {
+        window.localStorage.setItem(DISPLAY_NAME_KEY, value);
+      } else {
+        window.localStorage.removeItem(DISPLAY_NAME_KEY);
+      }
+    }
+  }, []);
 
   const setSessionToken = useCallback((value: string) => {
     setSessionTokenState(value);
@@ -29,7 +50,9 @@ export const useSessionToken = () => {
 
   return {
     clearSessionToken,
+    displayName,
     sessionToken,
+    setDisplayName,
     setSessionToken,
   };
 };

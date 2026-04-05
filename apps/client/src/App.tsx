@@ -34,10 +34,22 @@ export const App = () => {
   );
   const state = useClientGameStore(gameStore);
   const reconnectAttemptRef = useRef<string | null>(null);
-  const { sessionToken, setSessionToken, clearSessionToken } = useSessionToken();
+  const [pendingJoinDisplayName, setPendingJoinDisplayName] = useState<string | null>(null);
+  const { displayName, sessionToken, setDisplayName, setSessionToken, clearSessionToken } = useSessionToken();
 
-  useEffect(() => {
-    if (!sessionToken || reconnectAttemptRef.current === sessionToken) {
+  const completeJoin = (result: JoinResult, resolvedDisplayName: string) => {
+    reconnectAttemptRef.current = result.sessionToken;
+    setDisplayName(resolvedDisplayName);
+    setSessionToken(result.sessionToken);
+    gameStore.completeJoin({
+      displayName: resolvedDisplayName,
+      playerEntityId: result.playerEntityId,
+      roomId: result.roomId,
+    });
+  };
+
+  const attemptReconnect = () => {
+    if (!sessionToken) {
       return;
     }
 
@@ -47,18 +59,29 @@ export const App = () => {
     void socketClient
       .reconnect({ sessionToken })
       .then((result) => {
-        gameStore.completeJoin({
-          displayName: state.lastJoinDisplayName || "Survivor",
-          playerEntityId: result.playerEntityId,
-          roomId: result.roomId,
-          reconnected: true,
-        });
+        completeJoin(result, displayName || state.lastJoinDisplayName || "Survivor");
       })
       .catch((error: unknown) => {
         clearSessionToken();
         gameStore.failConnection(getConnectionErrorReason(error));
       });
-  }, [clearSessionToken, gameStore, sessionToken, socketClient, state.lastJoinDisplayName]);
+  };
+
+  useEffect(() => {
+    if (!sessionToken || reconnectAttemptRef.current === sessionToken) {
+      return;
+    }
+
+    attemptReconnect();
+  }, [displayName, sessionToken, socketClient]);
+
+  useEffect(() => {
+    return socketClient.subscribeToConnection((event) => {
+      if (event.type === "closed" && state.connectionState.phase === "joined") {
+        gameStore.failConnection(event.reason);
+      }
+    });
+  }, [gameStore, socketClient, state.connectionState.phase]);
 
   useEffect(() => {
     return () => {
@@ -66,34 +89,40 @@ export const App = () => {
     };
   }, [socketClient]);
 
-  const handleJoined = (result: JoinResult, displayName: string) => {
-    reconnectAttemptRef.current = result.sessionToken;
-    setSessionToken(result.sessionToken);
-    gameStore.completeJoin({
-      displayName,
-      playerEntityId: result.playerEntityId,
-      roomId: result.roomId,
-      reconnected: false,
-    });
-  };
+  const handleControlsContinue = () => {
+    if (!pendingJoinDisplayName) {
+      return;
+    }
 
-  const handleJoinStarted = (displayName: string) => {
-    gameStore.beginJoin(displayName);
-  };
+    gameStore.beginJoin(pendingJoinDisplayName);
 
-  const handleJoinFailed = (reason: ErrorReason, displayName: string) => {
-    clearSessionToken();
-    gameStore.beginJoin(displayName);
-    gameStore.failConnection(reason);
+    void socketClient
+      .join({ displayName: pendingJoinDisplayName })
+      .then((result) => {
+        setPendingJoinDisplayName(null);
+        completeJoin(result, pendingJoinDisplayName);
+      })
+      .catch((error: unknown) => {
+        setPendingJoinDisplayName(null);
+        gameStore.failConnection(getConnectionErrorReason(error));
+      });
   };
 
   const handleRetry = () => {
-    if (state.connectionState.phase === "failed" && state.lastJoinDisplayName) {
-      gameStore.resetToIdle();
+    if (state.connectionState.phase !== "failed") {
+      return;
     }
+
+    if (sessionToken) {
+      attemptReconnect();
+      return;
+    }
+
+    gameStore.resetToIdle();
   };
 
   const isConnected = state.connectionState.phase === "joined";
+  const showControlsStep = pendingJoinDisplayName !== null && state.connectionState.phase !== "joined";
 
   return (
     <main className="app-shell">
@@ -109,16 +138,20 @@ export const App = () => {
 
         <ConnectionBanner connectionState={state.connectionState} onRetry={handleRetry} />
 
-        {!isConnected ? (
+        {!isConnected && !showControlsStep ? (
           <JoinScreen
-            initialDisplayName={state.lastJoinDisplayName}
-            onJoined={handleJoined}
-            onJoinFailed={handleJoinFailed}
-            onJoinStarted={handleJoinStarted}
-            socketClient={socketClient}
+            initialDisplayName={displayName || state.lastJoinDisplayName}
+            onContinue={(nextDisplayName) => {
+              setDisplayName(nextDisplayName);
+              setPendingJoinDisplayName(nextDisplayName);
+            }}
           />
+        ) : null}
+
+        {!isConnected && showControlsStep ? (
+          <ControlsOverlay onContinue={handleControlsContinue} />
         ) : (
-          <section className="game-shell" aria-label="game shell">
+          isConnected ? <section className="game-shell" aria-label="game shell">
             <Hud
               inventory={state.inventory}
               isInventoryOpen={state.isInventoryOpen}
@@ -126,10 +159,7 @@ export const App = () => {
               roomId={state.roomId}
             />
             <DeathOverlay isVisible={state.isDead} />
-            {state.showControlsOverlay ? (
-              <ControlsOverlay onDismiss={() => gameStore.dismissControlsOverlay()} />
-            ) : null}
-          </section>
+          </section> : null
         )}
       </section>
     </main>
