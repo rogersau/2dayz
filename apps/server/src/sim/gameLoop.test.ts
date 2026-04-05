@@ -139,4 +139,35 @@ describe("createSimulationRoomRuntime", () => {
       zombies: [{ entityId: "zombie_test-near" }],
     });
   });
+
+  it("does not re-emit snapshot entities as entered on the first post-join delta", () => {
+    const snapshots: Array<{ players: Array<{ entityId: string }> }> = [];
+    const deltas: Array<{ enteredEntities: Array<{ entityId: string }> }> = [];
+    const runtime = createSimulationRoomRuntime({
+      roomId: "room_test",
+      systems: [createLifecycleSystem()],
+      replication: {
+        nearbyRadius: 10,
+        maxNearbyPlayers: 2,
+      },
+    });
+
+    const joined = runtime.joinPlayer({ displayName: "Avery" });
+    runtime.joinPlayer({ displayName: "Blair" });
+    runtime.subscribePlayer(joined.playerEntityId, {
+      onSnapshot(snapshot) {
+        snapshots.push(snapshot as typeof snapshots[number]);
+      },
+      onDelta(delta) {
+        deltas.push(delta as typeof deltas[number]);
+      },
+    });
+
+    runtime.tick();
+
+    expect(snapshots[0]).toMatchObject({
+      players: [{ entityId: "player_test-1" }, { entityId: "player_test-2" }],
+    });
+    expect(deltas[0]).toMatchObject({ enteredEntities: [] });
+  });
 });

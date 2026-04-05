@@ -120,6 +120,14 @@ export const createSimulationRoomRuntime = ({
   let status: RoomStatus = "active";
   let lastPublishedRoomStatus = "";
 
+  const createVisibleEntityIds = (snapshot: RoomReplicationSnapshot): Set<string> => {
+    return new Set([
+      ...snapshot.players.map((player) => player.entityId),
+      ...snapshot.loot.map((loot) => loot.entityId),
+      ...snapshot.zombies.map((zombie) => zombie.entityId),
+    ]);
+  };
+
   const createRoomMetadata = (): RoomMetadata => {
     return {
       roomId,
@@ -196,6 +204,7 @@ export const createSimulationRoomRuntime = ({
           const snapshot = replication.createInitialSnapshot(createRoomReplicationSnapshot(state, playerEntityId));
           handlers.onSnapshot(snapshot);
           handlers.initialSnapshotSent = true;
+          handlers.visibleEntityIds = createVisibleEntityIds(snapshot);
           onSnapshot?.(snapshot);
         }
       }
@@ -337,11 +346,7 @@ export const createSimulationRoomRuntime = ({
         const snapshot = replication.createInitialSnapshot(createRoomReplicationSnapshot(simulationState, playerEntityId));
         subscription.onSnapshot(snapshot);
         subscription.initialSnapshotSent = true;
-        subscription.visibleEntityIds = new Set([
-          ...snapshot.players.map((player) => player.entityId),
-          ...snapshot.loot.map((loot) => loot.entityId),
-          ...snapshot.zombies.map((zombie) => zombie.entityId),
-        ]);
+        subscription.visibleEntityIds = createVisibleEntityIds(snapshot);
         onSnapshot?.(snapshot);
       }
 
