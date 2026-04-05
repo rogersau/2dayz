@@ -78,14 +78,14 @@ export const defaultTownMap: MapDefinition = {
     {
       placementId: "placement_market-crate",
       kind: "crate",
-      position: { x: 17, y: 21 },
+      position: { x: 15, y: 24 },
       interactionRadius: 1.5,
       prompt: "Search crate",
     },
     {
       placementId: "placement_police-door",
       kind: "door",
-      position: { x: 30, y: 18 },
+      position: { x: 29, y: 18 },
       interactionRadius: 1.25,
       prompt: "Open side door",
     },

@@ -69,4 +69,13 @@ describe("loadMapDefinition", () => {
       expect(isCirclePositionBlocked(collision, node.position, 0.5)).toBe(false);
     }
   });
+
+  it("places interactable placements on reachable walkable positions", () => {
+    const map = loadMapDefinition();
+    const collision = createCollisionIndex(map.collisionVolumes);
+
+    for (const placement of map.interactablePlacements) {
+      expect(isCirclePositionBlocked(collision, placement.position, 0.5)).toBe(false);
+    }
+  });
 });
