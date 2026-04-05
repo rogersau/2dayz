@@ -89,6 +89,7 @@ export const createProtocolStore = () => {
       state = {
         ...state,
         pendingDeltas: [],
+        snapshot: null,
       };
       return worldUpdates;
     },
