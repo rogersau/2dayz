@@ -125,4 +125,36 @@ describe("socketClient", () => {
 
     expect(socket.sentMessages).toContain(JSON.stringify(input));
   });
+
+  it("applies mock authoritative movement and rotation with the same normalization and aim rules as the server", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({
+      mode: "mock",
+      protocolStore,
+    });
+
+    await socketClient.join({ displayName: "Survivor" });
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(
+      inputMessageSchema.parse({
+        actions: {},
+        aim: { x: 0, y: 2 },
+        movement: { x: 1, y: 1 },
+        sequence: 1,
+        type: "input",
+      }),
+    );
+
+    const { deltas } = protocolStore.drainWorldUpdates();
+    const selfUpdate = deltas[0]?.entityUpdates.find((update) => update.entityId === "player_survivor");
+
+    expect(selfUpdate).toMatchObject({
+      transform: {
+        rotation: Math.PI / 2,
+        x: 0.1414213562373095,
+        y: 0.1414213562373095,
+      },
+    });
+  });
 });

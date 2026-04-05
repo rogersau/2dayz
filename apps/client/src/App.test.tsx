@@ -9,6 +9,10 @@ const reconnectMock = vi.fn();
 const subscribeToConnectionMock = vi.fn();
 const closeMock = vi.fn();
 
+vi.mock("./game/GameCanvas", () => ({
+  GameCanvas: () => <div aria-label="game canvas">mock game canvas</div>,
+}));
+
 vi.mock("./game/net/socketClient", () => {
   class SocketClientError extends Error {
     constructor(public readonly reason: string) {

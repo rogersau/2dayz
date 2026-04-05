@@ -38,6 +38,18 @@ const createSessionToken = () => {
   return `session_${Math.random().toString(36).slice(2, 10)}`;
 };
 
+const normalizeMovement = (movement: { x: number; y: number }) => {
+  const magnitude = Math.hypot(movement.x, movement.y);
+  if (magnitude === 0) {
+    return { x: 0, y: 0 };
+  }
+
+  return {
+    x: movement.x / magnitude,
+    y: movement.y / magnitude,
+  };
+};
+
 const createMockJoinMessage = (displayName: string, sessionToken = createSessionToken()) => {
   return roomJoinedMessageSchema.parse({
     type: "room-joined",
@@ -184,6 +196,7 @@ export const createSocketClient = ({
 }: SocketClientOptions) => {
   let socket: WebSocket | null = null;
   let activeRequestKind: PendingRequestKind | null = null;
+  let activeMockSession: JoinResult | null = null;
   let mockTick = 1;
   let mockWorldInterval: ReturnType<typeof setInterval> | null = null;
   let mockWorldState: MockWorldState = {
@@ -215,6 +228,7 @@ export const createSocketClient = ({
     }
     socket?.close();
     socket = null;
+    activeMockSession = null;
     if (pendingRequest) {
       pendingRequest.reject(new SocketClientError("internal-error"));
       pendingRequest = null;
@@ -245,19 +259,28 @@ export const createSocketClient = ({
     const payload = inputMessageSchema.parse(input);
 
     if (mode === "mock") {
+      const direction = normalizeMovement(payload.movement);
+      const aimMagnitude = Math.hypot(payload.aim.x, payload.aim.y);
+
       mockWorldState = {
         ...mockWorldState,
         ammoReserve: payload.actions.fire ? Math.max(0, mockWorldState.ammoReserve - 1) : mockWorldState.ammoReserve,
         lastProcessedInputSequence: payload.sequence,
         localInventorySlotOne: payload.actions.reload ? { itemId: "bandage", quantity: 1 } : mockWorldState.localInventorySlotOne,
         localTransform: {
-          rotation: payload.movement.x === 0 && payload.movement.y === 0
-            ? mockWorldState.localTransform.rotation
-            : Math.atan2(payload.movement.y, payload.movement.x),
-          x: mockWorldState.localTransform.x + payload.movement.x * 0.2,
-          y: mockWorldState.localTransform.y + payload.movement.y * 0.2,
+          rotation: aimMagnitude > 0
+            ? Math.atan2(payload.aim.y, payload.aim.x)
+            : mockWorldState.localTransform.rotation,
+          x: mockWorldState.localTransform.x + direction.x * 0.2,
+          y: mockWorldState.localTransform.y + direction.y * 0.2,
         },
       };
+
+      if (activeMockSession) {
+        mockTick += 1;
+        protocolStore.ingest(createMockDelta(activeMockSession, mockTick, mockWorldState));
+      }
+
       return;
     }
 
@@ -358,6 +381,7 @@ export const createSocketClient = ({
 
     const joined = createMockJoinMessage(displayName);
     mockSessions.set(joined.sessionToken, joined);
+    activeMockSession = joined;
     protocolStore.ingest(joined);
     protocolStore.ingest(
       roomStatusMessageSchema.parse({
@@ -386,6 +410,7 @@ export const createSocketClient = ({
     }
 
     protocolStore.ingest(existingSession);
+    activeMockSession = existingSession;
     startMockWorld(existingSession);
     return existingSession;
   };
