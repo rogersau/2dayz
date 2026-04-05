@@ -186,7 +186,7 @@ export const App = () => {
           isConnected ? (
             <section className="game-shell" aria-label="game shell">
               <div className="game-stage">
-                <GameCanvas store={gameStore} />
+                <GameCanvas socketClient={socketClient} store={gameStore} />
                 <div className="game-hud-layer">
                   <Hud
                     health={state.health}

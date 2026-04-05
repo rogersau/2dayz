@@ -89,6 +89,10 @@ const applyEntityUpdate = (state: ClientGameState, update: DeltaMessage["entityU
     return {
       ...entity,
       ...(update.health ? { health: update.health } : {}),
+      ...(update.inventory ? { inventory: update.inventory } : {}),
+      ...(update.lastProcessedInputSequence !== undefined
+        ? { lastProcessedInputSequence: update.lastProcessedInputSequence }
+        : {}),
       ...(update.transform ? { transform: update.transform } : {}),
       ...(update.velocity ? { velocity: update.velocity } : {}),
     };
@@ -125,6 +129,7 @@ const applyEntityUpdate = (state: ClientGameState, update: DeltaMessage["entityU
   return {
     ...state,
     health: selfPlayer?.health ?? state.health,
+    inventory: selfPlayer?.inventory ?? state.inventory,
     isDead: selfPlayer?.health?.isDead ?? state.isDead,
     worldEntities: {
       loot,

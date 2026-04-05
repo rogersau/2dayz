@@ -1,7 +1,7 @@
 import type { InputMessage } from "@2dayz/shared";
 import type * as THREE from "three";
 
-import { applyPredictedInput, createPredictionState } from "./prediction";
+import type { PredictionController } from "./prediction";
 import type { ClientGameStore, RenderLootEntity, RenderPlayerEntity, RenderZombieEntity } from "../state/clientGameStore";
 import type { createEntityViewStore } from "./entityViewStore";
 
@@ -22,6 +22,7 @@ export const renderFrame = ({
   deltaSeconds,
   entityViewStore,
   input,
+  predictionController,
   renderer,
   scene,
   store,
@@ -30,6 +31,7 @@ export const renderFrame = ({
   deltaSeconds: number;
   entityViewStore: ReturnType<typeof createEntityViewStore>;
   input: InputMessage;
+  predictionController: PredictionController;
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   store: ClientGameStore;
@@ -41,12 +43,20 @@ export const renderFrame = ({
   const selfPlayer = state.worldEntities.players.find((entity) => entity.entityId === state.playerEntityId);
 
   if (selfPlayer) {
-    const predicted = applyPredictedInput(createPredictionState(selfPlayer.transform), {
-      deltaSeconds,
-      movement: input.movement,
-      sequence: input.sequence,
+    const reconciledTransform = predictionController.reconcile({
+      authoritativeTransform: selfPlayer.transform,
+      lastProcessedSequence: selfPlayer.lastProcessedInputSequence ?? -1,
     });
-    localOverrides.set(selfPlayer.entityId, predicted.transform);
+
+    const predictedTransform = input.movement.x !== 0 || input.movement.y !== 0
+      ? predictionController.applyInput({
+        deltaSeconds,
+        movement: input.movement,
+        sequence: input.sequence,
+      })
+      : reconciledTransform;
+
+    localOverrides.set(selfPlayer.entityId, predictedTransform);
   }
 
   entityViewStore.render({

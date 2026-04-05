@@ -5,7 +5,7 @@ import { createRoomState, queueSpawnPlayer } from "./state";
 import { createLifecycleSystem } from "./systems/lifecycleSystem";
 
 describe("simulation query replication", () => {
-  it("includes loot and zombies in authoritative snapshots and zombie dirty updates in deltas", () => {
+  it("includes loot and zombies in authoritative snapshots and player inventory/input acks in deltas", () => {
     const state = createRoomState({ roomId: "room_test" });
 
     queueSpawnPlayer(state, {
@@ -14,6 +14,7 @@ describe("simulation query replication", () => {
       position: { x: 1, y: 1 },
     });
     createLifecycleSystem().update(state, 0);
+    state.lastProcessedInputSequence.set("player_test-1", 3);
 
     state.loot.set("loot_test-1", {
       entityId: "loot_test-1",
@@ -60,6 +61,12 @@ describe("simulation query replication", () => {
       entityUpdates: [
         {
           entityId: "player_test-1",
+          inventory: {
+            ammoStacks: [],
+            equippedWeaponSlot: null,
+            slots: [null, null, null, null, null, null],
+          },
+          lastProcessedInputSequence: 3,
           transform: { x: 1, y: 1, rotation: 0 },
         },
         {

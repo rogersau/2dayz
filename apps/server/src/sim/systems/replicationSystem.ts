@@ -27,6 +27,8 @@ const createEntityUpdateFromState = (state: RoomSimulationState, entityId: strin
   if (player) {
     return {
       entityId: player.entityId,
+      inventory: player.inventory,
+      lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
       transform: player.transform,
       velocity: player.velocity,
       health: player.health,

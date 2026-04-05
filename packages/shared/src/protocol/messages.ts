@@ -59,6 +59,7 @@ export const playerStateSchema = z
     transform: transformSchema,
     velocity: velocitySchema,
     inventory: inventorySchema,
+    lastProcessedInputSequence: z.number().int().nonnegative().optional(),
     health: healthSchema.optional(),
   })
   .strict();

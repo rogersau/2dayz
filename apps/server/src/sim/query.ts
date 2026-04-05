@@ -18,20 +18,23 @@ export type RoomReplicationDelta = {
   events: ServerEvent[];
 };
 
-const createPlayerState = (player: SimPlayer): PlayerState => {
+const createPlayerState = (state: RoomSimulationState, player: SimPlayer): PlayerState => {
   return {
     entityId: player.entityId,
     displayName: player.displayName,
     transform: player.transform,
     velocity: player.velocity,
     inventory: player.inventory,
+    lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
     health: player.health,
   };
 };
 
-const createPlayerDelta = (player: SimPlayer): DeltaMessage["entityUpdates"][number] => {
+const createPlayerDelta = (state: RoomSimulationState, player: SimPlayer): DeltaMessage["entityUpdates"][number] => {
   return {
     entityId: player.entityId,
+    inventory: player.inventory,
+    lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
     transform: player.transform,
     velocity: player.velocity,
     health: player.health,
@@ -97,7 +100,7 @@ export const createRoomReplicationSnapshot = (
   return {
     tick: state.tick,
     playerEntityId,
-    players: getPlayers(state).map(createPlayerState),
+    players: getPlayers(state).map((player) => createPlayerState(state, player)),
     loot: getLoot(state).map(createLootEntity),
     zombies: getZombies(state).map(createZombieEntity),
   };
@@ -111,7 +114,7 @@ export const createRoomReplicationDelta = (state: RoomSimulationState): RoomRepl
       ...[...state.dirtyPlayerIds]
         .map((entityId) => state.players.get(entityId))
         .filter((player): player is SimPlayer => player !== undefined)
-        .map(createPlayerDelta),
+        .map((player) => createPlayerDelta(state, player)),
       ...[...state.dirtyLootIds]
         .map((entityId) => state.loot.get(entityId))
         .filter((loot): loot is SimLoot => loot !== undefined)

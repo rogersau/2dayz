@@ -60,3 +60,39 @@ export const reconcilePrediction = ({
     transform,
   };
 };
+
+export const createPredictionController = (initialTransform: Transform) => {
+  let state = createPredictionState(initialTransform);
+
+  return {
+    applyInput(input: PredictedInput, moveSpeed = DEFAULT_MOVE_SPEED) {
+      state = applyPredictedInput(state, input, moveSpeed);
+      return state.transform;
+    },
+    getState() {
+      return state;
+    },
+    reconcile({
+      authoritativeTransform,
+      lastProcessedSequence,
+      moveSpeed = DEFAULT_MOVE_SPEED,
+    }: {
+      authoritativeTransform: Transform;
+      lastProcessedSequence: number;
+      moveSpeed?: number;
+    }) {
+      state = reconcilePrediction({
+        authoritativeTransform,
+        lastProcessedSequence,
+        moveSpeed,
+        state,
+      });
+      return state.transform;
+    },
+    reset(transform: Transform) {
+      state = createPredictionState(transform);
+    },
+  };
+};
+
+export type PredictionController = ReturnType<typeof createPredictionController>;

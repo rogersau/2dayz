@@ -124,4 +124,95 @@ describe("clientGameStore", () => {
       velocity: { x: 1, y: 0 },
     });
   });
+
+  it("updates the local HUD inventory and ammo state from replicated player deltas", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 90, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          lastProcessedInputSequence: 2,
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 30,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    store.applyDelta({
+      enteredEntities: [],
+      entityUpdates: [
+        {
+          entityId: "player_self",
+          health: { current: 64, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 6 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              { itemId: "bandage", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          lastProcessedInputSequence: 4,
+          transform: { rotation: 0.2, x: 1, y: 0 },
+          velocity: { x: 1, y: 0 },
+        },
+      ],
+      events: [],
+      removedEntityIds: [],
+      roomId: "room_browser-v1",
+      tick: 31,
+      type: "delta",
+    });
+
+    expect(store.getState()).toMatchObject({
+      health: { current: 64, isDead: false, max: 100 },
+      inventory: {
+        ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 6 }],
+        equippedWeaponSlot: 0,
+        slots: [
+          { itemId: "weapon_pistol", quantity: 1 },
+          { itemId: "bandage", quantity: 1 },
+          null,
+          null,
+          null,
+          null,
+        ],
+      },
+    });
+    expect(store.getState().worldEntities.players[0]).toMatchObject({
+      lastProcessedInputSequence: 4,
+      transform: { rotation: 0.2, x: 1, y: 0 },
+    });
+  });
 });

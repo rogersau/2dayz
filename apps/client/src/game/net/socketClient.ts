@@ -1,6 +1,7 @@
 import {
   deltaMessageSchema,
   errorMessageSchema,
+  inputMessageSchema,
   joinRequestSchema,
   reconnectRequestSchema,
   roomJoinedMessageSchema,
@@ -8,6 +9,7 @@ import {
   serverMessageSchema,
   snapshotMessageSchema,
   type ErrorReason,
+  type InputMessage,
   type RoomJoinedMessage,
 } from "@2dayz/shared";
 
@@ -45,13 +47,13 @@ const createMockJoinMessage = (displayName: string, sessionToken = createSession
   });
 };
 
-const createMockInventory = () => {
+const createMockInventory = (worldState: MockWorldState) => {
   return {
-    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 27 }],
+    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: worldState.ammoReserve }],
     equippedWeaponSlot: 0,
     slots: [
       { itemId: "weapon_pistol", quantity: 1 },
-      { itemId: "bandage", quantity: 2 },
+      worldState.localInventorySlotOne,
       null,
       null,
       null,
@@ -60,7 +62,7 @@ const createMockInventory = () => {
   };
 };
 
-const createMockSnapshot = (joined: JoinResult, tick: number) => {
+const createMockSnapshot = (joined: JoinResult, tick: number, worldState: MockWorldState) => {
   return snapshotMessageSchema.parse({
     loot: [
       {
@@ -76,8 +78,9 @@ const createMockSnapshot = (joined: JoinResult, tick: number) => {
         displayName: "You",
         entityId: joined.playerEntityId,
         health: { current: 86, isDead: false, max: 100 },
-        inventory: createMockInventory(),
-        transform: { rotation: 0, x: 0, y: 0 },
+        inventory: createMockInventory(worldState),
+        lastProcessedInputSequence: worldState.lastProcessedInputSequence,
+        transform: worldState.localTransform,
         velocity: { x: 0, y: 0 },
       },
       {
@@ -106,12 +109,20 @@ const createMockSnapshot = (joined: JoinResult, tick: number) => {
   });
 };
 
-const createMockDelta = (joined: JoinResult, tick: number) => {
+const createMockDelta = (joined: JoinResult, tick: number, worldState: MockWorldState) => {
   const phase = tick * 0.45;
 
   return deltaMessageSchema.parse({
     enteredEntities: [],
     entityUpdates: [
+      {
+        entityId: joined.playerEntityId,
+        health: { current: 86, isDead: false, max: 100 },
+        inventory: createMockInventory(worldState),
+        lastProcessedInputSequence: worldState.lastProcessedInputSequence,
+        transform: worldState.localTransform,
+        velocity: { x: 0, y: 0 },
+      },
       {
         entityId: "player_bandit",
         transform: { rotation: 0.2, x: 6 - Math.sin(phase) * 2.5, y: -3 + Math.cos(phase) * 1.2 },
@@ -157,6 +168,13 @@ type PendingRequest = {
 type ConnectionEvent = { type: "open" } | { type: "closed"; reason: ErrorReason };
 type PendingRequestKind = "join" | "reconnect";
 
+type MockWorldState = {
+  ammoReserve: number;
+  lastProcessedInputSequence: number;
+  localInventorySlotOne: { itemId: string; quantity: number } | null;
+  localTransform: { rotation: number; x: number; y: number };
+};
+
 export type SocketClient = ReturnType<typeof createSocketClient>;
 
 export const createSocketClient = ({
@@ -168,6 +186,12 @@ export const createSocketClient = ({
   let activeRequestKind: PendingRequestKind | null = null;
   let mockTick = 1;
   let mockWorldInterval: ReturnType<typeof setInterval> | null = null;
+  let mockWorldState: MockWorldState = {
+    ammoReserve: 27,
+    lastProcessedInputSequence: 0,
+    localInventorySlotOne: { itemId: "bandage", quantity: 2 },
+    localTransform: { rotation: 0, x: 0, y: 0 },
+  };
   let pendingRequest: PendingRequest | null = null;
   const mockSessions = new Map<string, JoinResult>();
   const connectionListeners = new Set<(event: ConnectionEvent) => void>();
@@ -203,12 +227,45 @@ export const createSocketClient = ({
     }
 
     mockTick = 1;
-    protocolStore.ingest(createMockSnapshot(joined, mockTick));
+    mockWorldState = {
+      ammoReserve: 27,
+      lastProcessedInputSequence: 0,
+      localInventorySlotOne: { itemId: "bandage", quantity: 2 },
+      localTransform: { rotation: 0, x: 0, y: 0 },
+    };
+    protocolStore.ingest(createMockSnapshot(joined, mockTick, mockWorldState));
 
     mockWorldInterval = setInterval(() => {
       mockTick += 1;
-      protocolStore.ingest(createMockDelta(joined, mockTick));
+      protocolStore.ingest(createMockDelta(joined, mockTick, mockWorldState));
     }, 300);
+  };
+
+  const sendInput = (input: InputMessage) => {
+    const payload = inputMessageSchema.parse(input);
+
+    if (mode === "mock") {
+      mockWorldState = {
+        ...mockWorldState,
+        ammoReserve: payload.actions.fire ? Math.max(0, mockWorldState.ammoReserve - 1) : mockWorldState.ammoReserve,
+        lastProcessedInputSequence: payload.sequence,
+        localInventorySlotOne: payload.actions.reload ? { itemId: "bandage", quantity: 1 } : mockWorldState.localInventorySlotOne,
+        localTransform: {
+          rotation: payload.movement.x === 0 && payload.movement.y === 0
+            ? mockWorldState.localTransform.rotation
+            : Math.atan2(payload.movement.y, payload.movement.x),
+          x: mockWorldState.localTransform.x + payload.movement.x * 0.2,
+          y: mockWorldState.localTransform.y + payload.movement.y * 0.2,
+        },
+      };
+      return;
+    }
+
+    if (!socket || socket.readyState !== WebSocket.OPEN) {
+      return;
+    }
+
+    socket.send(JSON.stringify(payload));
   };
 
   const settleFromServerMessage = (message: unknown) => {
@@ -357,6 +414,7 @@ export const createSocketClient = ({
         return await sendRequest(payload);
       });
     },
+    sendInput,
     subscribeToConnection(listener: (event: ConnectionEvent) => void) {
       connectionListeners.add(listener);
       return () => {

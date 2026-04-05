@@ -113,6 +113,19 @@ describe("protocol schemas", () => {
         entityUpdates: [
           {
             entityId: "player_1",
+            inventory: {
+              slots: [
+                { itemId: "m9", quantity: 1 },
+                null,
+                null,
+                null,
+                null,
+                null,
+              ],
+              equippedWeaponSlot: 0,
+              ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
+            },
+            lastProcessedInputSequence: 8,
             transform: { x: 11, y: 5, rotation: 1.2 },
             velocity: { x: 1, y: 0 },
           },

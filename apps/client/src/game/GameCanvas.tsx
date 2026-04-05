@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
+import type { SocketClient } from "./net/socketClient";
 import type { ClientGameStore } from "./state/clientGameStore";
 
 import { bootGame } from "./boot";
 
-export const GameCanvas = ({ store }: { store: ClientGameStore }) => {
+export const GameCanvas = ({
+  socketClient,
+  store,
+}: {
+  socketClient: Pick<SocketClient, "sendInput">;
+  store: ClientGameStore;
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [hasRuntimeError, setHasRuntimeError] = useState(false);
 
@@ -19,14 +26,14 @@ export const GameCanvas = ({ store }: { store: ClientGameStore }) => {
     }
 
     try {
-      const dispose = bootGame({ canvas: canvasRef.current, store });
+      const dispose = bootGame({ canvas: canvasRef.current, socketClient, store });
       setHasRuntimeError(false);
       return dispose;
     } catch {
       setHasRuntimeError(true);
       return;
     }
-  }, [store]);
+  }, [socketClient, store]);
 
   return (
     <div className="game-canvas-shell">
