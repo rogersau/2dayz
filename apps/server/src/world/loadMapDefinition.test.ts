@@ -439,4 +439,52 @@ describe("loadMapDefinition", () => {
       }),
     ).toThrow(/duplicate navigation node/i);
   });
+
+  it("rejects collision volumes that extend outside map bounds", () => {
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_out-of-bounds-collision",
+        name: "Out Of Bounds Collision",
+        bounds: { width: 10, height: 10 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_oob",
+            kind: "box",
+            position: { x: 1, y: 5 },
+            size: { width: 4, height: 2 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_ok",
+            center: { x: 6, y: 6 },
+            radius: 1,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 6, y: 2 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 6, y: 8 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 7, y: 2 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_a", position: { x: 6, y: 4 } },
+            { nodeId: "node_b", position: { x: 8, y: 4 } },
+          ],
+          links: [
+            { from: "node_a", to: "node_b", cost: 2 },
+            { from: "node_b", to: "node_a", cost: 2 },
+          ],
+        },
+      }),
+    ).toThrow(/collision volume/i);
+  });
 });

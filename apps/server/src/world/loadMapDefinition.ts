@@ -46,6 +46,12 @@ const hasUsableZombieSpawnArea = (
 const assertSpatialInvariants = (map: MapDefinition): void => {
   const collision = createCollisionIndex(map.collisionVolumes);
 
+  for (const volume of collision.volumes) {
+    if (volume.minX < 0 || volume.minY < 0 || volume.maxX > map.bounds.width || volume.maxY > map.bounds.height) {
+      throw new Error(`collision volume ${volume.volumeId} exceeds map bounds`);
+    }
+  }
+
   for (const zone of map.zombieSpawnZones) {
     if (
       zone.center.x < zone.radius ||

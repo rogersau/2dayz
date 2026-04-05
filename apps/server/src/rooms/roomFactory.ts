@@ -1,4 +1,4 @@
-import { createCollisionIndex, isCirclePositionBlocked } from "../world/collision";
+import { createCollisionIndex, isCircleMovementBlocked, isCirclePositionBlocked } from "../world/collision";
 import { loadMapDefinition } from "../world/loadMapDefinition";
 import { createNavigationGraph } from "../world/navigation";
 import { createSimulationRoomRuntime, type RoomRuntime } from "./roomRuntime";
@@ -41,6 +41,9 @@ export const createRoomFactory = ({ roomCapacity, loadMap = loadMapDefinition }:
       },
       config: {
         playerCapacity: roomCapacity,
+        isMovementBlocked: (movement) => {
+          return isOutOfBounds(map, movement.to) || isCircleMovementBlocked(collision, movement);
+        },
         isPositionBlocked: (position) => {
           return isOutOfBounds(map, position) || isCirclePositionBlocked(collision, position, playerCollisionRadius);
         },

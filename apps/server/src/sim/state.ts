@@ -17,6 +17,7 @@ export type RoomSimulationConfig = {
   maxZombies: number;
   maxDroppedItems: number;
   maxPlayerSpeed: number;
+  isMovementBlocked(movement: { from: Vector2; to: Vector2; radius: number }, entityId: string): boolean;
   isPositionBlocked(position: Vector2, entityId: string): boolean;
 };
 
@@ -92,8 +93,9 @@ const assertFixedTickRate = (value: number): void => {
 };
 
 export const createRoomSimulationConfig = (
-  overrides: Partial<Omit<RoomSimulationConfig, "tickRateHz" | "isPositionBlocked">> & {
+  overrides: Partial<Omit<RoomSimulationConfig, "tickRateHz" | "isPositionBlocked" | "isMovementBlocked">> & {
     tickRateHz?: number;
+    isMovementBlocked?: RoomSimulationConfig["isMovementBlocked"];
     isPositionBlocked?: RoomSimulationConfig["isPositionBlocked"];
   } = {},
 ): RoomSimulationConfig => {
@@ -103,6 +105,11 @@ export const createRoomSimulationConfig = (
     maxZombies: overrides.maxZombies ?? DEFAULT_MAX_ZOMBIES,
     maxDroppedItems: overrides.maxDroppedItems ?? DEFAULT_MAX_DROPPED_ITEMS,
     maxPlayerSpeed: overrides.maxPlayerSpeed ?? DEFAULT_MAX_PLAYER_SPEED,
+    isMovementBlocked:
+      overrides.isMovementBlocked ??
+      ((movement, entityId) => {
+        return (overrides.isPositionBlocked ?? (() => false))(movement.to, entityId);
+      }),
     isPositionBlocked: overrides.isPositionBlocked ?? (() => false),
   };
 

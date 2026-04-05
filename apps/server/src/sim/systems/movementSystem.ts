@@ -40,7 +40,14 @@ export const createMovementSystem = (): MovementSystem => {
         };
         const aimMagnitude = Math.hypot(intent.aim.x, intent.aim.y);
         const rotation = aimMagnitude > 0 ? Math.atan2(intent.aim.y, intent.aim.x) : player.transform.rotation;
-        const blocked = state.config.isPositionBlocked(nextPosition, player.entityId);
+        const blocked = state.config.isMovementBlocked(
+          {
+            from: { x: player.transform.x, y: player.transform.y },
+            to: nextPosition,
+            radius: 0.5,
+          },
+          player.entityId,
+        );
 
         player.transform = {
           x: blocked ? player.transform.x : nextPosition.x,

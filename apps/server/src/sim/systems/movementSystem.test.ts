@@ -158,4 +158,32 @@ describe("createMovementSystem", () => {
     expect(player?.transform).toMatchObject({ x: 4, y: 0, rotation: 0 });
     expect(player?.velocity).toEqual({ x: 4, y: 0 });
   });
+
+  it("uses swept movement blocking instead of only end-position checks", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        maxPlayerSpeed: 8,
+        isMovementBlocked: ({ from, to }) => from.x < 5 && to.x > 5,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-6",
+      displayName: "Finley",
+      position: { x: 2, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-6", {
+      ...defaultIntent,
+      movement: { x: 1, y: 0 },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-6");
+    expect(player?.transform).toMatchObject({ x: 2, y: 0, rotation: 0 });
+    expect(player?.velocity).toEqual({ x: 0, y: 0 });
+  });
 });
