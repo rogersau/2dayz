@@ -7,7 +7,7 @@ import { vector2Schema } from "../world/components";
 export const collisionVolumeSchema = z
   .object({
     volumeId: volumeIdSchema,
-    kind: z.enum(["box", "circle"]),
+    kind: z.literal("box"),
     position: vector2Schema,
     size: z
       .object({
@@ -56,7 +56,28 @@ export const navigationDataSchema = z
     nodes: z.array(navigationNodeSchema).min(1),
     links: z.array(navigationLinkSchema).min(1),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const nodeIds = new Set(value.nodes.map((node) => node.nodeId));
+
+    value.links.forEach((link, index) => {
+      if (!nodeIds.has(link.from)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["links", index, "from"],
+          message: "navigation link references unknown source node",
+        });
+      }
+
+      if (!nodeIds.has(link.to)) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["links", index, "to"],
+          message: "navigation link references unknown target node",
+        });
+      }
+    });
+  });
 
 export const mapDefinitionSchema = z
   .object({

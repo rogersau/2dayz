@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { entityKindSchema } from "../world/entities";
 import {
   combatEventSchema,
   clientMessageSchema,
@@ -263,5 +264,8 @@ describe("protocol schemas", () => {
         hitPosition: { x: 12 },
       }),
     ).toThrow();
+
+    expect(() => entityKindSchema.parse("projectile")).toThrow();
+    expect(() => entityKindSchema.parse("prop")).toThrow();
   });
 });

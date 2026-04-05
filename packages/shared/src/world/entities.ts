@@ -3,7 +3,7 @@ import { z } from "zod";
 import { entityIdSchema, itemIdSchema, zombieArchetypeIdSchema } from "../ids";
 import { healthSchema, transformSchema, vector2Schema, velocitySchema } from "./components";
 
-export const entityKindSchema = z.enum(["player", "zombie", "loot", "projectile", "prop"]);
+export const entityKindSchema = z.enum(["player", "zombie", "loot"]);
 
 export const entitySnapshotSchema = z
   .object({
