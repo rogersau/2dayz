@@ -159,6 +159,43 @@ describe("createRoomFactory", () => {
     expect(room.simulationState.players.get(fourthJoin.playerEntityId)?.transform).toMatchObject({ x: 10, y: 10 });
   });
 
+  it("treats near-overlap with a respawn point as occupied", () => {
+    const nearOverlapMap: MapDefinition = {
+      ...authoredTestMap,
+      respawnPoints: [
+        { pointId: "point_respawn-a", position: { x: 4.4, y: 4 } },
+        { pointId: "point_respawn-b", position: { x: 10, y: 10 } },
+      ],
+    };
+
+    const room = createRoomFactory({
+      roomCapacity: 12,
+      loadMap: () => nearOverlapMap,
+    })();
+
+    const firstJoin = room.joinPlayer({ displayName: "Avery" });
+    room.tick();
+
+    const firstPlayer = room.simulationState.players.get(firstJoin.playerEntityId);
+    if (!firstPlayer) {
+      throw new Error("expected first player to exist");
+    }
+
+    firstPlayer.transform = {
+      ...firstPlayer.transform,
+      x: 4.85,
+      y: 4,
+    };
+
+    const secondJoin = room.joinPlayer({ displayName: "Blair" });
+    room.tick();
+
+    expect(room.simulationState.players.get(secondJoin.playerEntityId)?.transform).toMatchObject({
+      x: 10,
+      y: 10,
+    });
+  });
+
   it("does not stack players across the default supported room capacity", () => {
     const room = createRoomFactory({ roomCapacity: 8 })();
 
@@ -169,5 +206,17 @@ describe("createRoomFactory", () => {
 
     const positions = [...room.simulationState.players.values()].map((player) => `${player.transform.x}:${player.transform.y}`);
     expect(new Set(positions).size).toBe(8);
+  });
+
+  it("does not stack players across the maximum supported default room capacity", () => {
+    const room = createRoomFactory({ roomCapacity: 12 })();
+
+    for (const displayName of ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"]) {
+      room.joinPlayer({ displayName });
+    }
+    room.tick();
+
+    const positions = [...room.simulationState.players.values()].map((player) => `${player.transform.x}:${player.transform.y}`);
+    expect(new Set(positions).size).toBe(12);
   });
 });

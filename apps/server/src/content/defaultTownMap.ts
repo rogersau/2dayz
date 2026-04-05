@@ -93,6 +93,22 @@ export const defaultTownMap: MapDefinition = {
       pointId: "point_respawn-farm-yard",
       position: { x: 52, y: 26 },
     },
+    {
+      pointId: "point_respawn-west-ditch",
+      position: { x: 6, y: 36 },
+    },
+    {
+      pointId: "point_respawn-corner-house",
+      position: { x: 24, y: 52 },
+    },
+    {
+      pointId: "point_respawn-east-track",
+      position: { x: 68, y: 22 },
+    },
+    {
+      pointId: "point_respawn-south-field",
+      position: { x: 60, y: 50 },
+    },
   ],
   interactablePlacements: [
     {

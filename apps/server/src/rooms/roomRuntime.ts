@@ -14,8 +14,11 @@ import {
 import { createRoomReplicationDelta, createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../sim/query";
 import { createLifecycleSystem } from "../sim/systems/lifecycleSystem";
 import { createMovementSystem } from "../sim/systems/movementSystem";
+import type { Vector2 } from "@2dayz/shared";
 
 export type RoomStatus = "active" | "full" | "unhealthy" | "shutting-down";
+
+const playerRespawnRadius = 0.5;
 
 export type JoinPlayerInput = {
   displayName: string;
@@ -107,14 +110,17 @@ export const createSimulationRoomRuntime = ({
       return { x: 0, y: 0 };
     }
 
-    const occupiedPoints = new Set(
-      [
-        ...[...simulationState.players.values()].map((player) => `${player.transform.x}:${player.transform.y}`),
-        ...simulationState.pendingSpawns.map((spawn) => `${spawn.position.x}:${spawn.position.y}`),
-      ],
-    );
+    const occupiedPoints: Vector2[] = [
+      ...[...simulationState.players.values()].map((player) => ({ x: player.transform.x, y: player.transform.y })),
+      ...simulationState.pendingSpawns.map((spawn) => spawn.position),
+    ];
 
-    const availablePoint = respawnPoints.find((point) => !occupiedPoints.has(`${point.x}:${point.y}`));
+    const availablePoint = respawnPoints.find((point) => {
+      return occupiedPoints.every((occupiedPoint) => {
+        return Math.hypot(point.x - occupiedPoint.x, point.y - occupiedPoint.y) >= playerRespawnRadius * 2;
+      });
+    });
+
     return availablePoint ?? firstRespawnPoint;
   };
 
