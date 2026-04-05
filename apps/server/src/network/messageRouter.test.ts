@@ -3,6 +3,7 @@ import {
   deltaMessageSchema,
   errorMessageSchema,
   roomJoinedMessageSchema,
+  roomStatusMessageSchema,
   snapshotMessageSchema,
   type DeltaMessage,
   type SnapshotMessage,
@@ -209,11 +210,19 @@ describe("createMessageRouter", () => {
       playerEntityId: "player_1-1",
       sessionToken: "session_1",
     });
+    expect(roomStatusMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
+      type: "room-status",
+      room: { roomId: "room_1", status: "active", capacity: 8 },
+    });
     expect(roomJoinedMessageSchema.parse(JSON.parse(reconnectSocket.sent[0] ?? "null"))).toEqual({
       type: "room-joined",
       roomId: "room_1",
       playerEntityId: "player_1-1",
       sessionToken: "session_1",
+    });
+    expect(roomStatusMessageSchema.parse(JSON.parse(reconnectSocket.sent[1] ?? "null"))).toMatchObject({
+      type: "room-status",
+      room: { roomId: "room_1", status: "active", capacity: 8 },
     });
   });
 
@@ -296,13 +305,16 @@ describe("createMessageRouter", () => {
     expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
       roomId: "room_1",
     });
-    expect(errorMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toEqual({
+    expect(roomStatusMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toMatchObject({
+      room: { roomId: "room_1" },
+    });
+    expect(errorMessageSchema.parse(JSON.parse(socket.sent[3] ?? "null"))).toEqual({
       type: "error",
       reason: "invalid-message",
     });
   });
 
-  it("forwards the runtime's initial snapshot and later deltas without local snapshot gating", () => {
+  it("emits room status before the runtime's initial snapshot and later deltas", () => {
     const socket = createSocket();
     const runtime = createStubRuntime();
     const connection = createMessageRouter({
@@ -338,21 +350,25 @@ describe("createMessageRouter", () => {
     });
 
     expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toMatchObject({ roomId: "room_1" });
-    expect(snapshotMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
-      type: "snapshot",
-      tick: 1,
-      roomId: "room_1",
+    expect(roomStatusMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
+      type: "room-status",
+      room: { roomId: "room_1", status: "active" },
     });
-    expect(deltaMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toMatchObject({
-      type: "delta",
+    expect(snapshotMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toMatchObject({
+      type: "snapshot",
       tick: 1,
       roomId: "room_1",
     });
     expect(deltaMessageSchema.parse(JSON.parse(socket.sent[3] ?? "null"))).toMatchObject({
       type: "delta",
+      tick: 1,
+      roomId: "room_1",
+    });
+    expect(deltaMessageSchema.parse(JSON.parse(socket.sent[4] ?? "null"))).toMatchObject({
+      type: "delta",
       tick: 2,
       roomId: "room_1",
     });
-    expect(socket.sent).toHaveLength(4);
+    expect(socket.sent).toHaveLength(5);
   });
 });

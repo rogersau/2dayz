@@ -2,7 +2,7 @@ import type { LootEntity, PlayerState, ZombieEntity } from "@2dayz/shared";
 
 import type { RoomReplicationDelta, RoomReplicationSnapshot } from "../query";
 
-type ReplicationSystemOptions = {
+export type ReplicationSystemOptions = {
   nearbyRadius?: number;
   maxNearbyPlayers?: number;
   maxNearbyLoot?: number;

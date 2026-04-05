@@ -52,4 +52,91 @@ describe("createSimulationRoomRuntime", () => {
     });
     expect(deltas).toMatchObject([{ tick: 1 }, { tick: 2 }]);
   });
+
+  it("applies nearby replication caps to live subscriber snapshots", () => {
+    const snapshots: Array<{
+      playerEntityId: string;
+      players: Array<{ entityId: string }>;
+      loot: Array<{ entityId: string }>;
+      zombies: Array<{ entityId: string }>;
+    }> = [];
+    const runtime = createSimulationRoomRuntime({
+      roomId: "room_test",
+      systems: [createLifecycleSystem()],
+      replication: {
+        nearbyRadius: 10,
+        maxNearbyPlayers: 2,
+        maxNearbyLoot: 1,
+        maxNearbyZombies: 1,
+      },
+    });
+
+    const joined = runtime.joinPlayer({ displayName: "Avery" });
+    runtime.joinPlayer({ displayName: "Blair" });
+    runtime.joinPlayer({ displayName: "Casey" });
+    runtime.joinPlayer({ displayName: "Devon" });
+
+    runtime.tick();
+
+    runtime.simulationState.players.get("player_test-2")!.transform = { x: 2, y: 0, rotation: 0 };
+    runtime.simulationState.players.get("player_test-3")!.transform = { x: 4, y: 0, rotation: 0 };
+    runtime.simulationState.players.get("player_test-4")!.transform = { x: 30, y: 0, rotation: 0 };
+    runtime.simulationState.loot.set("loot_test-near", {
+      entityId: "loot_test-near",
+      itemId: "item_bandage",
+      quantity: 1,
+      position: { x: 3, y: 0 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+    runtime.simulationState.loot.set("loot_test-far", {
+      entityId: "loot_test-far",
+      itemId: "item_bandage",
+      quantity: 1,
+      position: { x: 30, y: 0 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+    runtime.simulationState.zombies.set("zombie_test-near", {
+      entityId: "zombie_test-near",
+      archetypeId: "zombie_shambler",
+      transform: { x: 5, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    runtime.simulationState.zombies.set("zombie_test-far", {
+      entityId: "zombie_test-far",
+      archetypeId: "zombie_shambler",
+      transform: { x: 40, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    runtime.subscribePlayer(joined.playerEntityId, {
+      onSnapshot(snapshot) {
+        snapshots.push(snapshot as typeof snapshots[number]);
+      },
+      onDelta() {
+        // not needed here
+      },
+    });
+
+    expect(snapshots[0]).toMatchObject({
+      playerEntityId: joined.playerEntityId,
+      players: [
+        { entityId: "player_test-1" },
+        { entityId: "player_test-2" },
+      ],
+      loot: [{ entityId: "loot_test-near" }],
+      zombies: [{ entityId: "zombie_test-near" }],
+    });
+  });
 });

@@ -7,6 +7,7 @@ export {
   playerStateSchema,
   reconnectRequestSchema,
   roomJoinedMessageSchema,
+  roomStatusMessageSchema,
   serverMessageSchema,
   snapshotMessageSchema,
 } from "./messages";

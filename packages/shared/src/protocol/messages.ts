@@ -5,6 +5,7 @@ import { serverEventSchema } from "./events";
 import { entityDeltaSchema, entitySnapshotSchema, lootEntitySchema, zombieEntitySchema } from "../world/entities";
 import { healthSchema, transformSchema, vector2Schema, velocitySchema } from "../world/components";
 import { inventoryActionSchema, inventorySchema } from "../world/inventory";
+import { roomMetadataSchema } from "../world/rooms";
 
 const axisValueSchema = z.number().min(-1).max(1);
 
@@ -94,6 +95,13 @@ export const roomJoinedMessageSchema = z
   })
   .strict();
 
+export const roomStatusMessageSchema = z
+  .object({
+    type: z.literal("room-status"),
+    room: roomMetadataSchema,
+  })
+  .strict();
+
 export const errorReasonSchema = z.enum([
   "invalid-message",
   "invalid",
@@ -114,6 +122,7 @@ export const errorMessageSchema = z
 export const serverMessageSchema = z.discriminatedUnion("type", [
   errorMessageSchema,
   roomJoinedMessageSchema,
+  roomStatusMessageSchema,
   snapshotMessageSchema,
   deltaMessageSchema,
 ]);
@@ -128,4 +137,5 @@ export type DeltaMessage = z.infer<typeof deltaMessageSchema>;
 export type ErrorReason = z.infer<typeof errorReasonSchema>;
 export type ErrorMessage = z.infer<typeof errorMessageSchema>;
 export type RoomJoinedMessage = z.infer<typeof roomJoinedMessageSchema>;
+export type RoomStatusMessage = z.infer<typeof roomStatusMessageSchema>;
 export type ServerMessage = z.infer<typeof serverMessageSchema>;

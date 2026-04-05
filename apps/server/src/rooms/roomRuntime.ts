@@ -17,6 +17,7 @@ import { createMovementSystem } from "../sim/systems/movementSystem";
 import { createCombatSystem } from "../sim/systems/combatSystem";
 import { createInventorySystem } from "../sim/systems/inventorySystem";
 import { createLootSystem } from "../sim/systems/lootSystem";
+import { createReplicationSystem, type ReplicationSystemOptions } from "../sim/systems/replicationSystem";
 import { createZombieSystem } from "../sim/systems/zombieSystem";
 import type { Vector2 } from "@2dayz/shared";
 
@@ -71,6 +72,7 @@ type CreateSimulationRoomRuntimeOptions = {
     isPositionBlocked?: RoomSimulationConfig["isPositionBlocked"];
   };
   systems?: SimulationSystem[];
+  replication?: ReplicationSystemOptions;
   onSnapshot?(snapshot: RoomReplicationSnapshot): void;
   onDelta?(delta: RoomReplicationDelta): void;
 };
@@ -94,6 +96,7 @@ export const createSimulationRoomRuntime = ({
   world,
   config: configOverrides,
   systems,
+  replication: replicationOptions,
   onSnapshot,
   onDelta,
 }: CreateSimulationRoomRuntimeOptions): SimulationRoomRuntime => {
@@ -108,6 +111,7 @@ export const createSimulationRoomRuntime = ({
     createZombieSystem(),
     createLootSystem(),
   ];
+  const replication = createReplicationSystem(replicationOptions);
   let playerSequence = 0;
   let healthy = true;
   let status: RoomStatus = "active";
@@ -147,7 +151,7 @@ export const createSimulationRoomRuntime = ({
     tickRateHz: config.tickRateHz,
     systems: roomSystems,
     onTick(state) {
-      const delta = createRoomReplicationDelta(state);
+      const delta = replication.createDelta(createRoomReplicationDelta(state));
 
       for (const playerEntityId of getConnectedPlayerIds()) {
         for (const handlers of playerSessions.get(playerEntityId)?.subscriptions ?? []) {
@@ -155,7 +159,7 @@ export const createSimulationRoomRuntime = ({
             continue;
           }
 
-          const snapshot = createRoomReplicationSnapshot(state, playerEntityId);
+          const snapshot = replication.createInitialSnapshot(createRoomReplicationSnapshot(state, playerEntityId));
           handlers.onSnapshot(snapshot);
           handlers.initialSnapshotSent = true;
           onSnapshot?.(snapshot);
@@ -282,7 +286,7 @@ export const createSimulationRoomRuntime = ({
       };
 
       if (simulationState.players.has(playerEntityId)) {
-        const snapshot = createRoomReplicationSnapshot(simulationState, playerEntityId);
+        const snapshot = replication.createInitialSnapshot(createRoomReplicationSnapshot(simulationState, playerEntityId));
         subscription.onSnapshot(snapshot);
         subscription.initialSnapshotSent = true;
         onSnapshot?.(snapshot);

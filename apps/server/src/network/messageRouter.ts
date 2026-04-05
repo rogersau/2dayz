@@ -11,7 +11,7 @@ import {
   type ReconnectRequest,
 } from "@2dayz/shared";
 
-import { createDeltaMessage, createSnapshotMessage } from "./roomMessages";
+import { createDeltaMessage, createRoomStatusMessage, createSnapshotMessage } from "./roomMessages";
 import type { RoomManager } from "../rooms/roomManager";
 import type { RoomRuntime } from "../rooms/roomRuntime";
 import type { SessionRegistry } from "./sessionRegistry";
@@ -79,6 +79,10 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
     socket.send(JSON.stringify(message));
   };
 
+  const sendRoomStatus = (socket: WebSocket, room: RoomRuntime) => {
+    socket.send(JSON.stringify(createRoomStatusMessage(room)));
+  };
+
   return {
     attach(socket: WebSocket): RouterConnection {
       let activeSessionToken: string | null = null;
@@ -131,6 +135,7 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
                 playerEntityId: assignment.playerEntityId,
                 sessionToken: session.sessionToken,
               });
+              sendRoomStatus(socket, assignment.runtime);
               subscribeToRoomUpdates(assignment.runtime, assignment.playerEntityId);
               return;
             }
@@ -155,6 +160,7 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
                 playerEntityId: reclaimResult.playerEntityId,
                 sessionToken: reclaimResult.reservation.sessionToken,
               });
+              sendRoomStatus(socket, reclaimResult.runtime);
               subscribeToRoomUpdates(reclaimResult.runtime, reclaimResult.playerEntityId);
               return;
             }

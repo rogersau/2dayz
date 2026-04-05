@@ -6,6 +6,7 @@ import {
   clientMessageSchema,
   deathEventSchema,
   reconnectRequestSchema,
+  roomStatusMessageSchema,
   serverMessageSchema,
 } from "./schemas";
 
@@ -41,7 +42,7 @@ describe("protocol schemas", () => {
     ).toMatchObject({ type: "input", sequence: 17 });
   });
 
-  it("parses valid snapshot, delta, and death server payloads", () => {
+  it("parses valid snapshot, delta, room-status, and death server payloads", () => {
     expect(
       serverMessageSchema.parse({
         type: "snapshot",
@@ -115,6 +116,19 @@ describe("protocol schemas", () => {
     ).toMatchObject({ type: "delta", tick: 26 });
 
     expect(
+      roomStatusMessageSchema.parse({
+        type: "room-status",
+        room: {
+          roomId: "room_alpha",
+          name: "Town Alpha",
+          status: "active",
+          playerCount: 3,
+          capacity: 12,
+        },
+      }),
+    ).toMatchObject({ type: "room-status", room: { roomId: "room_alpha", status: "active" } });
+
+    expect(
       combatEventSchema.parse({
         type: "combat",
         roomId: "room_alpha",
@@ -172,6 +186,14 @@ describe("protocol schemas", () => {
         movement: { x: 3, y: 0 },
         aim: { x: 0, y: 0 },
         actions: {},
+      }),
+    ).toThrow();
+
+    expect(() =>
+      serverMessageSchema.parse({
+        type: "room-status",
+        roomId: "room_alpha",
+        status: "active",
       }),
     ).toThrow();
 
