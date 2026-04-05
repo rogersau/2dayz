@@ -19,7 +19,7 @@ import { createInventorySystem } from "../sim/systems/inventorySystem";
 import { createLootSystem } from "../sim/systems/lootSystem";
 import { createReplicationSystem, type ReplicationSystemOptions } from "../sim/systems/replicationSystem";
 import { createZombieSystem } from "../sim/systems/zombieSystem";
-import type { Vector2 } from "@2dayz/shared";
+import type { RoomMetadata, Vector2 } from "@2dayz/shared";
 
 export type RoomStatus = "active" | "full" | "unhealthy" | "shutting-down";
 
@@ -54,6 +54,7 @@ export interface RoomRuntime {
     handlers: {
       onSnapshot(snapshot: RoomReplicationSnapshot): void;
       onDelta(delta: RoomReplicationDelta): void;
+      onRoomStatus?(room: RoomMetadata): void;
     },
   ): (() => void) | null;
 }
@@ -83,7 +84,9 @@ type PlayerSession = {
   subscriptions: Set<{
     onSnapshot(snapshot: RoomReplicationSnapshot): void;
     onDelta(delta: RoomReplicationDelta): void;
+    onRoomStatus?(room: RoomMetadata): void;
     initialSnapshotSent: boolean;
+    visibleEntityIds: Set<string>;
   }>;
 };
 
@@ -115,6 +118,37 @@ export const createSimulationRoomRuntime = ({
   let playerSequence = 0;
   let healthy = true;
   let status: RoomStatus = "active";
+  let lastPublishedRoomStatus = "";
+
+  const createRoomMetadata = (): RoomMetadata => {
+    return {
+      roomId,
+      name: roomId,
+      status,
+      playerCount: playerSessions.size,
+      capacity: config.playerCapacity,
+    };
+  };
+
+  const emitRoomStatusIfChanged = (): void => {
+    const roomMetadata = createRoomMetadata();
+    const nextSignature = JSON.stringify(roomMetadata);
+    if (nextSignature === lastPublishedRoomStatus) {
+      return;
+    }
+
+    lastPublishedRoomStatus = nextSignature;
+
+    for (const session of playerSessions.values()) {
+      if (!session.connected) {
+        continue;
+      }
+
+      for (const handlers of session.subscriptions) {
+        handlers.onRoomStatus?.(roomMetadata);
+      }
+    }
+  };
 
   const getNextRespawnPoint = () => {
     const respawnPoints = simulationState.world?.respawnPoints;
@@ -173,7 +207,14 @@ export const createSimulationRoomRuntime = ({
         }
 
         for (const handlers of session.subscriptions) {
-          handlers.onDelta(delta);
+          const filteredDelta = replication.createDeltaForPlayer({
+            delta,
+            state,
+            playerEntityId,
+            visibleEntityIds: handlers.visibleEntityIds,
+          });
+          handlers.visibleEntityIds = filteredDelta.visibleEntityIds;
+          handlers.onDelta(filteredDelta.delta);
         }
       }
       clearTransientSimulationState(state);
@@ -224,6 +265,7 @@ export const createSimulationRoomRuntime = ({
         position: getNextRespawnPoint(),
       });
       updateStatus();
+      emitRoomStatusIfChanged();
 
       return { roomId, playerEntityId, runtime };
     },
@@ -235,6 +277,7 @@ export const createSimulationRoomRuntime = ({
 
       session.connected = false;
       updateStatus();
+      emitRoomStatusIfChanged();
       return true;
     },
     reclaimPlayer(playerEntityId) {
@@ -245,6 +288,7 @@ export const createSimulationRoomRuntime = ({
 
       session.connected = true;
       updateStatus();
+      emitRoomStatusIfChanged();
       return { roomId, playerEntityId, runtime };
     },
     releasePlayer(playerEntityId) {
@@ -254,11 +298,13 @@ export const createSimulationRoomRuntime = ({
 
       queueDespawnEntity(simulationState, playerEntityId);
       updateStatus();
+      emitRoomStatusIfChanged();
       return true;
     },
     shutdown() {
       healthy = false;
       status = "shutting-down";
+      emitRoomStatusIfChanged();
     },
     tick() {
       this.advance(1000 / config.tickRateHz);
@@ -270,6 +316,7 @@ export const createSimulationRoomRuntime = ({
 
       loop.advance(simulationState, elapsedMs);
       updateStatus();
+      emitRoomStatusIfChanged();
     },
     queueInput(playerEntityId, intent) {
       queueInputIntent(simulationState, playerEntityId, intent);
@@ -283,12 +330,18 @@ export const createSimulationRoomRuntime = ({
       const subscription = {
         ...handlers,
         initialSnapshotSent: false,
+        visibleEntityIds: new Set<string>(),
       };
 
       if (simulationState.players.has(playerEntityId)) {
         const snapshot = replication.createInitialSnapshot(createRoomReplicationSnapshot(simulationState, playerEntityId));
         subscription.onSnapshot(snapshot);
         subscription.initialSnapshotSent = true;
+        subscription.visibleEntityIds = new Set([
+          ...snapshot.players.map((player) => player.entityId),
+          ...snapshot.loot.map((loot) => loot.entityId),
+          ...snapshot.zombies.map((zombie) => zombie.entityId),
+        ]);
         onSnapshot?.(snapshot);
       }
 

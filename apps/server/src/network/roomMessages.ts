@@ -1,4 +1,4 @@
-import type { DeltaMessage, RoomStatusMessage, SnapshotMessage } from "@2dayz/shared";
+import type { DeltaMessage, RoomMetadata, RoomStatusMessage, SnapshotMessage } from "@2dayz/shared";
 
 import type { RoomReplicationDelta, RoomReplicationSnapshot } from "../sim/query";
 import type { RoomRuntime } from "../rooms/roomRuntime";
@@ -26,15 +26,19 @@ export const createDeltaMessage = (roomId: string, delta: RoomReplicationDelta):
   };
 };
 
-export const createRoomStatusMessage = (room: RoomRuntime): RoomStatusMessage => {
+export const createRoomStatusMessage = (room: RoomRuntime | RoomMetadata): RoomStatusMessage => {
+  const metadata: RoomMetadata = "name" in room
+    ? room
+    : {
+        roomId: room.roomId,
+        name: room.roomId,
+        status: room.status,
+        playerCount: room.playerCount,
+        capacity: room.capacity,
+      };
+
   return {
     type: "room-status",
-    room: {
-      roomId: room.roomId,
-      name: room.roomId,
-      status: room.status,
-      playerCount: room.playerCount,
-      capacity: room.capacity,
-    },
+    room: metadata,
   };
 };

@@ -1,12 +1,25 @@
 import type { LootEntity, PlayerState, ZombieEntity } from "@2dayz/shared";
 
-import type { RoomReplicationDelta, RoomReplicationSnapshot } from "../query";
+import { createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../query";
+import type { RoomSimulationState } from "../state";
 
 export type ReplicationSystemOptions = {
   nearbyRadius?: number;
   maxNearbyPlayers?: number;
   maxNearbyLoot?: number;
   maxNearbyZombies?: number;
+};
+
+type CreateDeltaForPlayerInput = {
+  delta: RoomReplicationDelta;
+  state: RoomSimulationState;
+  playerEntityId: string;
+  visibleEntityIds: Set<string>;
+};
+
+type CreateDeltaForPlayerResult = {
+  delta: RoomReplicationDelta;
+  visibleEntityIds: Set<string>;
 };
 
 const DEFAULT_NEARBY_RADIUS = 18;
@@ -46,6 +59,10 @@ export const createReplicationSystem = ({
   maxNearbyLoot = DEFAULT_MAX_NEARBY_LOOT,
   maxNearbyZombies = DEFAULT_MAX_NEARBY_ZOMBIES,
 }: ReplicationSystemOptions = {}) => {
+  const createVisibleSnapshot = (state: RoomSimulationState, playerEntityId: string): RoomReplicationSnapshot => {
+    return createInitialSnapshot(createRoomReplicationSnapshot(state, playerEntityId));
+  };
+
   const createInitialSnapshot = (snapshot: RoomReplicationSnapshot): RoomReplicationSnapshot => {
     const localPlayer = snapshot.players.find((player) => player.entityId === snapshot.playerEntityId);
     if (!localPlayer) {
@@ -78,8 +95,37 @@ export const createReplicationSystem = ({
     };
   };
 
+  const createDeltaForPlayer = ({ delta, state, playerEntityId, visibleEntityIds }: CreateDeltaForPlayerInput): CreateDeltaForPlayerResult => {
+    const localPlayer = state.players.get(playerEntityId);
+    if (!localPlayer) {
+      return {
+        delta: createDelta(delta),
+        visibleEntityIds: new Set(),
+      };
+    }
+
+    const visibleSnapshot = createVisibleSnapshot(state, playerEntityId);
+    const nextVisibleEntityIds = new Set<string>([
+      ...visibleSnapshot.players.map((player) => player.entityId),
+      ...visibleSnapshot.loot.map((loot) => loot.entityId),
+      ...visibleSnapshot.zombies.map((zombie) => zombie.entityId),
+    ]);
+
+    return {
+      delta: {
+        ...createDelta(delta),
+        entityUpdates: delta.entityUpdates.filter((update) => nextVisibleEntityIds.has(update.entityId)),
+        removedEntityIds: delta.removedEntityIds.filter((entityId) => visibleEntityIds.has(entityId)),
+      },
+      visibleEntityIds: new Set(
+        [...nextVisibleEntityIds].filter((entityId) => !delta.removedEntityIds.includes(entityId)),
+      ),
+    };
+  };
+
   return {
     createInitialSnapshot,
     createDelta,
+    createDeltaForPlayer,
   };
 };

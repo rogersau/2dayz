@@ -5,6 +5,7 @@ import {
   roomJoinedMessageSchema,
   roomStatusMessageSchema,
   snapshotMessageSchema,
+  type RoomStatusMessage,
   type DeltaMessage,
   type SnapshotMessage,
 } from "@2dayz/shared";
@@ -33,6 +34,7 @@ const createStubRuntime = () => {
     | {
         onSnapshot(snapshot: SnapshotMessage & { roomId: string }): void;
         onDelta(delta: DeltaMessage & { roomId: string }): void;
+        onRoomStatus(message: RoomStatusMessage["room"]): void;
       }
     | null = null;
   const queuedInputs: Array<{
@@ -97,6 +99,9 @@ const createStubRuntime = () => {
     },
     emitDelta(delta: DeltaMessage & { roomId: string }) {
       subscriptionHandlers?.onDelta(delta);
+    },
+    emitRoomStatus(message: RoomStatusMessage["room"]) {
+      subscriptionHandlers?.onRoomStatus(message);
     },
   };
 };
@@ -370,5 +375,34 @@ describe("createMessageRouter", () => {
       roomId: "room_1",
     });
     expect(socket.sent).toHaveLength(5);
+  });
+
+  it("forwards room-status updates after the session is active", () => {
+    const socket = createSocket();
+    const runtime = createStubRuntime();
+    const connection = createMessageRouter({
+      roomManager: createStubRoomManager(runtime.runtime),
+      sessionRegistry: createStubSessionRegistry(runtime.runtime),
+    }).attach(socket);
+
+    connection.handleMessage('{"type":"join","displayName":"Avery"}');
+    runtime.emitRoomStatus({
+      roomId: "room_1",
+      name: "room_1",
+      status: "full",
+      playerCount: 8,
+      capacity: 8,
+    });
+
+    expect(roomStatusMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toEqual({
+      type: "room-status",
+      room: {
+        roomId: "room_1",
+        name: "room_1",
+        status: "full",
+        playerCount: 8,
+        capacity: 8,
+      },
+    });
   });
 });

@@ -155,4 +155,95 @@ describe("createReplicationSystem", () => {
       zombies: [expect.objectContaining({ entityId: "zombie_test-near" })],
     });
   });
+
+  it("caps per-subscriber deltas to nearby entity updates while preserving visible removals", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    spawnPlayer(state, "player_test-1", "Avery", 0, 0);
+    spawnPlayer(state, "player_test-2", "Blair", 2, 0);
+    spawnPlayer(state, "player_test-3", "Casey", 4, 0);
+    spawnPlayer(state, "player_test-4", "Devon", 30, 0);
+
+    state.loot.set("loot_test-near", {
+      entityId: "loot_test-near",
+      itemId: "item_bandage",
+      quantity: 1,
+      position: { x: 3, y: 0 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+    state.loot.set("loot_test-far", {
+      entityId: "loot_test-far",
+      itemId: "item_bandage",
+      quantity: 1,
+      position: { x: 30, y: 0 },
+      ownerEntityId: null,
+      sourcePointId: null,
+    });
+    state.zombies.set("zombie_test-near", {
+      entityId: "zombie_test-near",
+      archetypeId: "zombie_shambler",
+      transform: { x: 5, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    state.zombies.set("zombie_test-far", {
+      entityId: "zombie_test-far",
+      archetypeId: "zombie_shambler",
+      transform: { x: 40, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    state.dirtyPlayerIds.add("player_test-2");
+    state.dirtyPlayerIds.add("player_test-3");
+    state.dirtyPlayerIds.add("player_test-4");
+    state.dirtyLootIds.add("loot_test-near");
+    state.dirtyLootIds.add("loot_test-far");
+    state.dirtyZombieIds.add("zombie_test-near");
+    state.dirtyZombieIds.add("zombie_test-far");
+    state.removedEntityIds.add("loot_test-near");
+    state.removedEntityIds.add("loot_test-far");
+
+    const rawDelta = createRoomReplicationDelta(state);
+    const replication = createReplicationSystem({
+      nearbyRadius: 10,
+      maxNearbyPlayers: 2,
+      maxNearbyLoot: 1,
+      maxNearbyZombies: 1,
+    });
+
+    expect(
+      replication.createDeltaForPlayer({
+        delta: rawDelta,
+        state,
+        playerEntityId: "player_test-1",
+        visibleEntityIds: new Set(["player_test-1", "player_test-2", "loot_test-near", "zombie_test-near"]),
+      }),
+    ).toMatchObject({
+      delta: {
+        entityUpdates: expect.arrayContaining([
+          expect.objectContaining({ entityId: "player_test-2" }),
+          expect.objectContaining({ entityId: "loot_test-near" }),
+          expect.objectContaining({ entityId: "zombie_test-near" }),
+        ]),
+        removedEntityIds: ["loot_test-near"],
+      },
+    });
+    expect(
+      replication.createDeltaForPlayer({
+        delta: rawDelta,
+        state,
+        playerEntityId: "player_test-1",
+        visibleEntityIds: new Set(["player_test-1", "player_test-2", "loot_test-near", "zombie_test-near"]),
+      }).delta.entityUpdates.map((update) => update.entityId),
+    ).not.toContain("player_test-4");
+  });
 });

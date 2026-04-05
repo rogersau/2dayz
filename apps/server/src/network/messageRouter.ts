@@ -101,6 +101,9 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
           onDelta(delta) {
             socket.send(JSON.stringify(createDeltaMessage(room.roomId, delta)));
           },
+          onRoomStatus(roomMetadata) {
+            socket.send(JSON.stringify(createRoomStatusMessage(roomMetadata)));
+          },
         });
       };
 
