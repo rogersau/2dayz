@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createCollisionIndex } from "../../world/collision";
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { createCombatSystem } from "./combatSystem";
+import { createInventorySystem } from "./inventorySystem";
 import { createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
 
 const spawnPlayer = (state: ReturnType<typeof createRoomState>, entityId: string, displayName: string, x: number, y: number) => {
@@ -213,6 +214,31 @@ describe("createCombatSystem", () => {
         type: "combat",
         attackerEntityId: attacker.entityId,
         targetEntityId: target.entityId,
+      }),
+    );
+  });
+
+  it("preserves firearm killer attribution on the resulting death event", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-kill-1", "Avery", 0, 0);
+    const target = spawnPlayer(state, "player_test-kill-2", "Blair", 4, 0);
+    target.health.current = 35;
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+    createInventorySystem().update(state, 0);
+
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "death",
+        victimEntityId: target.entityId,
+        killerEntityId: attacker.entityId,
       }),
     );
   });

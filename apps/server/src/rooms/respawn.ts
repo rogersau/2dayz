@@ -2,12 +2,12 @@ import type { RoomSimulationState } from "../sim/state";
 
 const playerRespawnRadius = 0.5;
 
-const isRespawnPointValid = (state: RoomSimulationState, entityId: string, position: { x: number; y: number }): boolean => {
+const isRespawnPointValid = (state: RoomSimulationState, entityId: string | null, position: { x: number; y: number }): boolean => {
   const occupiedPoints = [...state.players.values()]
     .filter((player) => player.entityId !== entityId)
     .map((player) => ({ x: player.transform.x, y: player.transform.y }));
 
-  if (state.config.isPositionBlocked(position, entityId)) {
+  if (state.config.isPositionBlocked(position, entityId ?? "respawn_probe")) {
     return false;
   }
 
@@ -23,13 +23,7 @@ export const selectRespawnPoint = (state: RoomSimulationState): { x: number; y: 
   }
 
   const [firstRespawnPoint] = respawnPoints;
-  const occupiedPoints = [...state.players.values()].map((player) => ({ x: player.transform.x, y: player.transform.y }));
-
-  const availablePoint = respawnPoints.find((point) => {
-    return occupiedPoints.every((occupiedPoint) => {
-      return Math.hypot(point.x - occupiedPoint.x, point.y - occupiedPoint.y) >= playerRespawnRadius * 2;
-    });
-  });
+  const availablePoint = respawnPoints.find((point) => isRespawnPointValid(state, null, point));
 
   return availablePoint ?? firstRespawnPoint ?? { x: 0, y: 0 };
 };
@@ -78,6 +72,7 @@ export const processPendingRespawns = (state: RoomSimulationState): void => {
       max: player.health.max,
       isDead: false,
     };
+    player.lastDamagedByEntityId = null;
 
     state.handledDeathEntityIds.delete(player.entityId);
     state.dirtyPlayerIds.add(player.entityId);

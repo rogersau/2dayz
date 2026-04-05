@@ -48,6 +48,7 @@ export type SimPlayer = {
   health: Health;
   inventory: Inventory;
   weaponState: WeaponState;
+  lastDamagedByEntityId: string | null;
 };
 
 export type WeaponState = {
@@ -295,6 +296,7 @@ export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerR
     health: createDefaultHealth(),
     inventory: createEmptyInventory(),
     weaponState: createDefaultWeaponState(),
+    lastDamagedByEntityId: null,
   });
   state.dirtyPlayerIds.add(request.entityId);
 };

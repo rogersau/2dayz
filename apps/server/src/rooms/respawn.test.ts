@@ -205,13 +205,64 @@ describe("respawn helpers", () => {
       throw new Error("expected scheduled respawn");
     }
 
-    expect(scheduledRespawn.position).toEqual({ x: 8, y: 8 });
+    expect(scheduledRespawn.position).toEqual({ x: 14, y: 14 });
 
     state.players.get("player_test-2")!.transform = { x: 8, y: 8, rotation: 0 };
     state.elapsedMs = 250;
     processPendingRespawns(state);
 
     expect(player.transform).not.toMatchObject({ x: 8, y: 8 });
-    expect(player.transform).toMatchObject({ x: 2, y: 2 });
+    expect(player.transform).toMatchObject({ x: 14, y: 14 });
+  });
+
+  it("filters blocked respawn points during initial selection", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ isPositionBlocked: (position) => position.x === 8 && position.y === 8 }),
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [],
+          respawnPoints: [
+            { pointId: "point_respawn-a", position: { x: 2, y: 2 } },
+            { pointId: "point_respawn-b", position: { x: 8, y: 8 } },
+            { pointId: "point_respawn-c", position: { x: 14, y: 14 } },
+          ],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 1, y: 1 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: { nodes: new Map(), neighbors: new Map() },
+        respawnPoints: [
+          { x: 2, y: 2 },
+          { x: 8, y: 8 },
+          { x: 14, y: 14 },
+        ],
+      },
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-1",
+      displayName: "Avery",
+      position: { x: 2, y: 2 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-1");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.health = { current: 0, max: 100, isDead: true };
+    queuePlayerRespawn(state, player.entityId, 250);
+
+    expect(state.pendingRespawns[0]?.position).toEqual({ x: 14, y: 14 });
   });
 });

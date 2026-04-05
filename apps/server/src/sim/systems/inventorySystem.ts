@@ -160,7 +160,7 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
   state.events.push({
     type: "death",
     victimEntityId: player.entityId,
-    killerEntityId: null,
+    killerEntityId: player.lastDamagedByEntityId,
     roomId: state.roomId,
     droppedInventory,
     respawnAt,

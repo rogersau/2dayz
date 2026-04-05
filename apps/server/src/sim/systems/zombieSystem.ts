@@ -270,6 +270,7 @@ export const createZombieSystem = () => {
           if (zombie.attackCooldownRemainingMs === 0) {
             target.health.current = Math.max(0, target.health.current - archetype.attackDamage);
             target.health.isDead = target.health.current === 0;
+            target.lastDamagedByEntityId = zombie.entityId;
             zombie.attackCooldownRemainingMs = attackCooldownMs;
             state.dirtyPlayerIds.add(target.entityId);
             state.dirtyZombieIds.add(zombie.entityId);

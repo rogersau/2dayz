@@ -34,9 +34,13 @@ const getEquippedWeapon = (state: RoomSimulationState, player: SimPlayer) => {
   };
 };
 
-const applyDamage = (target: SimPlayer | SimZombie, damage: number): void => {
+const applyDamage = (target: SimPlayer | SimZombie, damage: number, attackerEntityId: string): void => {
   target.health.current = Math.max(0, target.health.current - damage);
   target.health.isDead = target.health.current === 0;
+
+  if ("inventory" in target) {
+    target.lastDamagedByEntityId = attackerEntityId;
+  }
 };
 
 const applySpreadToAim = (aim: { x: number; y: number }, spread: number, random: () => number): { x: number; y: number } => {
@@ -108,7 +112,7 @@ const findHitTarget = (
         entityId,
         position,
         apply(damage) {
-          applyDamage(target, damage);
+          applyDamage(target, damage, attacker.entityId);
         },
         healthCurrent() {
           return target.health.current;

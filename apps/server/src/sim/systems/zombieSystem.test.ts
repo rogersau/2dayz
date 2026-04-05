@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createCollisionIndex } from "../../world/collision";
 import { createLifecycleSystem } from "./lifecycleSystem";
+import { createInventorySystem } from "./inventorySystem";
 import { createZombieSystem } from "./zombieSystem";
 import { createRoomSimulationConfig, createRoomState, queueSpawnPlayer } from "../state";
 import { createNavigationGraph } from "../../world/navigation";
@@ -285,5 +286,45 @@ describe("createZombieSystem", () => {
     const zombie = state.zombies.get("zombie_test-path");
     expect(zombie?.transform.x).toBe(2);
     expect(zombie?.transform.y).toBeGreaterThan(2);
+  });
+
+  it("preserves zombie killer attribution on the resulting death event", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-zkill",
+      displayName: "Avery",
+      position: { x: 1.5, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-zkill");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.health.current = 12;
+    state.zombies.set("zombie_test-killer", {
+      entityId: "zombie_test-killer",
+      archetypeId: "zombie_shambler",
+      transform: { x: 1, y: 1, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    createZombieSystem().update(state, 0.1);
+    createInventorySystem().update(state, 0);
+
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "death",
+        victimEntityId: player.entityId,
+        killerEntityId: "zombie_test-killer",
+      }),
+    );
   });
 });
