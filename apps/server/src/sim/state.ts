@@ -246,7 +246,7 @@ export const createRoomState = ({
     nextZombieEntitySequence: 0,
     itemDefinitions: new Map(defaultItems.map((item) => [item.itemId, item])),
     lootTables: new Map(defaultLootTables.map((table) => [table.tableId, table])),
-    weaponDefinitions: new Map(defaultWeaponDefinitions.map((weapon) => [weapon.itemId, weapon])),
+    weaponDefinitions: new Map(defaultWeaponDefinitions.map((weapon) => [weapon.itemId, { ...weapon }])),
     zombieArchetypes: new Map(defaultZombieArchetypes.map((zombie) => [zombie.archetypeId, zombie])),
     events: [],
   };

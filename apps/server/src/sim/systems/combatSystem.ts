@@ -5,6 +5,7 @@ import { consumeAmmoForReload } from "./inventorySystem";
 const hitRadius = 0.75;
 
 type HitTarget = {
+  forwardDistance: number;
   entityId: string;
   position: { x: number; y: number };
   apply(damage: number): void;
@@ -107,8 +108,9 @@ const findHitTarget = (
       return;
     }
 
-    if (!closest || forwardDistance < Math.hypot(closest.position.x - attacker.transform.x, closest.position.y - attacker.transform.y)) {
+    if (!closest || forwardDistance < closest.forwardDistance) {
       closest = {
+        forwardDistance,
         entityId,
         position,
         apply(damage) {

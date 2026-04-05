@@ -242,4 +242,30 @@ describe("createCombatSystem", () => {
       }),
     );
   });
+
+  it("hits the nearest valid target when multiple entities overlap the same firing lane", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-lane-1", "Avery", 0, 0);
+    const nearTarget = spawnPlayer(state, "player_test-lane-2", "Blair", 3, 0.6);
+    const farTarget = spawnPlayer(state, "player_test-lane-3", "Casey", 3.05, 0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(nearTarget.health.current).toBe(65);
+    expect(farTarget.health.current).toBe(100);
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "combat",
+        attackerEntityId: attacker.entityId,
+        targetEntityId: nearTarget.entityId,
+      }),
+    );
+  });
 });
