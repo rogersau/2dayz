@@ -43,8 +43,9 @@ export const renderFrame = ({
   const selfPlayer = state.worldEntities.players.find((entity) => entity.entityId === state.playerEntityId);
 
   if (selfPlayer) {
-    predictionController.reconcile({
+    predictionController.syncAuthoritative({
       authoritativeTransform: selfPlayer.transform,
+      entityId: selfPlayer.entityId,
       lastProcessedSequence: selfPlayer.lastProcessedInputSequence ?? -1,
     });
 
@@ -60,12 +61,11 @@ export const renderFrame = ({
   }
 
   entityViewStore.render({
+    deltaSeconds,
     entities: renderableEntities,
     latestTick,
     localOverrides,
     playerEntityId: state.playerEntityId,
-    renderTimeMs: performance.now(),
-    renderTick: Math.max(latestTick - 0.35, 0),
   });
 
   renderer.render(scene, camera);

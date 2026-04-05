@@ -23,24 +23,22 @@ describe("interpolation", () => {
     });
   });
 
-  it("advances interpolation based on frame time between server updates", () => {
+  it("advances interpolation based on authoritative server ticks between updates", () => {
     const previous = {
-      receivedAtMs: 1_000,
       tick: 10,
       transform: { rotation: 0, x: 0, y: 0 },
     };
     const current = {
-      receivedAtMs: 1_200,
       tick: 14,
       transform: { rotation: 0.8, x: 8, y: 4 },
     };
 
-    expect(sampleInterpolatedTransform(previous, current, 1_050)).toEqual({
+    expect(sampleInterpolatedTransform(previous, current, 11)).toEqual({
       rotation: 0.2,
       x: 2,
       y: 1,
     });
-    const laterSample = sampleInterpolatedTransform(previous, current, 1_150);
+    const laterSample = sampleInterpolatedTransform(previous, current, 13);
 
     expect(laterSample.x).toBe(6);
     expect(laterSample.y).toBe(3);

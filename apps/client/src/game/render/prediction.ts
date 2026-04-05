@@ -15,6 +15,7 @@ export type PredictionState = {
 };
 
 const CORRECTION_SMOOTHING = 10;
+const SNAP_DISTANCE = 3;
 const createZeroTransform = (): Transform => ({ rotation: 0, x: 0, y: 0 });
 
 const normalizeState = (state: PredictionState): PredictionState => {
@@ -39,6 +40,10 @@ const subtractTransforms = (left: Transform, right: Transform): Transform => {
     x: left.x - right.x,
     y: left.y - right.y,
   };
+};
+
+const getDistance = (left: Transform, right: Transform) => {
+  return Math.hypot(left.x - right.x, left.y - right.y);
 };
 
 const applyMovement = (transform: Transform, input: PredictedInput, moveSpeed: number): Transform => {
@@ -98,6 +103,8 @@ export const reconcilePrediction = ({
 
 export const createPredictionController = (initialTransform: Transform) => {
   let state = createPredictionState(initialTransform);
+  let trackedEntityId: string | null = null;
+  let lastProcessedSequence = -1;
 
   return {
     applyInput(input: PredictedInput, moveSpeed = DEFAULT_MOVE_SPEED) {
@@ -124,8 +131,43 @@ export const createPredictionController = (initialTransform: Transform) => {
       });
       return addTransforms(state.transform, state.correctionOffset);
     },
+    syncAuthoritative({
+      authoritativeTransform,
+      entityId,
+      lastProcessedSequence: nextProcessedSequence,
+      snapDistance = SNAP_DISTANCE,
+    }: {
+      authoritativeTransform: Transform;
+      entityId: string;
+      lastProcessedSequence: number;
+      snapDistance?: number;
+    }) {
+      const displayedTransform = addTransforms(state.transform, state.correctionOffset);
+      const shouldSnap =
+        trackedEntityId !== entityId ||
+        nextProcessedSequence < lastProcessedSequence ||
+        getDistance(displayedTransform, authoritativeTransform) >= snapDistance;
+
+      trackedEntityId = entityId;
+      lastProcessedSequence = nextProcessedSequence;
+
+      if (shouldSnap) {
+        state = createPredictionState(authoritativeTransform);
+        return authoritativeTransform;
+      }
+
+      state = reconcilePrediction({
+        authoritativeTransform,
+        lastProcessedSequence: nextProcessedSequence,
+        moveSpeed: DEFAULT_MOVE_SPEED,
+        state,
+      });
+      return addTransforms(state.transform, state.correctionOffset);
+    },
     reset(transform: Transform) {
       state = createPredictionState(transform);
+      trackedEntityId = null;
+      lastProcessedSequence = -1;
     },
     advanceSmoothing(deltaSeconds: number) {
       const smoothingAlpha = 1 - Math.exp(-deltaSeconds * CORRECTION_SMOOTHING);

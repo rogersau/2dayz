@@ -1,7 +1,6 @@
 import type { Transform } from "@2dayz/shared";
 
 type TimedTransform = {
-  receivedAtMs?: number;
   tick: number;
   transform: Transform;
 };
@@ -31,23 +30,9 @@ export const interpolateTransform = (
 export const sampleInterpolatedTransform = (
   from: TimedTransform,
   to: TimedTransform,
-  renderTimeMs: number,
+  renderTick: number,
 ): Transform => {
-  if (from.receivedAtMs === undefined || to.receivedAtMs === undefined || from.receivedAtMs === to.receivedAtMs) {
-    return interpolateTransform(from, to, to.tick);
-  }
-
-  const alpha = clamp(
-    (renderTimeMs - from.receivedAtMs) / (to.receivedAtMs - from.receivedAtMs),
-    0,
-    1,
-  );
-
-  return {
-    rotation: from.transform.rotation + (to.transform.rotation - from.transform.rotation) * alpha,
-    x: from.transform.x + (to.transform.x - from.transform.x) * alpha,
-    y: from.transform.y + (to.transform.y - from.transform.y) * alpha,
-  };
+  return interpolateTransform(from, to, clamp(renderTick, from.tick, to.tick));
 };
 
 export type { TimedTransform };
