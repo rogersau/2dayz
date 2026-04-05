@@ -1,18 +1,18 @@
 import { z } from "zod";
 
-import { zombieArchetypeIdSchema } from "../ids";
+import { pointIdSchema, zombieArchetypeIdSchema, zoneIdSchema } from "../ids";
 import { vector2Schema } from "../world/components";
 
 export const respawnPointSchema = z
   .object({
-    pointId: z.string().min(1),
+    pointId: pointIdSchema,
     position: vector2Schema,
   })
   .strict();
 
 export const zombieSpawnZoneSchema = z
   .object({
-    zoneId: z.string().min(1),
+    zoneId: zoneIdSchema,
     center: vector2Schema,
     radius: z.number().positive(),
     maxAlive: z.number().int().positive(),

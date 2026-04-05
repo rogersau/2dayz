@@ -66,7 +66,6 @@ export const snapshotMessageSchema = z
     tick: z.number().int().nonnegative(),
     roomId: roomIdSchema,
     playerEntityId: entityIdSchema,
-    entities: z.array(entitySnapshotSchema),
     players: z.array(playerStateSchema),
     loot: z.array(lootEntitySchema),
     zombies: z.array(zombieEntitySchema),

@@ -47,15 +47,6 @@ describe("protocol schemas", () => {
         tick: 25,
         roomId: "room_alpha",
         playerEntityId: "player_1",
-        entities: [
-          {
-            entityId: "player_1",
-            kind: "player",
-            transform: { x: 10, y: 5, rotation: 1.2 },
-            velocity: { x: 0, y: 0 },
-            health: { current: 90, max: 100, isDead: false },
-          },
-        ],
         players: [
           {
             entityId: "player_1",
@@ -190,6 +181,19 @@ describe("protocol schemas", () => {
         entities: [],
         players: [],
         loot: [],
+      }),
+    ).toThrow();
+
+    expect(() =>
+      serverMessageSchema.parse({
+        type: "snapshot",
+        tick: 1,
+        roomId: "room_alpha",
+        playerEntityId: "player_1",
+        entities: [],
+        players: [],
+        loot: [],
+        zombies: [],
       }),
     ).toThrow();
 

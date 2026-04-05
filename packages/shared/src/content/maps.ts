@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { lootTableIdSchema, mapIdSchema } from "../ids";
+import { lootTableIdSchema, mapIdSchema, nodeIdSchema, placementIdSchema, pointIdSchema, volumeIdSchema } from "../ids";
 import { zombieSpawnZoneSchema, respawnPointSchema } from "./spawns";
 import { vector2Schema } from "../world/components";
 
 export const collisionVolumeSchema = z
   .object({
-    volumeId: z.string().min(1),
+    volumeId: volumeIdSchema,
     kind: z.enum(["box", "circle"]),
     position: vector2Schema,
     size: z
@@ -20,7 +20,7 @@ export const collisionVolumeSchema = z
 
 export const lootPointSchema = z
   .object({
-    pointId: z.string().min(1),
+    pointId: pointIdSchema,
     position: vector2Schema,
     tableId: lootTableIdSchema,
   })
@@ -28,7 +28,7 @@ export const lootPointSchema = z
 
 export const interactablePlacementSchema = z
   .object({
-    placementId: z.string().min(1),
+    placementId: placementIdSchema,
     kind: z.enum(["door", "crate", "stash", "terminal"]),
     position: vector2Schema,
     interactionRadius: z.number().positive(),
@@ -38,15 +38,15 @@ export const interactablePlacementSchema = z
 
 export const navigationNodeSchema = z
   .object({
-    nodeId: z.string().min(1),
+    nodeId: nodeIdSchema,
     position: vector2Schema,
   })
   .strict();
 
 export const navigationLinkSchema = z
   .object({
-    from: z.string().min(1),
-    to: z.string().min(1),
+    from: nodeIdSchema,
+    to: nodeIdSchema,
     cost: z.number().positive(),
   })
   .strict();
