@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { ErrorReason } from "@2dayz/shared";
 
+import { GameCanvas } from "./game/GameCanvas";
 import { createSocketClient, SocketClientError, type JoinResult } from "./game/net/socketClient";
 import { createProtocolStore } from "./game/net/protocolStore";
 import {
@@ -89,6 +90,20 @@ export const App = () => {
   }, [gameStore, socketClient, state.connectionState.phase]);
 
   useEffect(() => {
+    return protocolStore.subscribe(() => {
+      const { deltas, snapshot } = protocolStore.drainWorldUpdates();
+
+      if (snapshot) {
+        gameStore.applySnapshot(snapshot);
+      }
+
+      for (const delta of deltas) {
+        gameStore.applyDelta(delta);
+      }
+    });
+  }, [gameStore, protocolStore]);
+
+  useEffect(() => {
     return () => {
       socketClient.close();
     };
@@ -168,16 +183,24 @@ export const App = () => {
         {!isConnected && showControlsStep ? (
           <ControlsOverlay onContinue={handleControlsContinue} />
         ) : (
-          isConnected ? <section className="game-shell" aria-label="game shell">
-            <Hud
-              inventory={state.inventory}
-              isInventoryOpen={state.isInventoryOpen}
-              onToggleInventory={() => gameStore.toggleInventory()}
-              playerEntityId={state.playerEntityId}
-              roomId={state.roomId}
-            />
-            <DeathOverlay isVisible={state.isDead} />
-          </section> : null
+          isConnected ? (
+            <section className="game-shell" aria-label="game shell">
+              <div className="game-stage">
+                <GameCanvas store={gameStore} />
+                <div className="game-hud-layer">
+                  <Hud
+                    health={state.health}
+                    inventory={state.inventory}
+                    isInventoryOpen={state.isInventoryOpen}
+                    onToggleInventory={() => gameStore.toggleInventory()}
+                    playerEntityId={state.playerEntityId}
+                    roomId={state.roomId}
+                  />
+                  <DeathOverlay isVisible={state.isDead} />
+                </div>
+              </div>
+            </section>
+          ) : null
         )}
       </section>
     </main>

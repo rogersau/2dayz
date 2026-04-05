@@ -1,10 +1,12 @@
 import {
+  deltaMessageSchema,
   errorMessageSchema,
   joinRequestSchema,
   reconnectRequestSchema,
   roomJoinedMessageSchema,
   roomStatusMessageSchema,
   serverMessageSchema,
+  snapshotMessageSchema,
   type ErrorReason,
   type RoomJoinedMessage,
 } from "@2dayz/shared";
@@ -43,6 +45,93 @@ const createMockJoinMessage = (displayName: string, sessionToken = createSession
   });
 };
 
+const createMockInventory = () => {
+  return {
+    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 27 }],
+    equippedWeaponSlot: 0,
+    slots: [
+      { itemId: "weapon_pistol", quantity: 1 },
+      { itemId: "bandage", quantity: 2 },
+      null,
+      null,
+      null,
+      null,
+    ],
+  };
+};
+
+const createMockSnapshot = (joined: JoinResult, tick: number) => {
+  return snapshotMessageSchema.parse({
+    loot: [
+      {
+        entityId: "loot_shells",
+        itemId: "ammo_9mm",
+        position: { x: -3, y: 4 },
+        quantity: 15,
+      },
+    ],
+    playerEntityId: joined.playerEntityId,
+    players: [
+      {
+        displayName: "You",
+        entityId: joined.playerEntityId,
+        health: { current: 86, isDead: false, max: 100 },
+        inventory: createMockInventory(),
+        transform: { rotation: 0, x: 0, y: 0 },
+        velocity: { x: 0, y: 0 },
+      },
+      {
+        displayName: "Bandit",
+        entityId: "player_bandit",
+        inventory: {
+          ammoStacks: [],
+          equippedWeaponSlot: null,
+          slots: [null, null, null, null, null, null],
+        },
+        transform: { rotation: 0.2, x: 6, y: -3 },
+        velocity: { x: -0.3, y: 0 },
+      },
+    ],
+    roomId: joined.roomId,
+    tick,
+    type: "snapshot",
+    zombies: [
+      {
+        archetypeId: "zombie_walker",
+        entityId: "zombie_1",
+        state: "chasing",
+        transform: { rotation: 0.1, x: -8, y: -2 },
+      },
+    ],
+  });
+};
+
+const createMockDelta = (joined: JoinResult, tick: number) => {
+  const phase = tick * 0.45;
+
+  return deltaMessageSchema.parse({
+    enteredEntities: [],
+    entityUpdates: [
+      {
+        entityId: "player_bandit",
+        transform: { rotation: 0.2, x: 6 - Math.sin(phase) * 2.5, y: -3 + Math.cos(phase) * 1.2 },
+        velocity: { x: -0.3, y: 0.2 },
+      },
+      {
+        entityId: "zombie_1",
+        health: { current: 28, isDead: false, max: 40 },
+        transform: { rotation: -0.3, x: -8 + Math.cos(phase) * 3, y: -2 + Math.sin(phase) * 2 },
+        velocity: { x: 0.2, y: 0.1 },
+      },
+    ],
+    events: [],
+    removedEntityIds: [],
+    roomId: joined.roomId,
+    tick,
+    type: "delta",
+  });
+};
+
 export class SocketClientError extends Error {
   constructor(public readonly reason: ErrorReason) {
     super(reason);
@@ -77,6 +166,8 @@ export const createSocketClient = ({
 }: SocketClientOptions) => {
   let socket: WebSocket | null = null;
   let activeRequestKind: PendingRequestKind | null = null;
+  let mockTick = 1;
+  let mockWorldInterval: ReturnType<typeof setInterval> | null = null;
   let pendingRequest: PendingRequest | null = null;
   const mockSessions = new Map<string, JoinResult>();
   const connectionListeners = new Set<(event: ConnectionEvent) => void>();
@@ -94,12 +185,30 @@ export const createSocketClient = ({
       : "ws://localhost:3000/ws");
 
   const close = () => {
+    if (mockWorldInterval) {
+      clearInterval(mockWorldInterval);
+      mockWorldInterval = null;
+    }
     socket?.close();
     socket = null;
     if (pendingRequest) {
       pendingRequest.reject(new SocketClientError("internal-error"));
       pendingRequest = null;
     }
+  };
+
+  const startMockWorld = (joined: JoinResult) => {
+    if (mockWorldInterval) {
+      clearInterval(mockWorldInterval);
+    }
+
+    mockTick = 1;
+    protocolStore.ingest(createMockSnapshot(joined, mockTick));
+
+    mockWorldInterval = setInterval(() => {
+      mockTick += 1;
+      protocolStore.ingest(createMockDelta(joined, mockTick));
+    }, 300);
   };
 
   const settleFromServerMessage = (message: unknown) => {
@@ -205,6 +314,7 @@ export const createSocketClient = ({
         },
       }),
     );
+    startMockWorld(joined);
     return joined;
   };
 
@@ -219,6 +329,7 @@ export const createSocketClient = ({
     }
 
     protocolStore.ingest(existingSession);
+    startMockWorld(existingSession);
     return existingSession;
   };
 
