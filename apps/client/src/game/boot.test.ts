@@ -1,9 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  createPredictionControllerMock,
   clearIntervalMock,
   destroyInputControllerMock,
   entityViewDisposeMock,
+  predictionApplyInputMock,
+  predictionAdvanceSmoothingMock,
+  predictionSyncAuthoritativeMock,
   pollInputMock,
   renderFrameMock,
   renderMock,
@@ -13,9 +17,13 @@ const {
   sceneDisposeMock,
   setIntervalMock,
 } = vi.hoisted(() => ({
+  createPredictionControllerMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
   entityViewDisposeMock: vi.fn(),
+  predictionApplyInputMock: vi.fn(),
+  predictionAdvanceSmoothingMock: vi.fn(),
+  predictionSyncAuthoritativeMock: vi.fn(),
   pollInputMock: vi.fn(),
   renderFrameMock: vi.fn(),
   renderMock: vi.fn(),
@@ -57,6 +65,17 @@ vi.mock("./render/entityViewStore", () => ({
   createEntityViewStore: () => ({
     dispose: entityViewDisposeMock,
   }),
+}));
+
+vi.mock("./render/prediction", () => ({
+  createPredictionController: (...args: unknown[]) => {
+    createPredictionControllerMock(...args);
+    return {
+      advanceSmoothing: predictionAdvanceSmoothingMock,
+      applyInput: predictionApplyInputMock,
+      syncAuthoritative: predictionSyncAuthoritativeMock,
+    };
+  },
 }));
 
 vi.mock("./render/renderFrame", () => ({
@@ -144,5 +163,30 @@ describe("bootGame", () => {
     expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
     expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
     expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("predicts stationary aim changes during the fixed input loop", () => {
+    pollInputMock.mockReturnValue({
+      actions: {},
+      aim: { x: 0, y: 8 },
+      movement: { x: 0, y: 0 },
+      sequence: 3,
+      type: "input",
+    });
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(predictionApplyInputMock).toHaveBeenCalledWith({
+      aim: { x: 0, y: 8 },
+      deltaSeconds: 0.05,
+      movement: { x: 0, y: 0 },
+      sequence: 3,
+    });
   });
 });
