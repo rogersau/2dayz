@@ -306,8 +306,16 @@ export const createClientGameStore = () => {
     },
     resetToIdle() {
       update((current) => ({
-        ...current,
         connectionState: { phase: "idle" },
+        health: null,
+        inventory: createEmptyInventory(),
+        isDead: false,
+        isInventoryOpen: false,
+        lastJoinDisplayName: current.lastJoinDisplayName,
+        latestTick: null,
+        playerEntityId: null,
+        roomId: null,
+        worldEntities: createEmptyWorldEntities(),
       }));
     },
     setInventory(inventory: Inventory) {

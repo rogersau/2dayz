@@ -83,11 +83,11 @@ export const App = () => {
 
   useEffect(() => {
     return socketClient.subscribeToConnection((event) => {
-      if (event.type === "closed" && state.connectionState.phase === "joined") {
+      if (event.type === "closed" && gameStore.getState().connectionState.phase === "joined") {
         gameStore.failConnection(event.reason);
       }
     });
-  }, [gameStore, socketClient, state.connectionState.phase]);
+  }, [gameStore, socketClient]);
 
   useEffect(() => {
     return protocolStore.subscribe(() => {

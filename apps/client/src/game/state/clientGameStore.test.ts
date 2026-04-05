@@ -278,4 +278,71 @@ describe("clientGameStore", () => {
       },
     });
   });
+
+  it("clears session-derived HUD and world state when returning to idle", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+    store.applySnapshot({
+      loot: [
+        {
+          entityId: "loot_shells",
+          itemId: "ammo_shells",
+          position: { x: 8, y: 5 },
+          quantity: 12,
+        },
+      ],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 72, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          transform: { rotation: 0, x: 4, y: 6 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 20,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    store.resetToIdle();
+
+    expect(store.getState()).toMatchObject({
+      connectionState: { phase: "idle" },
+      health: null,
+      inventory: {
+        ammoStacks: [],
+        equippedWeaponSlot: null,
+        slots: [null, null, null, null, null, null],
+      },
+      isDead: false,
+      latestTick: null,
+      playerEntityId: null,
+      roomId: null,
+      worldEntities: {
+        loot: [],
+        players: [],
+        zombies: [],
+      },
+    });
+  });
 });

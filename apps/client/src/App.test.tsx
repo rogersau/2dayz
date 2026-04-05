@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -164,6 +164,36 @@ describe("App join and reconnect flow", () => {
     });
 
     handleConnectionChange?.({ type: "closed", reason: "internal-error" });
+
+    await waitFor(() => {
+      expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
+    });
+    expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
+  });
+
+  it("handles a socket close emitted immediately after join completion", async () => {
+    let handleConnectionChange: ((state: { type: "closed"; reason: string } | { type: "open" }) => void) | undefined;
+    subscribeToConnectionMock.mockImplementation((listener: typeof handleConnectionChange) => {
+      handleConnectionChange = listener;
+      return () => {};
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
+    });
+
+    await act(async () => {
+      handleConnectionChange?.({ type: "closed", reason: "internal-error" });
+      await Promise.resolve();
+    });
 
     await waitFor(() => {
       expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
