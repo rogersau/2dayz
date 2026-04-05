@@ -46,17 +46,17 @@ export const defaultTownMap: MapDefinition = {
   lootPoints: [
     {
       pointId: "point_loot-market-shelves",
-      position: { x: 19, y: 20 },
+      position: { x: 15, y: 20 },
       tableId: "loot_residential",
     },
     {
       pointId: "point_loot-police-locker",
-      position: { x: 33, y: 19 },
+      position: { x: 29, y: 19 },
       tableId: "loot_police",
     },
     {
       pointId: "point_loot-barn-loft",
-      position: { x: 58, y: 33 },
+      position: { x: 52, y: 33 },
       tableId: "loot_residential",
     },
   ],
@@ -94,10 +94,10 @@ export const defaultTownMap: MapDefinition = {
     nodes: [
       { nodeId: "node_forest", position: { x: 8, y: 42 } },
       { nodeId: "node_main-road", position: { x: 12, y: 20 } },
-      { nodeId: "node_square", position: { x: 22, y: 20 } },
-      { nodeId: "node_market", position: { x: 18, y: 20 } },
-      { nodeId: "node_police", position: { x: 33, y: 18 } },
-      { nodeId: "node_farm", position: { x: 58, y: 34 } },
+      { nodeId: "node_square", position: { x: 15, y: 20 } },
+      { nodeId: "node_market", position: { x: 15, y: 24 } },
+      { nodeId: "node_police", position: { x: 29, y: 18 } },
+      { nodeId: "node_farm", position: { x: 52, y: 34 } },
     ],
     links: [
       { from: "node_forest", to: "node_main-road", cost: 22 },

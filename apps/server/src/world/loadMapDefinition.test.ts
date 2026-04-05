@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { createCollisionIndex, isCirclePositionBlocked } from "./collision";
 import { loadMapDefinition } from "./loadMapDefinition";
 
 describe("loadMapDefinition", () => {
@@ -49,5 +50,23 @@ describe("loadMapDefinition", () => {
         }),
       ]),
     );
+  });
+
+  it("places default loot points on reachable walkable positions", () => {
+    const map = loadMapDefinition();
+    const collision = createCollisionIndex(map.collisionVolumes);
+
+    for (const lootPoint of map.lootPoints) {
+      expect(isCirclePositionBlocked(collision, lootPoint.position, 0.5)).toBe(false);
+    }
+  });
+
+  it("places navigation nodes on walkable positions for zombie pathing", () => {
+    const map = loadMapDefinition();
+    const collision = createCollisionIndex(map.collisionVolumes);
+
+    for (const node of map.navigation.nodes) {
+      expect(isCirclePositionBlocked(collision, node.position, 0.5)).toBe(false);
+    }
   });
 });
