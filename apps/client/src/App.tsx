@@ -35,6 +35,7 @@ export const App = () => {
   const state = useClientGameStore(gameStore);
   const reconnectAttemptRef = useRef<string | null>(null);
   const [pendingJoinDisplayName, setPendingJoinDisplayName] = useState<string | null>(null);
+  const [isJoinRequestPending, setIsJoinRequestPending] = useState(false);
   const { displayName, sessionToken, setDisplayName, setSessionToken, clearSessionToken } = useSessionToken();
 
   const completeJoin = (result: JoinResult, resolvedDisplayName: string) => {
@@ -49,10 +50,11 @@ export const App = () => {
   };
 
   const attemptReconnect = () => {
-    if (!sessionToken) {
+    if (!sessionToken || isJoinRequestPending) {
       return;
     }
 
+    setIsJoinRequestPending(true);
     reconnectAttemptRef.current = sessionToken;
     gameStore.beginReconnect();
 
@@ -64,6 +66,9 @@ export const App = () => {
       .catch((error: unknown) => {
         clearSessionToken();
         gameStore.failConnection(getConnectionErrorReason(error));
+      })
+      .finally(() => {
+        setIsJoinRequestPending(false);
       });
   };
 
@@ -90,10 +95,11 @@ export const App = () => {
   }, [socketClient]);
 
   const handleControlsContinue = () => {
-    if (!pendingJoinDisplayName) {
+    if (!pendingJoinDisplayName || isJoinRequestPending) {
       return;
     }
 
+    setIsJoinRequestPending(true);
     gameStore.beginJoin(pendingJoinDisplayName);
 
     void socketClient
@@ -105,6 +111,9 @@ export const App = () => {
       .catch((error: unknown) => {
         setPendingJoinDisplayName(null);
         gameStore.failConnection(getConnectionErrorReason(error));
+      })
+      .finally(() => {
+        setIsJoinRequestPending(false);
       });
   };
 
@@ -164,6 +173,7 @@ export const App = () => {
               inventory={state.inventory}
               isInventoryOpen={state.isInventoryOpen}
               onToggleInventory={() => gameStore.toggleInventory()}
+              playerEntityId={state.playerEntityId}
               roomId={state.roomId}
             />
             <DeathOverlay isVisible={state.isDead} />

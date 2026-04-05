@@ -66,6 +66,7 @@ type PendingRequest = {
 };
 
 type ConnectionEvent = { type: "open" } | { type: "closed"; reason: ErrorReason };
+type PendingRequestKind = "join" | "reconnect";
 
 export type SocketClient = ReturnType<typeof createSocketClient>;
 
@@ -75,6 +76,7 @@ export const createSocketClient = ({
   wsUrl,
 }: SocketClientOptions) => {
   let socket: WebSocket | null = null;
+  let activeRequestKind: PendingRequestKind | null = null;
   let pendingRequest: PendingRequest | null = null;
   const mockSessions = new Map<string, JoinResult>();
   const connectionListeners = new Set<(event: ConnectionEvent) => void>();
@@ -165,6 +167,20 @@ export const createSocketClient = ({
     });
   };
 
+  const runWithSinglePendingRequest = async <T>(kind: PendingRequestKind, operation: () => Promise<T>) => {
+    if (activeRequestKind) {
+      throw new SocketClientError("session-active");
+    }
+
+    activeRequestKind = kind;
+
+    try {
+      return await operation();
+    } finally {
+      activeRequestKind = null;
+    }
+  };
+
   const mockJoin = async ({ displayName }: { displayName: string }) => {
     await wait(120);
 
@@ -211,20 +227,24 @@ export const createSocketClient = ({
     async join({ displayName }: { displayName: string }) {
       const payload = joinRequestSchema.parse({ type: "join", displayName });
 
-      if (mode === "mock") {
-        return await mockJoin(payload);
-      }
+      return await runWithSinglePendingRequest("join", async () => {
+        if (mode === "mock") {
+          return await mockJoin(payload);
+        }
 
-      return await sendRequest(payload);
+        return await sendRequest(payload);
+      });
     },
     async reconnect({ sessionToken }: { sessionToken: string }) {
       const payload = reconnectRequestSchema.parse({ type: "reconnect", sessionToken });
 
-      if (mode === "mock") {
-        return await mockReconnect(payload);
-      }
+      return await runWithSinglePendingRequest("reconnect", async () => {
+        if (mode === "mock") {
+          return await mockReconnect(payload);
+        }
 
-      return await sendRequest(payload);
+        return await sendRequest(payload);
+      });
     },
     subscribeToConnection(listener: (event: ConnectionEvent) => void) {
       connectionListeners.add(listener);

@@ -6,10 +6,11 @@ type HudProps = {
   inventory: Inventory;
   isInventoryOpen: boolean;
   onToggleInventory: () => void;
+  playerEntityId: string | null;
   roomId: string | null;
 };
 
-export const Hud = ({ inventory, isInventoryOpen, onToggleInventory, roomId }: HudProps) => {
+export const Hud = ({ inventory, isInventoryOpen, onToggleInventory, playerEntityId, roomId }: HudProps) => {
   const equippedWeapon = inventory.equippedWeaponSlot === null ? null : inventory.slots[inventory.equippedWeaponSlot];
   const totalAmmo = inventory.ammoStacks.reduce((count, stack) => count + stack.quantity, 0);
 
@@ -20,6 +21,7 @@ export const Hud = ({ inventory, isInventoryOpen, onToggleInventory, roomId }: H
         <span className="status-pill">Health: 100</span>
         <span className="status-pill">Weapon: {equippedWeapon?.itemId ?? "none"}</span>
         <span className="status-pill">Ammo: {totalAmmo}</span>
+        <span className="status-pill">Player: {playerEntityId ?? "pending"}</span>
         <span className="status-pill">Room: {roomId ?? "pending"}</span>
       </div>
       <InventoryPanel inventory={inventory} isOpen={isInventoryOpen} onToggle={onToggleInventory} />

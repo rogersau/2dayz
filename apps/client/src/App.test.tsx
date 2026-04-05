@@ -82,7 +82,7 @@ describe("App join and reconnect flow", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/room: room_browser-v1/i)).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
     });
 
     expect(screen.getByText((content) => content.includes("Weapon: none"))).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/room: room_browser-v1/i)).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
     });
 
     handleConnectionChange?.({ type: "closed", reason: "internal-error" });
@@ -114,6 +114,20 @@ describe("App join and reconnect flow", () => {
       expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
     });
     expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
+  });
+
+  it("stores the joined player entity id for later self-identity use", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText((content) => content.includes("Player: player_survivor"))).toBeInTheDocument();
+    });
   });
 
   it("bypasses the controls step on a later same-session join after controls were already dismissed", async () => {
@@ -141,7 +155,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/room: room_browser-v1/i)).toBeInTheDocument();
+      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
     });
 
     firstRender.unmount();

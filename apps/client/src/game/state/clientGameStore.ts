@@ -21,6 +21,7 @@ type ClientGameState = {
   isDead: boolean;
   isInventoryOpen: boolean;
   lastJoinDisplayName: string;
+  playerEntityId: string | null;
   roomId: string | null;
 };
 
@@ -31,6 +32,7 @@ export const createClientGameStore = () => {
     isDead: false,
     isInventoryOpen: false,
     lastJoinDisplayName: "",
+    playerEntityId: null,
     roomId: null,
   };
   const listeners = new Set<() => void>();
@@ -62,7 +64,7 @@ export const createClientGameStore = () => {
     },
     completeJoin({
       displayName,
-      playerEntityId: _playerEntityId,
+      playerEntityId,
       roomId,
     }: {
       displayName: string;
@@ -76,6 +78,7 @@ export const createClientGameStore = () => {
         isDead: false,
         isInventoryOpen: false,
         lastJoinDisplayName: displayName,
+        playerEntityId,
         roomId,
       }));
     },

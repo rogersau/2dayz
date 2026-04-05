@@ -10,6 +10,7 @@ import {
 type ProtocolState = {
   delta: DeltaMessage | null;
   error: ErrorMessage | null;
+  pendingDeltas: DeltaMessage[];
   roomJoined: RoomJoinedMessage | null;
   roomStatus: RoomStatusMessage | null;
   snapshot: SnapshotMessage | null;
@@ -19,11 +20,12 @@ export type ProtocolStore = ReturnType<typeof createProtocolStore>;
 
 export const createProtocolStore = () => {
   let state: ProtocolState = {
-    delta: null,
-    error: null,
-    roomJoined: null,
-    roomStatus: null,
-    snapshot: null,
+      delta: null,
+      error: null,
+      pendingDeltas: [],
+      roomJoined: null,
+      roomStatus: null,
+      snapshot: null,
   };
   const listeners = new Set<() => void>();
 
@@ -51,13 +53,26 @@ export const createProtocolStore = () => {
       }
 
       if (parsed.type === "snapshot") {
-        state = { ...state, snapshot: parsed };
+        state = {
+          ...state,
+          pendingDeltas: state.pendingDeltas.filter((delta) => delta.tick > parsed.tick),
+          snapshot: parsed,
+        };
         emit();
         return parsed;
       }
 
       if (parsed.type === "delta") {
-        state = { ...state, delta: parsed };
+        const snapshotTick = state.snapshot?.tick ?? -1;
+        if (parsed.tick <= snapshotTick || state.pendingDeltas.some((delta) => delta.tick === parsed.tick)) {
+          return parsed;
+        }
+
+        state = {
+          ...state,
+          delta: parsed,
+          pendingDeltas: [...state.pendingDeltas, parsed].sort((left, right) => left.tick - right.tick),
+        };
         emit();
         return parsed;
       }
@@ -65,6 +80,17 @@ export const createProtocolStore = () => {
       state = { ...state, error: parsed };
       emit();
       return parsed;
+    },
+    drainWorldUpdates() {
+      const worldUpdates = {
+        deltas: state.pendingDeltas,
+        snapshot: state.snapshot,
+      };
+      state = {
+        ...state,
+        pendingDeltas: [],
+      };
+      return worldUpdates;
     },
     subscribe(listener: () => void) {
       listeners.add(listener);
