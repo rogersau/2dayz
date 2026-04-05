@@ -5,6 +5,7 @@
   "scripts": {
     "pretest": "node -e \"const fs = require('node:fs'); const roots = ['apps', 'packages']; const hasWorkspacePackage = roots.some((root) => fs.existsSync(root) && fs.readdirSync(root, { withFileTypes: true }).some((entry) => entry.isDirectory() && fs.existsSync(root + '/' + entry.name + '/package.json'))); if (!hasWorkspacePackage) { console.error('No workspace packages found under apps/* or packages/*'); process.exit(1); }\"",
     "test": "pnpm -r test",
+    "prebuild": "node -e \"const fs = require('node:fs'); const roots = ['apps', 'packages']; const hasWorkspacePackage = roots.some((root) => fs.existsSync(root) && fs.readdirSync(root, { withFileTypes: true }).some((entry) => entry.isDirectory() && fs.existsSync(root + '/' + entry.name + '/package.json'))); if (!hasWorkspacePackage) { console.error('No workspace packages found under apps/* or packages/*'); process.exit(1); }\"",
     "build": "pnpm -r build",
     "prelint": "node -e \"const fs = require('node:fs'); const roots = ['apps', 'packages']; const hasWorkspacePackage = roots.some((root) => fs.existsSync(root) && fs.readdirSync(root, { withFileTypes: true }).some((entry) => entry.isDirectory() && fs.existsSync(root + '/' + entry.name + '/package.json'))); if (!hasWorkspacePackage) { console.error('No workspace packages found under apps/* or packages/*'); process.exit(1); }\"",
     "lint": "pnpm -r lint"
