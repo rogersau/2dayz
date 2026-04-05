@@ -1,4 +1,5 @@
 import type { RoomSimulationState } from "./state";
+import { processPendingRespawns } from "../rooms/respawn";
 
 export type SimulationSystem = {
   name: string;
@@ -23,10 +24,13 @@ export const createFixedTickGameLoop = ({
 
       while (accumulatorMs >= tickIntervalMs) {
         accumulatorMs -= tickIntervalMs;
+        state.elapsedMs += tickIntervalMs;
 
         for (const system of systems) {
           system.update(state, tickIntervalMs / 1000);
         }
+
+        processPendingRespawns(state);
 
         state.tick += 1;
         onTick(state);

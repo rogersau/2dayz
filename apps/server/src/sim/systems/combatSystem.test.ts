@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+
+import { createCollisionIndex } from "../../world/collision";
+import { createLifecycleSystem } from "./lifecycleSystem";
+import { createCombatSystem } from "./combatSystem";
+import { createRoomState, queueInputIntent, queueSpawnPlayer } from "../state";
+
+const spawnPlayer = (state: ReturnType<typeof createRoomState>, entityId: string, displayName: string, x: number, y: number) => {
+  queueSpawnPlayer(state, {
+    entityId,
+    displayName,
+    position: { x, y },
+  });
+  createLifecycleSystem().update(state, 0);
+
+  const player = state.players.get(entityId);
+  if (!player) {
+    throw new Error(`expected player ${entityId} to exist`);
+  }
+
+  player.inventory.slots[0] = { itemId: "item_revolver", quantity: 1 };
+  player.inventory.equippedWeaponSlot = 0;
+  player.inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 12 }];
+  player.weaponState = {
+    magazineAmmo: 6,
+    isReloading: false,
+    reloadRemainingMs: 0,
+    fireCooldownRemainingMs: 0,
+  };
+
+  return player;
+};
+
+describe("createCombatSystem", () => {
+  it("applies authoritative hitscan damage and consumes ammo when a valid shot lands", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-1", "Avery", 0, 0);
+    const target = spawnPlayer(state, "player_test-2", "Blair", 4, 0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(attacker.weaponState?.magazineAmmo).toBe(5);
+    expect(target.health.current).toBe(65);
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "combat",
+        attackerEntityId: attacker.entityId,
+        targetEntityId: target.entityId,
+        weaponItemId: "item_revolver",
+        damage: 35,
+      }),
+    );
+  });
+
+  it("rejects blocked or otherwise invalid fire requests without consuming ammo", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 0, y: 0 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: createCollisionIndex([
+          {
+            volumeId: "volume_wall",
+            kind: "box",
+            position: { x: 2, y: -1 },
+            size: { width: 1, height: 2 },
+          },
+        ]),
+        navigation: {
+          nodes: new Map(),
+          neighbors: new Map(),
+        },
+        respawnPoints: [],
+      },
+    });
+    const attacker = spawnPlayer(state, "player_test-3", "Casey", 0, 0);
+    const target = spawnPlayer(state, "player_test-4", "Devon", 4, 0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+    createCombatSystem().update(state, 0.1);
+
+    attacker.weaponState = {
+      magazineAmmo: 0,
+      isReloading: true,
+      reloadRemainingMs: 500,
+      fireCooldownRemainingMs: 0,
+    };
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 2,
+      movement: { x: 0, y: 0 },
+      aim: { x: 0, y: 0 },
+      actions: { fire: true },
+    });
+    createCombatSystem().update(state, 0.1);
+
+    expect(attacker.weaponState?.magazineAmmo).toBe(0);
+    expect(target.health.current).toBe(100);
+    expect(state.events).toHaveLength(0);
+  });
+
+  it("keeps reload timing authoritative and refills the magazine from carried ammo", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-5", "Elliot", 0, 0);
+
+    attacker.weaponState = {
+      magazineAmmo: 0,
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    };
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { reload: true },
+    });
+
+    const combatSystem = createCombatSystem();
+    combatSystem.update(state, 0.5);
+    expect(attacker.weaponState).toMatchObject({
+      magazineAmmo: 0,
+      isReloading: true,
+    });
+
+    combatSystem.update(state, 0.7);
+    expect(attacker.weaponState).toMatchObject({
+      magazineAmmo: 6,
+      isReloading: false,
+      reloadRemainingMs: 0,
+    });
+    expect(attacker.inventory.ammoStacks).toEqual([{ ammoItemId: "item_pistol-ammo", quantity: 6 }]);
+  });
+});

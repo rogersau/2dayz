@@ -1,5 +1,24 @@
-import { INVENTORY_SLOT_COUNT, ROOM_PLAYER_CAPACITY, SERVER_TICK_RATE, type Health, type InputMessage, type Inventory, type MapDefinition, type ServerEvent, type Transform, type Vector2, type Velocity } from "@2dayz/shared";
+import {
+  INVENTORY_SLOT_COUNT,
+  ROOM_PLAYER_CAPACITY,
+  SERVER_TICK_RATE,
+  type Health,
+  type InputMessage,
+  type Inventory,
+  type ItemDefinition,
+  type LootTable,
+  type MapDefinition,
+  type ServerEvent,
+  type Transform,
+  type Vector2,
+  type Velocity,
+  type WeaponDefinition,
+  type ZombieArchetype,
+} from "@2dayz/shared";
 
+import { defaultItems } from "../content/defaultItems";
+import { defaultLootTables } from "../content/defaultLootTable";
+import { defaultZombieArchetypes } from "../content/defaultZombies";
 import type { CollisionIndex } from "../world/collision";
 import type { NavigationGraph } from "../world/navigation";
 
@@ -28,6 +47,36 @@ export type SimPlayer = {
   velocity: Velocity;
   health: Health;
   inventory: Inventory;
+  weaponState: WeaponState;
+};
+
+export type WeaponState = {
+  magazineAmmo: number;
+  isReloading: boolean;
+  reloadRemainingMs: number;
+  fireCooldownRemainingMs: number;
+};
+
+export type SimLoot = {
+  entityId: string;
+  itemId: string;
+  quantity: number;
+  position: Vector2;
+  ownerEntityId: string | null;
+  sourcePointId: string | null;
+};
+
+export type SimZombie = {
+  entityId: string;
+  archetypeId: string;
+  transform: Transform;
+  velocity: Velocity;
+  health: Health;
+  state: "idle" | "roaming" | "chasing" | "attacking" | "searching";
+  aggroTargetEntityId: string | null;
+  attackCooldownRemainingMs: number;
+  lostTargetMs: number;
+  sourceZoneId?: string;
 };
 
 export type SpawnPlayerRequest = {
@@ -46,17 +95,46 @@ export type RoomWorldState = {
 export type RoomSimulationState = {
   roomId: string;
   tick: number;
+  elapsedMs: number;
   config: RoomSimulationConfig;
   world: RoomWorldState | null;
   players: Map<string, SimPlayer>;
+  loot: Map<string, SimLoot>;
+  zombies: Map<string, SimZombie>;
   pendingSpawns: SpawnPlayerRequest[];
   pendingDespawns: string[];
+  pendingRespawns: Array<{ entityId: string; respawnAtMs: number }>;
   inputIntents: Map<string, PlayerInputIntent>;
   lastProcessedInputSequence: Map<string, number>;
   dirtyPlayerIds: Set<string>;
   removedEntityIds: Set<string>;
+  handledDeathEntityIds: Set<string>;
+  spawnedLootPointIds: Set<string>;
+  nextLootEntitySequence: number;
+  nextZombieEntitySequence: number;
+  itemDefinitions: Map<string, ItemDefinition>;
+  lootTables: Map<string, LootTable>;
+  weaponDefinitions: Map<string, WeaponDefinition>;
+  zombieArchetypes: Map<string, ZombieArchetype>;
   events: ServerEvent[];
 };
+
+const defaultWeaponDefinitions: WeaponDefinition[] = [
+  {
+    itemId: "item_revolver",
+    name: "Civilian Revolver",
+    category: "firearm",
+    stackable: false,
+    maxStack: 1,
+    damage: 35,
+    range: 8,
+    spread: 0,
+    fireRate: 2,
+    magazineSize: 6,
+    reloadTimeMs: 1_200,
+    ammoItemId: "item_pistol-ammo",
+  },
+];
 
 const createEmptyInventory = (): Inventory => {
   return {
@@ -71,6 +149,15 @@ const createDefaultHealth = (): Health => {
     current: 100,
     max: 100,
     isDead: false,
+  };
+};
+
+export const createDefaultWeaponState = (): WeaponState => {
+  return {
+    magazineAmmo: 0,
+    isReloading: false,
+    reloadRemainingMs: 0,
+    fireCooldownRemainingMs: 0,
   };
 };
 
@@ -134,15 +221,27 @@ export const createRoomState = ({
   return {
     roomId,
     tick: 0,
+    elapsedMs: 0,
     config,
     world,
     players: new Map<string, SimPlayer>(),
+    loot: new Map(),
+    zombies: new Map(),
     pendingSpawns: [],
     pendingDespawns: [],
+    pendingRespawns: [],
     inputIntents: new Map<string, PlayerInputIntent>(),
     lastProcessedInputSequence: new Map<string, number>(),
     dirtyPlayerIds: new Set<string>(),
     removedEntityIds: new Set<string>(),
+    handledDeathEntityIds: new Set<string>(),
+    spawnedLootPointIds: new Set<string>(),
+    nextLootEntitySequence: 0,
+    nextZombieEntitySequence: 0,
+    itemDefinitions: new Map(defaultItems.map((item) => [item.itemId, item])),
+    lootTables: new Map(defaultLootTables.map((table) => [table.tableId, table])),
+    weaponDefinitions: new Map(defaultWeaponDefinitions.map((weapon) => [weapon.itemId, weapon])),
+    zombieArchetypes: new Map(defaultZombieArchetypes.map((zombie) => [zombie.archetypeId, zombie])),
     events: [],
   };
 };
@@ -188,6 +287,7 @@ export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerR
     velocity: { x: 0, y: 0 },
     health: createDefaultHealth(),
     inventory: createEmptyInventory(),
+    weaponState: createDefaultWeaponState(),
   });
   state.dirtyPlayerIds.add(request.entityId);
 };

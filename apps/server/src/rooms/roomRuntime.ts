@@ -14,6 +14,10 @@ import {
 import { createRoomReplicationDelta, createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../sim/query";
 import { createLifecycleSystem } from "../sim/systems/lifecycleSystem";
 import { createMovementSystem } from "../sim/systems/movementSystem";
+import { createCombatSystem } from "../sim/systems/combatSystem";
+import { createInventorySystem } from "../sim/systems/inventorySystem";
+import { createLootSystem } from "../sim/systems/lootSystem";
+import { createZombieSystem } from "../sim/systems/zombieSystem";
 import type { Vector2 } from "@2dayz/shared";
 
 export type RoomStatus = "active" | "full" | "unhealthy" | "shutting-down";
@@ -95,7 +99,14 @@ export const createSimulationRoomRuntime = ({
   const config = createRoomSimulationConfig(configOverrides);
   const simulationState = createRoomState({ roomId, config, world });
   const playerSessions = new Map<string, PlayerSession>();
-  const roomSystems = systems ?? [createLifecycleSystem(), createMovementSystem()];
+  const roomSystems = systems ?? [
+    createLifecycleSystem(),
+    createCombatSystem(),
+    createInventorySystem(),
+    createMovementSystem(),
+    createZombieSystem(),
+    createLootSystem(),
+  ];
   let playerSequence = 0;
   let healthy = true;
   let status: RoomStatus = "active";
