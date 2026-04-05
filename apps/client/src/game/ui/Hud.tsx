@@ -1,0 +1,28 @@
+import type { Inventory } from "@2dayz/shared";
+
+import { InventoryPanel } from "./InventoryPanel";
+
+type HudProps = {
+  inventory: Inventory;
+  isInventoryOpen: boolean;
+  onToggleInventory: () => void;
+  roomId: string | null;
+};
+
+export const Hud = ({ inventory, isInventoryOpen, onToggleInventory, roomId }: HudProps) => {
+  const equippedWeapon = inventory.equippedWeaponSlot === null ? null : inventory.slots[inventory.equippedWeaponSlot];
+  const totalAmmo = inventory.ammoStacks.reduce((count, stack) => count + stack.quantity, 0);
+
+  return (
+    <section className="hud-card">
+      <h2>Session HUD</h2>
+      <div className="status-row">
+        <span className="status-pill">Health: 100</span>
+        <span className="status-pill">Weapon: {equippedWeapon?.itemId ?? "none"}</span>
+        <span className="status-pill">Ammo: {totalAmmo}</span>
+        <span className="status-pill">Room: {roomId ?? "pending"}</span>
+      </div>
+      <InventoryPanel inventory={inventory} isOpen={isInventoryOpen} onToggle={onToggleInventory} />
+    </section>
+  );
+};

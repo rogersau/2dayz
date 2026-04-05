@@ -1,0 +1,30 @@
+{
+  "name": "@2dayz/client",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "pnpm --filter @2dayz/shared build",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "predev": "pnpm --filter @2dayz/shared build",
+    "dev": "vite",
+    "pretest": "pnpm --filter @2dayz/shared build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@2dayz/shared": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "jsdom": "^25.0.1",
+    "typescript": "^5.8.3",
+    "vite": "^7.3.1",
+    "vitest": "^3.1.1"
+  }
+}
