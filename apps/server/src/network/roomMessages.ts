@@ -20,6 +20,7 @@ export const createDeltaMessage = (roomId: string, delta: RoomReplicationDelta):
     type: "delta",
     roomId,
     tick: delta.tick,
+    enteredEntities: delta.enteredEntities,
     entityUpdates: delta.entityUpdates,
     removedEntityIds: delta.removedEntityIds,
     events: delta.events,

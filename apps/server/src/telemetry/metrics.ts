@@ -17,6 +17,43 @@ export type MetricsSnapshot = {
   disconnectReasons: Record<string, number>;
 };
 
+export const disconnectReasonBuckets = [
+  "abnormal-close",
+  "application-error",
+  "client-close",
+  "invalid-upgrade-path",
+  "policy-violation",
+  "server-close",
+  "transport-error",
+] as const;
+
+export type DisconnectReasonBucket = (typeof disconnectReasonBuckets)[number];
+
+export const normalizeDisconnectReason = ({ code, reason }: { code: number; reason: Buffer }): DisconnectReasonBucket => {
+  const text = reason.toString().trim();
+  if (text.length > 0) {
+    return "application-error";
+  }
+
+  if (code === 1000) {
+    return "client-close";
+  }
+
+  if (code === 1001) {
+    return "server-close";
+  }
+
+  if (code === 1006) {
+    return "abnormal-close";
+  }
+
+  if (code === 1008) {
+    return "policy-violation";
+  }
+
+  return "transport-error";
+};
+
 export const collectMetrics = (roomManager: RoomManager): MetricsSnapshot => {
   const roomSummaries = roomManager.getRoomSummaries();
 
@@ -52,7 +89,7 @@ export const createMetricsTracker = (roomManager: RoomManager, { tickRateHz = SE
   };
 
   return {
-    recordDisconnect(reason: string) {
+    recordDisconnect(reason: DisconnectReasonBucket) {
       disconnectReasonCounts.set(reason, (disconnectReasonCounts.get(reason) ?? 0) + 1);
     },
     recordTickDuration(durationMs: number) {

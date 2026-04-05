@@ -268,15 +268,75 @@ describe("createReplicationSystem", () => {
         state,
         playerEntityId: "player_test-1",
         visibleEntityIds: new Set(["player_test-1"]),
-      }).delta.entityUpdates,
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          entityId: "player_test-2",
-          transform: { x: 2, y: 0, rotation: 0 },
-        }),
-      ]),
-    );
+      }).delta.enteredEntities,
+    ).toEqual([
+      expect.objectContaining({
+        kind: "player",
+        entityId: "player_test-2",
+        displayName: "Blair",
+        transform: { x: 2, y: 0, rotation: 0 },
+      }),
+    ]);
+  });
+
+  it("includes newly visible zombies as typed entered entities", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    spawnPlayer(state, "player_test-1", "Avery", 0, 0);
+    state.zombies.set("zombie_test-1", {
+      entityId: "zombie_test-1",
+      archetypeId: "zombie_shambler",
+      transform: { x: 25, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    state.dirtyZombieIds.clear();
+
+    const rawDelta = createRoomReplicationDelta(state);
+    const replication = createReplicationSystem({ nearbyRadius: 10, maxNearbyZombies: 1 });
+
+    state.zombies.get("zombie_test-1")!.transform = { x: 5, y: 0, rotation: 0 };
+
+    expect(
+      replication.createDeltaForPlayer({
+        delta: rawDelta,
+        state,
+        playerEntityId: "player_test-1",
+        visibleEntityIds: new Set(["player_test-1"]),
+      }).delta.enteredEntities,
+    ).toEqual([
+      expect.objectContaining({
+        kind: "zombie",
+        entityId: "zombie_test-1",
+        archetypeId: "zombie_shambler",
+        state: "idle",
+      }),
+    ]);
+  });
+
+  it("keeps enter-range entities out of ordinary dirty updates", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    spawnPlayer(state, "player_test-1", "Avery", 0, 0);
+    spawnPlayer(state, "player_test-2", "Blair", 25, 0);
+
+    state.dirtyPlayerIds.clear();
+
+    const rawDelta = createRoomReplicationDelta(state);
+    const replication = createReplicationSystem({ nearbyRadius: 10, maxNearbyPlayers: 2 });
+
+    state.players.get("player_test-2")!.transform = { x: 2, y: 0, rotation: 0 };
+
+    expect(
+      replication.createDeltaForPlayer({
+        delta: rawDelta,
+        state,
+        playerEntityId: "player_test-1",
+        visibleEntityIds: new Set(["player_test-1"]),
+      }).delta.entityUpdates.map((update) => update.entityId),
+    ).not.toContain("player_test-2");
   });
 
   it("emits a synthetic removal when a previously visible entity leaves range", () => {

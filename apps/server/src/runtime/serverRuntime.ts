@@ -13,6 +13,7 @@ type CreateServerRuntimeOptions = {
   createSocketServer: (server: HttpServer) => ManagedSocketServer;
   createHttpServer?: () => HttpServer;
   tickIntervalMs?: number;
+  onTickDuration?: (durationMs: number) => void;
 };
 
 export type StartedServerRuntime = {
@@ -44,6 +45,7 @@ export const createServerRuntime = ({
   createSocketServer,
   createHttpServer,
   tickIntervalMs = 1_000 / SERVER_TICK_RATE,
+  onTickDuration,
 }: CreateServerRuntimeOptions): ServerRuntime => {
   let server: HttpServer | null = null;
   let socketServer: ManagedSocketServer | null = null;
@@ -76,7 +78,13 @@ export const createServerRuntime = ({
         });
 
         tickHandle = setInterval(() => {
-          roomManager.tickAllRooms();
+          const startedAt = performance.now();
+
+          try {
+            roomManager.tickAllRooms();
+          } finally {
+            onTickDuration?.(performance.now() - startedAt);
+          }
         }, tickIntervalMs);
 
         return { server, socketServer };

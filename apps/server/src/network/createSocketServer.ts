@@ -4,16 +4,19 @@ import type { Socket } from "node:net";
 import { WebSocketServer } from "ws";
 
 import type { RoomManager } from "../rooms/roomManager";
-import { SERVER_TICK_RATE } from "@2dayz/shared";
 import type { SessionRegistry } from "./sessionRegistry";
 import { createMessageRouter } from "./messageRouter";
-import { createLogger } from "../telemetry/logger";
-import { createMetricsTracker } from "../telemetry/metrics";
+import type { Logger } from "../telemetry/logger";
+import type { createMetricsTracker } from "../telemetry/metrics";
+import { normalizeDisconnectReason } from "../telemetry/metrics";
 
 type CreateSocketServerOptions = {
   server: HttpServer;
   roomManager: RoomManager;
   sessionRegistry: SessionRegistry;
+  logger: Logger;
+  metrics: ReturnType<typeof createMetricsTracker>;
+  telemetryIntervalMs?: number;
 };
 
 export type ManagedSocketServer = {
@@ -21,41 +24,15 @@ export type ManagedSocketServer = {
   server: WebSocketServer;
 };
 
-export const createSocketServer = ({ server, roomManager, sessionRegistry }: CreateSocketServerOptions): ManagedSocketServer => {
+export const createSocketServer = ({ server, roomManager, sessionRegistry, logger, metrics, telemetryIntervalMs = 1_000 }: CreateSocketServerOptions): ManagedSocketServer => {
   const webSocketServer = new WebSocketServer({ noServer: true });
   const router = createMessageRouter({ roomManager, sessionRegistry });
-  const logger = createLogger();
-  const metrics = createMetricsTracker(roomManager, { tickRateHz: SERVER_TICK_RATE });
   const sockets = new Set<Socket>();
-  const originalTickAllRooms = roomManager.tickAllRooms.bind(roomManager);
-
-  roomManager.tickAllRooms = () => {
-    const startedAt = performance.now();
-
-    try {
-      originalTickAllRooms();
-    } finally {
-      metrics.recordTickDuration(performance.now() - startedAt);
-    }
-  };
 
   logger.info("server-telemetry", metrics.snapshot());
   const telemetryHandle = setInterval(() => {
     logger.info("server-telemetry", metrics.snapshot());
-  }, 1_000);
-
-  const describeDisconnectReason = (code: number, reason: Buffer): string => {
-    const text = reason.toString().trim();
-    if (text.length > 0) {
-      return text;
-    }
-
-    if (code === 1000) {
-      return "client-close";
-    }
-
-    return `ws-close-${code}`;
-  };
+  }, telemetryIntervalMs);
 
   const handleUpgrade = (request: Parameters<HttpServer["emit"]>[1] & { url?: string }, socket: Socket, head: Buffer) => {
     if (request.url !== "/ws") {
@@ -73,7 +50,7 @@ export const createSocketServer = ({ server, roomManager, sessionRegistry }: Cre
       const connection = router.attach(webSocket);
       webSocket.on("message", (raw) => connection.handleMessage(raw));
       webSocket.on("close", (code, reason) => {
-        const disconnectReason = describeDisconnectReason(code, reason);
+        const disconnectReason = normalizeDisconnectReason({ code, reason });
         metrics.recordDisconnect(disconnectReason);
         connection.handleClose(disconnectReason);
       });
@@ -87,7 +64,6 @@ export const createSocketServer = ({ server, roomManager, sessionRegistry }: Cre
     close() {
       server.off("upgrade", handleUpgrade);
       clearInterval(telemetryHandle);
-      roomManager.tickAllRooms = originalTickAllRooms;
       for (const socket of sockets) {
         socket.destroy();
       }

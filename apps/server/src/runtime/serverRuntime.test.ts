@@ -121,6 +121,42 @@ describe("createServerRuntime", () => {
     expect(1000 / SERVER_TICK_RATE).toBe(50);
   });
 
+  it("reports tick durations through the injected observer", async () => {
+    vi.useFakeTimers();
+
+    const roomManager = {
+      tickAllRooms: vi.fn(),
+      getRoomCount: vi.fn(() => 0),
+    };
+    const httpServer = createHttpServerDouble();
+    const socketServer = {
+      close: vi.fn(),
+    };
+    const onTickDuration = vi.fn();
+    const config: ServerConfig = {
+      host: "127.0.0.1",
+      port: 3011,
+      roomCapacity: 12,
+      reclaimWindowMs: 30_000,
+    };
+
+    const runtime = createServerRuntime({
+      config,
+      roomManager: roomManager as never,
+      createHttpServer: () => httpServer as never,
+      createSocketServer: () => socketServer as never,
+      tickIntervalMs: 50,
+      onTickDuration,
+    });
+
+    await runtime.start();
+    await vi.advanceTimersByTimeAsync(55);
+    await runtime.stop();
+
+    expect(onTickDuration).toHaveBeenCalledTimes(1);
+    expect(typeof onTickDuration.mock.calls[0]?.[0]).toBe("number");
+  });
+
   it("rejects cleanly on startup errors and closes partially initialized runtime state", async () => {
     vi.useFakeTimers();
 

@@ -12,6 +12,7 @@ export type RoomReplicationSnapshot = {
 
 export type RoomReplicationDelta = {
   tick: number;
+  enteredEntities: DeltaMessage["enteredEntities"];
   entityUpdates: DeltaMessage["entityUpdates"];
   removedEntityIds: string[];
   events: ServerEvent[];
@@ -105,6 +106,7 @@ export const createRoomReplicationSnapshot = (
 export const createRoomReplicationDelta = (state: RoomSimulationState): RoomReplicationDelta => {
   return {
     tick: state.tick,
+    enteredEntities: [],
     entityUpdates: [
       ...[...state.dirtyPlayerIds]
         .map((entityId) => state.players.get(entityId))

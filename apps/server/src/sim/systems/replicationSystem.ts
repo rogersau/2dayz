@@ -1,4 +1,4 @@
-import type { LootEntity, PlayerState, ZombieEntity } from "@2dayz/shared";
+import type { EnteredEntity, LootEntity, PlayerState, ZombieEntity } from "@2dayz/shared";
 
 import { createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../query";
 import type { RoomSimulationState } from "../state";
@@ -50,6 +50,47 @@ const createEntityUpdateFromState = (state: RoomSimulationState, entityId: strin
       transform: zombie.transform,
       velocity: zombie.velocity,
       health: zombie.health,
+    };
+  }
+
+  return null;
+};
+
+const createEnteredEntityFromState = (state: RoomSimulationState, entityId: string): EnteredEntity | null => {
+  const player = state.players.get(entityId);
+  if (player) {
+    return {
+      kind: "player",
+      entityId: player.entityId,
+      displayName: player.displayName,
+      transform: player.transform,
+      velocity: player.velocity,
+      inventory: player.inventory,
+      health: player.health,
+    };
+  }
+
+  const loot = state.loot.get(entityId);
+  if (loot) {
+    return {
+      kind: "loot",
+      entityId: loot.entityId,
+      itemId: loot.itemId,
+      quantity: loot.quantity,
+      position: loot.position,
+    };
+  }
+
+  const zombie = state.zombies.get(entityId);
+  if (zombie) {
+    return {
+      kind: "zombie",
+      entityId: zombie.entityId,
+      archetypeId: zombie.archetypeId,
+      transform: zombie.transform,
+      velocity: zombie.velocity,
+      health: zombie.health,
+      state: zombie.state,
     };
   }
 
@@ -123,6 +164,7 @@ export const createReplicationSystem = ({
   const createDelta = (delta: RoomReplicationDelta): RoomReplicationDelta => {
     return {
       ...delta,
+      enteredEntities: [...delta.enteredEntities],
       entityUpdates: [...delta.entityUpdates],
       removedEntityIds: [...delta.removedEntityIds],
       events: [...delta.events],
@@ -146,14 +188,18 @@ export const createReplicationSystem = ({
     ]);
     const enteringEntityIds = [...nextVisibleEntityIds].filter((entityId) => !visibleEntityIds.has(entityId));
     const leavingEntityIds = [...visibleEntityIds].filter((entityId) => !nextVisibleEntityIds.has(entityId));
-    const syntheticEnteringUpdates = enteringEntityIds
-      .map((entityId) => createEntityUpdateFromState(state, entityId))
-      .filter((update): update is NonNullable<typeof update> => update !== null);
+    const syntheticEnteringEntities = enteringEntityIds
+      .map((entityId) => createEnteredEntityFromState(state, entityId))
+      .filter((entity): entity is NonNullable<typeof entity> => entity !== null);
     const visibleEntityUpdates = delta.entityUpdates.filter((update) => nextVisibleEntityIds.has(update.entityId));
     const mergedEntityUpdates = new Map<string, RoomReplicationDelta["entityUpdates"][number]>();
 
-    for (const update of [...visibleEntityUpdates, ...syntheticEnteringUpdates]) {
+    for (const update of visibleEntityUpdates) {
       mergedEntityUpdates.set(update.entityId, update);
+    }
+    const mergedEnteredEntities = new Map<string, EnteredEntity>();
+    for (const entity of [...delta.enteredEntities.filter((entity) => nextVisibleEntityIds.has(entity.entityId)), ...syntheticEnteringEntities]) {
+      mergedEnteredEntities.set(entity.entityId, entity);
     }
     const removedEntityIds = new Set<string>([
       ...delta.removedEntityIds.filter((entityId) => visibleEntityIds.has(entityId)),
@@ -163,6 +209,7 @@ export const createReplicationSystem = ({
     return {
       delta: {
         ...createDelta(delta),
+        enteredEntities: [...mergedEnteredEntities.values()],
         entityUpdates: [...mergedEntityUpdates.values()],
         removedEntityIds: [...removedEntityIds],
       },

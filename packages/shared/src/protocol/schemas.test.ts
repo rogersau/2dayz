@@ -95,6 +95,21 @@ describe("protocol schemas", () => {
         type: "delta",
         tick: 26,
         roomId: "room_alpha",
+        enteredEntities: [
+          {
+            kind: "player",
+            entityId: "player_2",
+            displayName: "Scout",
+            transform: { x: 12, y: 5, rotation: 0.2 },
+            velocity: { x: 0, y: 0 },
+            inventory: {
+              slots: [null, null, null, null, null, null],
+              equippedWeaponSlot: null,
+              ammoStacks: [],
+            },
+            health: { current: 100, max: 100, isDead: false },
+          },
+        ],
         entityUpdates: [
           {
             entityId: "player_1",
@@ -194,6 +209,23 @@ describe("protocol schemas", () => {
         type: "room-status",
         roomId: "room_alpha",
         status: "active",
+      }),
+    ).toThrow();
+
+    expect(() =>
+      serverMessageSchema.parse({
+        type: "delta",
+        tick: 1,
+        roomId: "room_alpha",
+        enteredEntities: [
+          {
+            entityId: "player_2",
+            transform: { x: 1, y: 1, rotation: 0 },
+          },
+        ],
+        entityUpdates: [],
+        removedEntityIds: [],
+        events: [],
       }),
     ).toThrow();
 

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { entityIdSchema, roomIdSchema, sessionTokenSchema } from "../ids";
 import { serverEventSchema } from "./events";
-import { entityDeltaSchema, entitySnapshotSchema, lootEntitySchema, zombieEntitySchema } from "../world/entities";
+import { entityDeltaSchema, lootEntitySchema, zombieEntitySchema } from "../world/entities";
 import { healthSchema, transformSchema, vector2Schema, velocitySchema } from "../world/components";
 import { inventoryActionSchema, inventorySchema } from "../world/inventory";
 import { roomMetadataSchema } from "../world/rooms";
@@ -75,11 +75,38 @@ export const snapshotMessageSchema = z
   })
   .strict();
 
+export const enteredPlayerSchema = playerStateSchema.extend({
+  kind: z.literal("player"),
+});
+
+export const enteredLootSchema = lootEntitySchema.extend({
+  kind: z.literal("loot"),
+});
+
+export const enteredZombieSchema = z
+  .object({
+    kind: z.literal("zombie"),
+    entityId: entityIdSchema,
+    archetypeId: z.string().min(1),
+    transform: transformSchema,
+    velocity: velocitySchema,
+    health: healthSchema,
+    state: z.enum(["idle", "roaming", "chasing", "attacking", "searching"]),
+  })
+  .strict();
+
+export const enteredEntitySchema = z.discriminatedUnion("kind", [
+  enteredPlayerSchema,
+  enteredLootSchema,
+  enteredZombieSchema,
+]);
+
 export const deltaMessageSchema = z
   .object({
     type: z.literal("delta"),
     tick: z.number().int().nonnegative(),
     roomId: roomIdSchema,
+    enteredEntities: z.array(enteredEntitySchema),
     entityUpdates: z.array(entityDeltaSchema),
     removedEntityIds: z.array(entityIdSchema),
     events: z.array(serverEventSchema),
@@ -133,6 +160,7 @@ export type InputMessage = z.infer<typeof inputMessageSchema>;
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
 export type PlayerState = z.infer<typeof playerStateSchema>;
 export type SnapshotMessage = z.infer<typeof snapshotMessageSchema>;
+export type EnteredEntity = z.infer<typeof enteredEntitySchema>;
 export type DeltaMessage = z.infer<typeof deltaMessageSchema>;
 export type ErrorReason = z.infer<typeof errorReasonSchema>;
 export type ErrorMessage = z.infer<typeof errorMessageSchema>;

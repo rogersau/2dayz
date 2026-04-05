@@ -1,6 +1,7 @@
 export {
   clientMessageSchema,
   deltaMessageSchema,
+  enteredEntitySchema,
   errorMessageSchema,
   inputMessageSchema,
   joinRequestSchema,
