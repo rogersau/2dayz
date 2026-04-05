@@ -268,7 +268,14 @@ describe("clientGameStore", () => {
         slots: [null, null, null, null, null, null],
       },
       isDead: false,
+      latestTick: null,
       playerEntityId: "player_new",
+      roomId: "room_browser-v1",
+      worldEntities: {
+        loot: [],
+        players: [],
+        zombies: [],
+      },
     });
   });
 });

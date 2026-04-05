@@ -287,8 +287,10 @@ export const createClientGameStore = () => {
           isDead: isSameIdentity ? current.isDead : false,
           isInventoryOpen: false,
           lastJoinDisplayName: displayName,
+          latestTick: isSameIdentity ? current.latestTick : null,
           playerEntityId,
           roomId,
+          worldEntities: isSameIdentity ? current.worldEntities : createEmptyWorldEntities(),
         };
       });
     },
