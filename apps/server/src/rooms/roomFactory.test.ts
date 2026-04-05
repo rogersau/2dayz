@@ -109,6 +109,34 @@ describe("createRoomFactory", () => {
     expect(room.simulationState.world.navigation.nodes.get("node_a")?.position).toEqual({ x: 2, y: 8 });
   });
 
+  it("treats authored map bounds as blocking in the live room", () => {
+    const boundsMap: MapDefinition = {
+      ...authoredTestMap,
+      respawnPoints: [{ pointId: "point_respawn-edge", position: { x: 0.6, y: 4 } }],
+    };
+
+    const room = createRoomFactory({
+      roomCapacity: 12,
+      loadMap: () => boundsMap,
+    })();
+
+    const join = room.joinPlayer({ displayName: "Avery" });
+    room.tick();
+
+    room.queueInput(join.playerEntityId, {
+      ...defaultIntent,
+      sequence: 2,
+      movement: { x: -1, y: 0 },
+      aim: { x: -1, y: 0 },
+    });
+    room.tick();
+
+    expect(room.simulationState.players.get(join.playerEntityId)?.transform).toMatchObject({
+      x: 0.6,
+      y: 4,
+    });
+  });
+
   it("prefers an unoccupied authored respawn point over round-robin reuse", () => {
     const room = createRoomFactory({
       roomCapacity: 12,
@@ -129,5 +157,17 @@ describe("createRoomFactory", () => {
     expect(room.simulationState.players.get(firstJoin.playerEntityId)?.transform).toMatchObject({ x: 4.4, y: 4 });
     expect(room.simulationState.players.get(thirdJoin.playerEntityId)?.transform).toMatchObject({ x: 14, y: 14 });
     expect(room.simulationState.players.get(fourthJoin.playerEntityId)?.transform).toMatchObject({ x: 10, y: 10 });
+  });
+
+  it("does not stack players across the default supported room capacity", () => {
+    const room = createRoomFactory({ roomCapacity: 8 })();
+
+    for (const displayName of ["A", "B", "C", "D", "E", "F", "G", "H"]) {
+      room.joinPlayer({ displayName });
+    }
+    room.tick();
+
+    const positions = [...room.simulationState.players.values()].map((player) => `${player.transform.x}:${player.transform.y}`);
+    expect(new Set(positions).size).toBe(8);
   });
 });

@@ -17,6 +17,32 @@ const assertPointWithinBounds = (map: MapDefinition, position: { x: number; y: n
   }
 };
 
+const hasUsableZombieSpawnArea = (
+  map: MapDefinition,
+  collision: ReturnType<typeof createCollisionIndex>,
+  center: { x: number; y: number },
+  radius: number,
+): boolean => {
+  const sampleDistance = Math.max(entityRadius, Math.min(radius / 2, radius - entityRadius));
+  const samples = [
+    { x: center.x + sampleDistance, y: center.y },
+    { x: center.x - sampleDistance, y: center.y },
+    { x: center.x, y: center.y + sampleDistance },
+    { x: center.x, y: center.y - sampleDistance },
+  ];
+
+  return samples.some((sample) => {
+    const insideZone = Math.hypot(sample.x - center.x, sample.y - center.y) <= radius - entityRadius;
+    const insideBounds =
+      sample.x >= entityRadius &&
+      sample.y >= entityRadius &&
+      sample.x <= map.bounds.width - entityRadius &&
+      sample.y <= map.bounds.height - entityRadius;
+
+    return insideZone && insideBounds && !isCirclePositionBlocked(collision, sample, entityRadius);
+  });
+};
+
 const assertSpatialInvariants = (map: MapDefinition): void => {
   const collision = createCollisionIndex(map.collisionVolumes);
 
@@ -32,6 +58,10 @@ const assertSpatialInvariants = (map: MapDefinition): void => {
 
     if (isCirclePositionBlocked(collision, zone.center, entityRadius)) {
       throw new Error(`zombie spawn zone ${zone.zoneId} is inside blocking collision`);
+    }
+
+    if (!hasUsableZombieSpawnArea(map, collision, zone.center, zone.radius)) {
+      throw new Error(`zombie spawn zone ${zone.zoneId} has no usable walkable spawn area`);
     }
   }
 

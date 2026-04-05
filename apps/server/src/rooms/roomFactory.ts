@@ -12,6 +12,15 @@ type RoomFactoryOptions = {
 
 const playerCollisionRadius = 0.5;
 
+const isOutOfBounds = (map: ReturnType<typeof loadMapDefinition>, position: { x: number; y: number }): boolean => {
+  return (
+    position.x < playerCollisionRadius ||
+    position.y < playerCollisionRadius ||
+    position.x > map.bounds.width - playerCollisionRadius ||
+    position.y > map.bounds.height - playerCollisionRadius
+  );
+};
+
 export const createRoomFactory = ({ roomCapacity, loadMap = loadMapDefinition }: RoomFactoryOptions): CreateRoom => {
   let roomSequence = 0;
 
@@ -32,7 +41,9 @@ export const createRoomFactory = ({ roomCapacity, loadMap = loadMapDefinition }:
       },
       config: {
         playerCapacity: roomCapacity,
-        isPositionBlocked: (position) => isCirclePositionBlocked(collision, position, playerCollisionRadius),
+        isPositionBlocked: (position) => {
+          return isOutOfBounds(map, position) || isCirclePositionBlocked(collision, position, playerCollisionRadius);
+        },
       },
     });
   };

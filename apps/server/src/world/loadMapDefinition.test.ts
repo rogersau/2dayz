@@ -241,6 +241,72 @@ describe("loadMapDefinition", () => {
     ).toThrow(/zombie spawn zone/i);
   });
 
+  it("rejects zombie spawn zones without usable walkable spawn area beyond the center point", () => {
+    expect(() =>
+      loadMapDefinition({
+        mapId: "map_trapped-zone",
+        name: "Trapped Zone",
+        bounds: { width: 20, height: 20 },
+        collisionVolumes: [
+          {
+            volumeId: "volume_north",
+            kind: "box",
+            position: { x: 10, y: 12 },
+            size: { width: 4, height: 2 },
+          },
+          {
+            volumeId: "volume_south",
+            kind: "box",
+            position: { x: 10, y: 8 },
+            size: { width: 4, height: 2 },
+          },
+          {
+            volumeId: "volume_east",
+            kind: "box",
+            position: { x: 12, y: 10 },
+            size: { width: 2, height: 4 },
+          },
+          {
+            volumeId: "volume_west",
+            kind: "box",
+            position: { x: 8, y: 10 },
+            size: { width: 2, height: 4 },
+          },
+        ],
+        zombieSpawnZones: [
+          {
+            zoneId: "zone_trapped",
+            center: { x: 10, y: 10 },
+            radius: 4,
+            maxAlive: 1,
+            archetypeIds: ["zombie_shambler"],
+          },
+        ],
+        lootPoints: [{ pointId: "point_loot-a", position: { x: 2, y: 2 }, tableId: "loot_residential" }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 2, y: 4 } }],
+        interactablePlacements: [
+          {
+            placementId: "placement_crate-a",
+            kind: "crate",
+            position: { x: 2, y: 6 },
+            interactionRadius: 1,
+            prompt: "Search",
+          },
+        ],
+        navigation: {
+          nodes: [
+            { nodeId: "node_a", position: { x: 2, y: 8 } },
+            { nodeId: "node_b", position: { x: 6, y: 8 } },
+          ],
+          links: [
+            { from: "node_a", to: "node_b", cost: 4 },
+            { from: "node_b", to: "node_a", cost: 4 },
+          ],
+        },
+      }),
+    ).toThrow(/zombie spawn zone/i);
+  });
+
   it("rejects authored points and navigation nodes outside map bounds", () => {
     expect(() =>
       loadMapDefinition({
