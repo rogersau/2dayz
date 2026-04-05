@@ -279,9 +279,9 @@ export const createClientGameStore = () => {
       update((current) => ({
         ...current,
         connectionState: { phase: "joined" },
-        health: current.connectionState.phase === "joined" ? current.health : null,
-        inventory: current.connectionState.phase === "joined" ? current.inventory : createEmptyInventory(),
-        isDead: false,
+        health: current.health,
+        inventory: current.inventory,
+        isDead: current.playerEntityId === playerEntityId ? current.isDead : false,
         isInventoryOpen: false,
         lastJoinDisplayName: displayName,
         playerEntityId,

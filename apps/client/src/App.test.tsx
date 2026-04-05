@@ -5,6 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App } from "./App";
 
 const joinMock = vi.fn();
+const protocolSubscribeMock = vi.fn();
+const protocolIngestMock = vi.fn();
+const protocolDrainWorldUpdatesMock = vi.fn();
 const reconnectMock = vi.fn();
 const subscribeToConnectionMock = vi.fn();
 const closeMock = vi.fn();
@@ -32,6 +35,14 @@ vi.mock("./game/net/socketClient", () => {
   };
 });
 
+vi.mock("./game/net/protocolStore", () => ({
+  createProtocolStore: () => ({
+    drainWorldUpdates: protocolDrainWorldUpdatesMock,
+    ingest: protocolIngestMock,
+    subscribe: protocolSubscribeMock,
+  }),
+}));
+
 describe("App join and reconnect flow", () => {
   afterEach(() => {
     cleanup();
@@ -54,6 +65,11 @@ describe("App join and reconnect flow", () => {
       sessionToken: "session_test",
     });
     subscribeToConnectionMock.mockReturnValue(() => {});
+    protocolSubscribeMock.mockImplementation((listener: () => void) => {
+      listener();
+      return () => {};
+    });
+    protocolDrainWorldUpdatesMock.mockReturnValue({ deltas: [], snapshot: null });
   });
 
   it("gates the first join attempt behind the controls card and only joins after continue", async () => {
@@ -76,6 +92,39 @@ describe("App join and reconnect flow", () => {
   });
 
   it("persists the display name and session token locally and reconnects with the saved display name", async () => {
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Saved Survivor",
+            entityId: "player_survivor",
+            health: { current: 86, isDead: false, max: 100 },
+            inventory: {
+              ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
+              equippedWeaponSlot: 0,
+              slots: [
+                { itemId: "weapon_pistol", quantity: 1 },
+                { itemId: "bandage", quantity: 2 },
+                null,
+                null,
+                null,
+                null,
+              ],
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
     window.localStorage.setItem("2dayz:session-token", "session_saved");
     window.localStorage.setItem("2dayz:display-name", "Saved Survivor");
 
@@ -89,7 +138,9 @@ describe("App join and reconnect flow", () => {
       expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
     });
 
-    expect(screen.getByText((content) => content.includes("Weapon: none"))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes("Health: 86/100"))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes("Weapon: weapon_pistol"))).toBeInTheDocument();
+    expect(screen.getByText((content) => content.includes("Ammo: 21"))).toBeInTheDocument();
     expect(window.localStorage.getItem("2dayz:display-name")).toBe("Saved Survivor");
   });
 
