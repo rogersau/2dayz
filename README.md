@@ -25,7 +25,7 @@ Verification commands:
 The local reference thresholds are enforced by the verification scripts:
 
 - health endpoint must return `200`
-- room cap must split synthetic joins into rooms of `12` and `1`
+- room cap must create more than one room under `13` synthetic joins, and no room may exceed `12` players
 - landing-to-spawn time must stay at or below `10000ms`
 - reconnect time inside the reclaim window must stay at or below `5000ms`
 - reported tick rate must stay within `20-30 Hz`
