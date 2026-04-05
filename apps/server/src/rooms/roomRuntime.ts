@@ -102,6 +102,11 @@ export const createSimulationRoomRuntime = ({
       return { x: 0, y: 0 };
     }
 
+    const [firstRespawnPoint] = respawnPoints;
+    if (!firstRespawnPoint) {
+      return { x: 0, y: 0 };
+    }
+
     const occupiedPoints = new Set(
       [
         ...[...simulationState.players.values()].map((player) => `${player.transform.x}:${player.transform.y}`),
@@ -110,7 +115,7 @@ export const createSimulationRoomRuntime = ({
     );
 
     const availablePoint = respawnPoints.find((point) => !occupiedPoints.has(`${point.x}:${point.y}`));
-    return availablePoint ?? respawnPoints[0];
+    return availablePoint ?? firstRespawnPoint;
   };
 
   const getConnectedPlayerIds = (): string[] => {
