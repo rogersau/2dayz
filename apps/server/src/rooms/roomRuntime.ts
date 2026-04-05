@@ -234,9 +234,7 @@ export const createSimulationRoomRuntime = ({
     status = !healthy ? "unhealthy" : playerSessions.size >= config.playerCapacity ? "full" : "active";
   };
 
-  let runtime: SimulationRoomRuntime;
-
-  runtime = {
+  const runtime: SimulationRoomRuntime = {
     roomId,
     capacity: config.playerCapacity,
     get status() {

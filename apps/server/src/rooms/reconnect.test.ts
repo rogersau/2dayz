@@ -7,9 +7,7 @@ import type { RoomRuntime } from "./roomRuntime";
 
 const createRuntimeRoom = (roomId: string, capacity = 2): RoomRuntime => {
   const players = new Map<string, { displayName: string; connected: boolean }>();
-  let room: RoomRuntime;
-
-  room = {
+  const room: RoomRuntime = {
     roomId,
     capacity,
     status: "active",

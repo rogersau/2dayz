@@ -3,18 +3,29 @@
   "private": true,
   "packageManager": "pnpm@10.7.1",
   "scripts": {
+    "dev:client": "CLIENT_PORT=3200 pnpm --filter @2dayz/client dev -- --host 127.0.0.1 --port 3200",
+    "dev:server": "CLIENT_ORIGIN=http://127.0.0.1:3200 HOST=127.0.0.1 PORT=3201 pnpm --filter @2dayz/server dev",
     "pretest": "node ./scripts/check-workspace-packages.cjs",
-    "test": "pnpm -r test",
+    "test": "pnpm --filter @2dayz/shared test && pnpm --filter @2dayz/server test && pnpm --filter @2dayz/client test",
     "prebuild": "node ./scripts/check-workspace-packages.cjs",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @2dayz/shared build && pnpm --filter @2dayz/server build && pnpm --filter @2dayz/client build",
     "prelint": "node ./scripts/check-workspace-packages.cjs",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm exec eslint . --ext .ts,.tsx",
+    "e2e": "pnpm exec playwright test",
+    "verify:health": "pnpm exec playwright test apps/client/e2e/join-and-spawn.spec.ts --grep \"health endpoint returns 200\"",
+    "verify:room-cap": "pnpm exec playwright test apps/client/e2e/reconnect-and-retry.spec.ts --grep \"thirteenth synthetic join\"",
+    "verify:join-time": "pnpm exec playwright test apps/client/e2e/join-and-spawn.spec.ts --grep \"landing-to-spawn stays under 10 seconds\"",
+    "verify:reconnect-time": "pnpm exec playwright test apps/client/e2e/reconnect-and-retry.spec.ts --grep \"reconnect completes in under 5 seconds\"",
+    "verify:tick-rate": "pnpm exec playwright test apps/client/e2e/join-and-spawn.spec.ts --grep \"reported tick rate stays within the 20-30 Hz target range\"",
+    "verify:room-isolation": "pnpm --filter @2dayz/server test -- roomIsolation.test.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.53.1",
     "@typescript-eslint/eslint-plugin": "^8.30.1",
     "@typescript-eslint/parser": "^8.30.1",
     "eslint": "^8.57.1",
     "typescript": "^5.8.3",
+    "vite": "^7.3.1",
     "vitest": "^3.1.1"
   }
 }

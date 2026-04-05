@@ -9,9 +9,7 @@ type IsolationRoom = RoomRuntime & {
 };
 
 const createIsolationRoom = (roomId: string, behavior: "throws" | "healthy"): IsolationRoom => {
-  let room: IsolationRoom;
-
-  room = {
+  const room: IsolationRoom = {
     roomId,
     capacity: 2,
     status: "active",

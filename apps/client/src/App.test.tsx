@@ -3,6 +3,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
+import { SocketClientError } from "./game/net/socketClient";
 
 const joinMock = vi.fn();
 const protocolSubscribeMock = vi.fn();
@@ -142,6 +143,50 @@ describe("App join and reconnect flow", () => {
     expect(screen.getByText((content) => content.includes("Weapon: weapon_pistol"))).toBeInTheDocument();
     expect(screen.getByText((content) => content.includes("Ammo: 21"))).toBeInTheDocument();
     expect(window.localStorage.getItem("2dayz:display-name")).toBe("Saved Survivor");
+  });
+
+  it("retries reconnect briefly when the server still reports not-disconnected", async () => {
+    reconnectMock
+      .mockRejectedValueOnce(new SocketClientError("not-disconnected"))
+      .mockResolvedValueOnce({
+        type: "room-joined",
+        playerEntityId: "player_survivor",
+        roomId: "room_browser-v1",
+        sessionToken: "session_saved",
+      });
+
+    window.localStorage.setItem("2dayz:session-token", "session_saved");
+    window.localStorage.setItem("2dayz:display-name", "Saved Survivor");
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(reconnectMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
+  });
+
+  it("keeps the expired banner visible until the user explicitly retries into a fresh run", async () => {
+    reconnectMock.mockRejectedValueOnce(new SocketClientError("expired"));
+
+    window.localStorage.setItem("2dayz:session-token", "session_expired");
+    window.localStorage.setItem("2dayz:display-name", "Expired Survivor");
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText(/your previous session expired/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText(/display name/i)).toHaveValue("Expired Survivor");
+    expect(window.localStorage.getItem("2dayz:session-token")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /retry join/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /join a live session/i })).toBeInTheDocument();
+    });
   });
 
   it("moves from joined state into a reconnectable retry banner when the active socket disconnects", async () => {

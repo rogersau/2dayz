@@ -22,42 +22,6 @@ type CreateDeltaForPlayerResult = {
   visibleEntityIds: Set<string>;
 };
 
-const createEntityUpdateFromState = (state: RoomSimulationState, entityId: string): RoomReplicationDelta["entityUpdates"][number] | null => {
-  const player = state.players.get(entityId);
-  if (player) {
-    return {
-      entityId: player.entityId,
-      inventory: player.inventory,
-      lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
-      transform: player.transform,
-      velocity: player.velocity,
-      health: player.health,
-    };
-  }
-
-  const loot = state.loot.get(entityId);
-  if (loot) {
-    return {
-      entityId: loot.entityId,
-      itemId: loot.itemId,
-      quantity: loot.quantity,
-      position: loot.position,
-    };
-  }
-
-  const zombie = state.zombies.get(entityId);
-  if (zombie) {
-    return {
-      entityId: zombie.entityId,
-      transform: zombie.transform,
-      velocity: zombie.velocity,
-      health: zombie.health,
-    };
-  }
-
-  return null;
-};
-
 const createEnteredEntityFromState = (state: RoomSimulationState, entityId: string): EnteredEntity | null => {
   const player = state.players.get(entityId);
   if (player) {

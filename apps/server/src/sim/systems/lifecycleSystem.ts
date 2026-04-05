@@ -1,4 +1,4 @@
-import { queueDespawnEntity, spawnPlayerNow, type RoomSimulationState } from "../state";
+import { spawnPlayerNow, type RoomSimulationState } from "../state";
 
 export type LifecycleSystem = {
   name: "lifecycle";

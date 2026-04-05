@@ -21,7 +21,27 @@ const getConnectionErrorReason = (error: unknown): ErrorReason => {
     return error.reason;
   }
 
+  if (
+    typeof error === "object"
+    && error !== null
+    && "reason" in error
+    && typeof error.reason === "string"
+  ) {
+    return error.reason as ErrorReason;
+  }
+
   return "internal-error";
+};
+
+const RECONNECT_RETRY_DELAY_MS = 150;
+const RECONNECT_RETRY_LIMIT = 5;
+
+const getReconnectFailureReason = (reason: ErrorReason): ErrorReason => {
+  if (reason === "invalid") {
+    return "expired";
+  }
+
+  return reason;
 };
 
 export const App = () => {
@@ -35,11 +55,20 @@ export const App = () => {
   );
   const state = useClientGameStore(gameStore);
   const reconnectAttemptRef = useRef<string | null>(null);
+  const reconnectRetryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pendingJoinDisplayName, setPendingJoinDisplayName] = useState<string | null>(null);
   const [isJoinRequestPending, setIsJoinRequestPending] = useState(false);
   const { displayName, sessionToken, setDisplayName, setSessionToken, clearSessionToken } = useSessionToken();
 
+  const clearReconnectRetryTimeout = () => {
+    if (reconnectRetryTimeoutRef.current) {
+      clearTimeout(reconnectRetryTimeoutRef.current);
+      reconnectRetryTimeoutRef.current = null;
+    }
+  };
+
   const completeJoin = (result: JoinResult, resolvedDisplayName: string) => {
+    clearReconnectRetryTimeout();
     reconnectAttemptRef.current = result.sessionToken;
     setDisplayName(resolvedDisplayName);
     setSessionToken(result.sessionToken);
@@ -50,26 +79,40 @@ export const App = () => {
     });
   };
 
-  const attemptReconnect = () => {
-    if (!sessionToken || isJoinRequestPending) {
+  const attemptReconnect = (attempt = 0, token = sessionToken) => {
+    if (!token || (isJoinRequestPending && attempt === 0)) {
       return;
     }
 
+    clearReconnectRetryTimeout();
     setIsJoinRequestPending(true);
-    reconnectAttemptRef.current = sessionToken;
+    reconnectAttemptRef.current = token;
     gameStore.beginReconnect();
 
     void socketClient
-      .reconnect({ sessionToken })
+      .reconnect({ sessionToken: token })
       .then((result) => {
         completeJoin(result, displayName || state.lastJoinDisplayName || "Survivor");
       })
       .catch((error: unknown) => {
+        const reason = getConnectionErrorReason(error);
+
+        if (reason === "not-disconnected" && attempt < RECONNECT_RETRY_LIMIT) {
+          setIsJoinRequestPending(false);
+          reconnectRetryTimeoutRef.current = setTimeout(() => {
+            attemptReconnect(attempt + 1, token);
+          }, RECONNECT_RETRY_DELAY_MS);
+          return;
+        }
+
+        const resolvedReason = getReconnectFailureReason(reason);
         clearSessionToken();
-        gameStore.failConnection(getConnectionErrorReason(error));
+        gameStore.failConnection(resolvedReason);
       })
       .finally(() => {
-        setIsJoinRequestPending(false);
+        if (reconnectRetryTimeoutRef.current === null) {
+          setIsJoinRequestPending(false);
+        }
       });
   };
 
@@ -105,6 +148,7 @@ export const App = () => {
 
   useEffect(() => {
     return () => {
+      clearReconnectRetryTimeout();
       socketClient.close();
     };
   }, [socketClient]);

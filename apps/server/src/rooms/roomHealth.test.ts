@@ -9,9 +9,7 @@ type HealthRoom = RoomRuntime & {
 };
 
 const createHealthRoom = (roomId: string, health: boolean, joinedNames: string[] = []): HealthRoom => {
-  let room: HealthRoom;
-
-  room = {
+  const room: HealthRoom = {
     roomId,
     capacity: 2,
     status: health ? "active" : "unhealthy",

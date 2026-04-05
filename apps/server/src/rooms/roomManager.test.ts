@@ -11,9 +11,7 @@ type FakeRoom = RoomRuntime & {
 
 const createFakeRoom = (roomId: string, capacity: number): FakeRoom => {
   const joinedNames: string[] = [];
-  let room: FakeRoom;
-
-  room = {
+  const room: FakeRoom = {
     roomId,
     capacity,
     status: "active",

@@ -1,5 +1,5 @@
 import { DEFAULT_RECLAIM_WINDOW_MS } from "../config";
-import { createReconnectRegistry, type ReconnectRegistry, type SessionReservation } from "../rooms/reconnect";
+import { createReconnectRegistry, type SessionReservation } from "../rooms/reconnect";
 import type { RoomManager } from "../rooms/roomManager";
 import type { RoomRuntime } from "../rooms/roomRuntime";
 

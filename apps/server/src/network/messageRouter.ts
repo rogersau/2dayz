@@ -183,7 +183,7 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
             sendError(socket, "internal-error");
           }
         },
-        handleClose(_reason?: string) {
+        handleClose() {
           unsubscribeRoomUpdates?.();
           unsubscribeRoomUpdates = null;
           if (activeSessionToken) {
