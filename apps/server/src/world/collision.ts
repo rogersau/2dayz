@@ -17,6 +17,10 @@ export type CircleMovementCheck = {
   radius: number;
 };
 
+const clamp = (value: number, min: number, max: number): number => {
+  return Math.min(Math.max(value, min), max);
+};
+
 const toIndexedVolume = (volume: CollisionVolume): IndexedCollisionVolume => {
   const halfWidth = volume.size.width / 2;
   const halfHeight = volume.size.height / 2;
@@ -38,12 +42,12 @@ export const createCollisionIndex = (volumes: CollisionVolume[]): CollisionIndex
 
 export const isCirclePositionBlocked = (collision: CollisionIndex, position: Vector2, radius: number): boolean => {
   return collision.volumes.some((volume) => {
-    return (
-      position.x + radius > volume.minX &&
-      position.x - radius < volume.maxX &&
-      position.y + radius > volume.minY &&
-      position.y - radius < volume.maxY
-    );
+    const closestX = clamp(position.x, volume.minX, volume.maxX);
+    const closestY = clamp(position.y, volume.minY, volume.maxY);
+    const deltaX = position.x - closestX;
+    const deltaY = position.y - closestY;
+
+    return deltaX * deltaX + deltaY * deltaY < radius * radius;
   });
 };
 

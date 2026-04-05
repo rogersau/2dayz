@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { CollisionVolume } from "@2dayz/shared";
 
-import { createCollisionIndex, isCircleMovementBlocked } from "./collision";
+import { createCollisionIndex, isCircleMovementBlocked, isCirclePositionBlocked } from "./collision";
 
 const collisionVolumes: CollisionVolume[] = [
   {
@@ -36,5 +36,13 @@ describe("isCircleMovementBlocked", () => {
         radius: 0.5,
       }),
     ).toBe(false);
+  });
+});
+
+describe("isCirclePositionBlocked", () => {
+  it("does not report a collision when a circle only overlaps the box corner bounds", () => {
+    const collision = createCollisionIndex(collisionVolumes);
+
+    expect(isCirclePositionBlocked(collision, { x: 3.1, y: 3.1 }, 1)).toBe(false);
   });
 });

@@ -26,4 +26,10 @@ describe("hasLineOfSight", () => {
 
     expect(hasLineOfSight(collision, { x: 2, y: 1 }, { x: 8, y: 1 })).toBe(true);
   });
+
+  it("keeps sight lines clear when they pass outside a blocker corner", () => {
+    const collision = createCollisionIndex(collisionVolumes);
+
+    expect(hasLineOfSight(collision, { x: 1.9, y: -0.1 }, { x: 3.1, y: 1.1 }, 1)).toBe(true);
+  });
 });
