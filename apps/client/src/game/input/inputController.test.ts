@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInputController } from "./inputController";
 
@@ -80,6 +80,28 @@ describe("inputController", () => {
         y: 0,
       },
       sequence: 6,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
+  it("toggles inventory when tab is pressed without emitting a gameplay input action", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const onToggleInventory = vi.fn();
+    const controller = createInputController({ element, onToggleInventory });
+
+    const keydownEvent = new KeyboardEvent("keydown", { cancelable: true, key: "Tab" });
+    window.dispatchEvent(keydownEvent);
+
+    expect(onToggleInventory).toHaveBeenCalledTimes(1);
+    expect(keydownEvent.defaultPrevented).toBe(true);
+    expect(controller.pollInput(1)).toEqual({
+      actions: {},
+      aim: { x: 0, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
       type: "input",
     });
 

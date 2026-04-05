@@ -6,7 +6,13 @@ const isMatchingKey = (eventKey: string, keys: readonly string[]) => {
   return keys.includes(eventKey.toLowerCase());
 };
 
-export const createInputController = ({ element }: { element: HTMLElement }) => {
+export const createInputController = ({
+  element,
+  onToggleInventory,
+}: {
+  element: HTMLElement;
+  onToggleInventory?: () => void;
+}) => {
   const pressedKeys = new Set<string>();
   const queuedActions = {
     interact: false,
@@ -26,6 +32,15 @@ export const createInputController = ({ element }: { element: HTMLElement }) => 
 
   const handleKeyDown = (event: KeyboardEvent) => {
     const key = event.key.toLowerCase();
+
+    if (isMatchingKey(key, ACTION_KEYS.inventory)) {
+      event.preventDefault();
+      if (!event.repeat) {
+        onToggleInventory?.();
+      }
+      return;
+    }
+
     pressedKeys.add(key);
 
     if (isMatchingKey(key, ACTION_KEYS.reload)) {

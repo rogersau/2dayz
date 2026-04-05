@@ -7,5 +7,6 @@ export const MOVEMENT_KEYS = {
 
 export const ACTION_KEYS = {
   interact: ["e"],
+  inventory: ["tab"],
   reload: ["r"],
 } as const;

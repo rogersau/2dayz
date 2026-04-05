@@ -21,7 +21,10 @@ export const bootGame = ({
   const { renderer, resize: resizeRenderer } = createRenderer(canvas);
   const { camera, resize: resizeCamera } = createCamera(canvas);
   const scene = createScene();
-  const inputController = createInputController({ element: canvas });
+  const inputController = createInputController({
+    element: canvas,
+    onToggleInventory: () => store.toggleInventory(),
+  });
   const entityViewStore = createEntityViewStore(scene);
   const predictionController = createPredictionController({ rotation: 0, x: 0, y: 0 });
   let animationFrame = 0;
