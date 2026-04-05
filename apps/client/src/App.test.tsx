@@ -115,4 +115,63 @@ describe("App join and reconnect flow", () => {
     });
     expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
   });
+
+  it("bypasses the controls step on a later same-session join after controls were already dismissed", async () => {
+    joinMock
+      .mockResolvedValueOnce({
+        type: "room-joined",
+        playerEntityId: "player_survivor",
+        roomId: "room_browser-v1",
+        sessionToken: "session_first",
+      })
+      .mockRejectedValueOnce(new Error("join failed"))
+      .mockResolvedValueOnce({
+        type: "room-joined",
+        playerEntityId: "player_survivor",
+        roomId: "room_browser-v1",
+        sessionToken: "session_second",
+      });
+
+    const firstRender = render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/room: room_browser-v1/i)).toBeInTheDocument();
+    });
+
+    firstRender.unmount();
+    window.localStorage.removeItem("2dayz:session-token");
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "fail survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /retry join/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
+    });
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Second Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /^continue$/i }));
+
+    await waitFor(() => {
+      expect(joinMock).toHaveBeenLastCalledWith({ displayName: "Second Survivor" });
+    });
+
+    expect(screen.queryByRole("heading", { name: /before you drop in/i })).not.toBeInTheDocument();
+  });
 });

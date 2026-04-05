@@ -9,7 +9,7 @@ import {
   useClientGameStore,
 } from "./game/state/clientGameStore";
 import { ConnectionBanner } from "./game/ui/ConnectionBanner";
-import { ControlsOverlay } from "./game/ui/ControlsOverlay";
+import { ControlsOverlay, hasDismissedControlsInSession } from "./game/ui/ControlsOverlay";
 import { DeathOverlay } from "./game/ui/DeathOverlay";
 import { Hud } from "./game/ui/Hud";
 import { JoinScreen } from "./game/ui/JoinScreen";
@@ -123,6 +123,14 @@ export const App = () => {
 
   const isConnected = state.connectionState.phase === "joined";
   const showControlsStep = pendingJoinDisplayName !== null && state.connectionState.phase !== "joined";
+
+  useEffect(() => {
+    if (!showControlsStep || !hasDismissedControlsInSession()) {
+      return;
+    }
+
+    handleControlsContinue();
+  }, [showControlsStep]);
 
   return (
     <main className="app-shell">

@@ -2,7 +2,7 @@ import { useState } from "react";
 
 const CONTROLS_DISMISSED_KEY = "2dayz:controls-dismissed";
 
-const readDismissedState = () => {
+export const hasDismissedControlsInSession = () => {
   if (typeof window === "undefined") {
     return false;
   }
@@ -15,7 +15,7 @@ type ControlsOverlayProps = {
 };
 
 export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
-  const [dismissed, setDismissed] = useState(readDismissedState);
+  const [dismissed, setDismissed] = useState(hasDismissedControlsInSession);
 
   if (dismissed) {
     return null;
