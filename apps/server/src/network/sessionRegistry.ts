@@ -18,6 +18,7 @@ export type SessionRegistry = {
   createSession(input: CreateSessionInput): SessionReservation;
   cleanupExpiredReservations(): void;
   markDisconnected(sessionToken: string): void;
+  removeSession(sessionToken: string, reason: "expired" | "room-unavailable" | "replaced"): boolean;
   reclaim(sessionToken: string): ReturnType<ReconnectRegistry["reclaim"]>;
 };
 
@@ -35,10 +36,22 @@ export const createSessionRegistry = ({
       }
 
       if (now() - reservation.disconnectedAt > reclaimWindowMs) {
-        roomManager.releasePlayer(reservation.roomId, reservation.playerEntityId);
-        registry.invalidate(reservation.sessionToken);
+        releaseReservation(reservation.sessionToken, "expired");
       }
     }
+  };
+
+  const releaseReservation = (sessionToken: string, reason: "expired" | "room-unavailable" | "replaced"): boolean => {
+    const reservation = registry.getReservation(sessionToken);
+    if (!reservation) {
+      return false;
+    }
+
+    if (reason !== "replaced" || reservation.disconnectedAt !== null) {
+      roomManager.releasePlayer(reservation.roomId, reservation.playerEntityId);
+    }
+
+    return registry.invalidate(sessionToken);
   };
 
   return {
@@ -58,6 +71,9 @@ export const createSessionRegistry = ({
 
       roomManager.disconnectPlayer(reservation.roomId, reservation.playerEntityId);
     },
+    removeSession(sessionToken, reason) {
+      return releaseReservation(sessionToken, reason);
+    },
     reclaim(sessionToken) {
       const reservation = registry.getReservation(sessionToken);
       if (!reservation) {
@@ -70,8 +86,7 @@ export const createSessionRegistry = ({
       }
 
       if (now() - reservation.disconnectedAt > reclaimWindowMs) {
-        roomManager.releasePlayer(reservation.roomId, reservation.playerEntityId);
-        registry.invalidate(sessionToken);
+        releaseReservation(sessionToken, "expired");
         return { accepted: false, reason: "expired" };
       }
 
@@ -79,7 +94,7 @@ export const createSessionRegistry = ({
 
       const reclaimedPlayer = roomManager.reclaimPlayer(reservation.roomId, reservation.playerEntityId);
       if (!reclaimedPlayer) {
-        registry.invalidate(sessionToken);
+        releaseReservation(sessionToken, "room-unavailable");
         return { accepted: false, reason: "room-unavailable" };
       }
 
