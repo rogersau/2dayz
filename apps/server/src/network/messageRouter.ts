@@ -1,10 +1,12 @@
 import type { RawData, WebSocket } from "ws";
 import {
+  inputMessageSchema,
   errorMessageSchema,
   joinRequestSchema,
   reconnectRequestSchema,
   roomJoinedMessageSchema,
   type ErrorReason,
+  type InputMessage,
   type JoinRequest,
   type ReconnectRequest,
 } from "@2dayz/shared";
@@ -22,7 +24,7 @@ type RouterConnection = {
   handleClose(): void;
 };
 
-const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | null => {
+const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | InputMessage | null => {
   if (typeof raw !== "string" && !Buffer.isBuffer(raw)) {
     return null;
   }
@@ -37,6 +39,11 @@ const parseMessage = (raw: RawData): JoinRequest | ReconnectRequest | null => {
     const parsedReconnect = reconnectRequestSchema.safeParse(message);
     if (parsedReconnect.success) {
       return parsedReconnect.data;
+    }
+
+    const parsedInput = inputMessageSchema.safeParse(message);
+    if (parsedInput.success) {
+      return parsedInput.data;
     }
   } catch {
     return null;
@@ -73,6 +80,24 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
   return {
     attach(socket: WebSocket): RouterConnection {
       let activeSessionToken: string | null = null;
+      let activeRoomId: string | null = null;
+      let activePlayerEntityId: string | null = null;
+      let unsubscribeRoomUpdates: (() => void) | null = null;
+
+      const subscribeToRoomUpdates = (roomId: string, playerEntityId: string): void => {
+        unsubscribeRoomUpdates?.();
+        unsubscribeRoomUpdates = null;
+
+        const room = roomManager.getRoomRuntime(roomId);
+        unsubscribeRoomUpdates = room?.subscribePlayerUpdates?.(playerEntityId, {
+          onSnapshot(snapshot) {
+            socket.send(JSON.stringify(snapshot));
+          },
+          onDelta(delta) {
+            socket.send(JSON.stringify(delta));
+          },
+        }) ?? null;
+      };
 
       return {
         handleMessage(raw) {
@@ -82,13 +107,13 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
             return;
           }
 
-          if (activeSessionToken) {
-            sendError(socket, "session-active");
-            return;
-          }
-
           try {
             if (message.type === "join") {
+              if (activeSessionToken) {
+                sendError(socket, "session-active");
+                return;
+              }
+
               sessionRegistry.cleanupExpiredReservations();
               const assignment = roomManager.assignPlayer({ displayName: message.displayName });
               const session = sessionRegistry.createSession({
@@ -98,31 +123,60 @@ export const createMessageRouter = ({ roomManager, sessionRegistry }: MessageRou
               });
 
               activeSessionToken = session.sessionToken;
+              activeRoomId = assignment.roomId;
+              activePlayerEntityId = assignment.playerEntityId;
               sendRoomJoined(socket, {
                 roomId: assignment.roomId,
                 playerEntityId: assignment.playerEntityId,
                 sessionToken: session.sessionToken,
               });
+              subscribeToRoomUpdates(assignment.roomId, assignment.playerEntityId);
               return;
             }
 
-            const reclaimResult = sessionRegistry.reclaim(message.sessionToken);
-            if (!reclaimResult.accepted) {
-              sendError(socket, reclaimResult.reason);
+            if (message.type === "reconnect") {
+              if (activeSessionToken) {
+                sendError(socket, "session-active");
+                return;
+              }
+
+              const reclaimResult = sessionRegistry.reclaim(message.sessionToken);
+              if (!reclaimResult.accepted) {
+                sendError(socket, reclaimResult.reason);
+                return;
+              }
+
+              activeSessionToken = reclaimResult.reservation.sessionToken;
+              activeRoomId = reclaimResult.reservation.roomId;
+              activePlayerEntityId = reclaimResult.reservation.playerEntityId;
+              sendRoomJoined(socket, {
+                roomId: reclaimResult.reservation.roomId,
+                playerEntityId: reclaimResult.reservation.playerEntityId,
+                sessionToken: reclaimResult.reservation.sessionToken,
+              });
+              subscribeToRoomUpdates(reclaimResult.reservation.roomId, reclaimResult.reservation.playerEntityId);
               return;
             }
 
-            activeSessionToken = reclaimResult.reservation.sessionToken;
-            sendRoomJoined(socket, {
-              roomId: reclaimResult.reservation.roomId,
-              playerEntityId: reclaimResult.reservation.playerEntityId,
-              sessionToken: reclaimResult.reservation.sessionToken,
+            if (!activeSessionToken || !activeRoomId || !activePlayerEntityId) {
+              sendError(socket, "invalid-message");
+              return;
+            }
+
+            const room = roomManager.getRoomRuntime(activeRoomId);
+            room?.queueInput?.(activePlayerEntityId, {
+              sequence: message.sequence,
+              movement: message.movement,
+              aim: message.aim,
+              actions: message.actions,
             });
           } catch {
             sendError(socket, "internal-error");
           }
         },
         handleClose() {
+          unsubscribeRoomUpdates?.();
+          unsubscribeRoomUpdates = null;
           if (activeSessionToken) {
             sessionRegistry.markDisconnected(activeSessionToken);
           }

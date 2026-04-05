@@ -18,6 +18,7 @@ export const createLifecycleSystem = (): LifecycleSystem => {
           continue;
         }
 
+        state.inputIntents.delete(entityId);
         state.dirtyPlayerIds.delete(entityId);
         state.removedEntityIds.add(entityId);
       }

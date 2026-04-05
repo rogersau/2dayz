@@ -23,7 +23,7 @@ export const createMovementSystem = (): MovementSystem => {
     name: "movement",
     update(state, deltaSeconds) {
       for (const player of getPlayers(state)) {
-        const intent = player.pendingInput;
+        const intent = state.inputIntents.get(player.entityId);
         if (!intent) {
           continue;
         }
@@ -48,7 +48,7 @@ export const createMovementSystem = (): MovementSystem => {
           rotation,
         };
         player.velocity = blocked ? { x: 0, y: 0 } : velocity;
-        player.pendingInput = null;
+        state.inputIntents.delete(player.entityId);
         state.dirtyPlayerIds.add(player.entityId);
       }
     },

@@ -26,7 +26,6 @@ export type SimPlayer = {
   velocity: Velocity;
   health: Health;
   inventory: Inventory;
-  pendingInput: PlayerInputIntent | null;
 };
 
 export type SpawnPlayerRequest = {
@@ -42,6 +41,7 @@ export type RoomSimulationState = {
   players: Map<string, SimPlayer>;
   pendingSpawns: SpawnPlayerRequest[];
   pendingDespawns: string[];
+  inputIntents: Map<string, PlayerInputIntent>;
   dirtyPlayerIds: Set<string>;
   removedEntityIds: Set<string>;
   events: ServerEvent[];
@@ -132,6 +132,7 @@ export const createRoomState = ({
     players: new Map<string, SimPlayer>(),
     pendingSpawns: [],
     pendingDespawns: [],
+    inputIntents: new Map<string, PlayerInputIntent>(),
     dirtyPlayerIds: new Set<string>(),
     removedEntityIds: new Set<string>(),
     events: [],
@@ -147,12 +148,7 @@ export const queueDespawnEntity = (state: RoomSimulationState, entityId: string)
 };
 
 export const queueInputIntent = (state: RoomSimulationState, entityId: string, intent: PlayerInputIntent): void => {
-  const player = state.players.get(entityId);
-  if (!player) {
-    return;
-  }
-
-  player.pendingInput = intent;
+  state.inputIntents.set(entityId, intent);
 };
 
 export const createSnapshotMessage = (state: RoomSimulationState, playerEntityId: string): SnapshotMessage => {
@@ -199,7 +195,6 @@ export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerR
     velocity: { x: 0, y: 0 },
     health: createDefaultHealth(),
     inventory: createEmptyInventory(),
-    pendingInput: null,
   });
   state.dirtyPlayerIds.add(request.entityId);
 };

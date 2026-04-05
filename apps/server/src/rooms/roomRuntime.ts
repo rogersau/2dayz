@@ -41,6 +41,14 @@ export interface RoomRuntime {
   releasePlayer(playerEntityId: string): boolean;
   shutdown(reason?: string): void;
   tick?(): void;
+  queueInput?(playerEntityId: string, intent: PlayerInputIntent): void;
+  subscribePlayerUpdates?(
+    playerEntityId: string,
+    handlers: {
+      onSnapshot(snapshot: SnapshotMessage): void;
+      onDelta(delta: DeltaMessage): void;
+    },
+  ): (() => void) | null;
 }
 
 export interface SimulationRoomRuntime extends RoomRuntime {
@@ -74,6 +82,13 @@ export const createSimulationRoomRuntime = ({
   const simulationState = createRoomState({ roomId, config });
   const activePlayers = new Set<string>();
   const knownPlayers = new Set<string>();
+  const subscriptions = new Map<
+    string,
+    Set<{
+      onSnapshot(snapshot: SnapshotMessage): void;
+      onDelta(delta: DeltaMessage): void;
+    }>
+  >();
   const roomSystems = systems ?? [createLifecycleSystem(), createMovementSystem()];
   let playerSequence = 0;
   let healthy = true;
@@ -86,10 +101,24 @@ export const createSimulationRoomRuntime = ({
       const delta = createDeltaMessage(state);
 
       for (const playerEntityId of activePlayers) {
-        onSnapshot?.(createSnapshotMessage(state, playerEntityId));
+        const snapshot = createSnapshotMessage(state, playerEntityId);
+        onSnapshot?.(snapshot);
+
+        for (const handlers of subscriptions.get(playerEntityId) ?? []) {
+          handlers.onSnapshot(snapshot);
+        }
       }
 
       onDelta?.(delta);
+      for (const [playerEntityId, handlersSet] of subscriptions.entries()) {
+        if (!activePlayers.has(playerEntityId)) {
+          continue;
+        }
+
+        for (const handlers of handlersSet) {
+          handlers.onDelta(delta);
+        }
+      }
       clearTransientSimulationState(state);
     },
   });
@@ -160,6 +189,7 @@ export const createSimulationRoomRuntime = ({
       }
 
       activePlayers.delete(playerEntityId);
+      subscriptions.delete(playerEntityId);
       queueDespawnEntity(simulationState, playerEntityId);
       updateStatus();
       return true;
@@ -181,6 +211,27 @@ export const createSimulationRoomRuntime = ({
     },
     queueInput(playerEntityId, intent) {
       queueInputIntent(simulationState, playerEntityId, intent);
+    },
+    subscribePlayerUpdates(playerEntityId, handlers) {
+      if (!knownPlayers.has(playerEntityId)) {
+        return null;
+      }
+
+      const playerSubscriptions = subscriptions.get(playerEntityId) ?? new Set();
+      playerSubscriptions.add(handlers);
+      subscriptions.set(playerEntityId, playerSubscriptions);
+
+      return () => {
+        const currentSubscriptions = subscriptions.get(playerEntityId);
+        if (!currentSubscriptions) {
+          return;
+        }
+
+        currentSubscriptions.delete(handlers);
+        if (currentSubscriptions.size === 0) {
+          subscriptions.delete(playerEntityId);
+        }
+      };
     },
   };
 }

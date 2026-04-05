@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { errorMessageSchema, roomJoinedMessageSchema } from "@2dayz/shared";
+import { deltaMessageSchema, errorMessageSchema, roomJoinedMessageSchema, snapshotMessageSchema } from "@2dayz/shared";
 
 import { createMessageRouter } from "./messageRouter";
 import { createSessionRegistry } from "./sessionRegistry";
@@ -35,6 +35,9 @@ const createStubRoomManager = (): RoomManager => {
     },
     releasePlayer() {
       return true;
+    },
+    getRoomRuntime() {
+      return undefined;
     },
     tickAllRooms() {
       // no-op for tests
@@ -184,5 +187,52 @@ describe("createMessageRouter", () => {
         status: "active",
       },
     ]);
+  });
+
+  it("routes joined player input into the room simulation and delivers snapshot and delta updates on tick", () => {
+    const socket = createSocket();
+    const roomManager = createRoomManager({
+      roomCapacity: 8,
+      createRoom: createRoomFactory({ roomCapacity: 8 }),
+    });
+    const sessionRegistry = createSessionRegistry({ roomManager });
+    const connection = createMessageRouter({ roomManager, sessionRegistry }).attach(socket as never);
+
+    connection.handleMessage('{"type":"join","displayName":"Avery"}' as never);
+    connection.handleMessage(
+      '{"type":"input","sequence":1,"movement":{"x":1,"y":0},"aim":{"x":1,"y":0},"actions":{}}' as never,
+    );
+
+    roomManager.tickAllRooms();
+
+    expect(roomJoinedMessageSchema.parse(JSON.parse(socket.sent[0] ?? "null"))).toMatchObject({
+      roomId: "room_1",
+      playerEntityId: "player_1-1",
+    });
+    expect(snapshotMessageSchema.parse(JSON.parse(socket.sent[1] ?? "null"))).toMatchObject({
+      type: "snapshot",
+      tick: 1,
+      roomId: "room_1",
+      playerEntityId: "player_1-1",
+      players: [
+        {
+          entityId: "player_1-1",
+          transform: { x: 0.2, y: 0, rotation: 0 },
+          velocity: { x: 4, y: 0 },
+        },
+      ],
+    });
+    expect(deltaMessageSchema.parse(JSON.parse(socket.sent[2] ?? "null"))).toMatchObject({
+      type: "delta",
+      tick: 1,
+      roomId: "room_1",
+      entityUpdates: [
+        {
+          entityId: "player_1-1",
+          transform: { x: 0.2, y: 0, rotation: 0 },
+          velocity: { x: 4, y: 0 },
+        },
+      ],
+    });
   });
 });

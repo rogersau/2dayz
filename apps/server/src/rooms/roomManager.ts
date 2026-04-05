@@ -27,6 +27,7 @@ export type RoomManager = {
   disconnectPlayer(roomId: string, playerEntityId: string): boolean;
   reclaimPlayer(roomId: string, playerEntityId: string): AssignPlayerResult | null;
   releasePlayer(roomId: string, playerEntityId: string): boolean;
+  getRoomRuntime(roomId: string): RoomRuntime | undefined;
   tickAllRooms(): void;
   getRoomSummaries(): RoomSummary[];
   getRoomCount(): number;
@@ -131,6 +132,9 @@ export const createRoomManager = ({ createRoom, initialRooms = [] }: RoomManager
       }
 
       return room.releasePlayer(playerEntityId);
+    },
+    getRoomRuntime(roomId) {
+      return rooms.get(roomId);
     },
     tickAllRooms() {
       for (const room of [...rooms.values()]) {
