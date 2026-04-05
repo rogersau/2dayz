@@ -108,7 +108,7 @@ describe("inputController", () => {
     controller.destroy();
   });
 
-  it("clears latched movement and fire state on blur and visibility changes", () => {
+  it("clears held and queued input state on blur and visibility changes", () => {
     const element = document.createElement("div");
     document.body.append(element);
     element.getBoundingClientRect = () => ({
@@ -127,6 +127,8 @@ describe("inputController", () => {
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "w" }));
     element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "e" }));
 
     window.dispatchEvent(new Event("blur"));
 
@@ -140,6 +142,8 @@ describe("inputController", () => {
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" }));
     element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "e" }));
     Object.defineProperty(document, "visibilityState", {
       configurable: true,
       value: "hidden",

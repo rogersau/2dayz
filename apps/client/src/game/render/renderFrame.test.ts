@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderFrame } from "./renderFrame";
 
 describe("renderFrame", () => {
-  it("re-centers the camera on the local player so aim stays aligned as the player moves", () => {
+  it("uses the same resolved local transform for the camera and local player rendering", () => {
     const camera = {
       lookAt: vi.fn(),
       position: { x: 18, y: 22, z: 18 },
@@ -31,7 +31,7 @@ describe("renderFrame", () => {
               entityId: "player_self",
               inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
               kind: "player",
-              transform: { rotation: 0.3, x: 12, y: -6 },
+              transform: { rotation: 0.1, x: 3, y: 4 },
               velocity: { x: 0, y: 0 },
             },
           ],
@@ -53,5 +53,10 @@ describe("renderFrame", () => {
     expect(camera.position.x).toBe(30);
     expect(camera.position.z).toBe(12);
     expect(camera.lookAt).toHaveBeenCalledWith(12, 0, -6);
+    expect(entityViewStore.render).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localOverrides: new Map([["player_self", { rotation: 0.3, x: 12, y: -6 }]]),
+      }),
+    );
   });
 });

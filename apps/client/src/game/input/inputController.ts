@@ -24,6 +24,8 @@ export const createInputController = ({
   const clearLatchedState = () => {
     pressedKeys.clear();
     isFiring = false;
+    queuedActions.interact = false;
+    queuedActions.reload = false;
   };
 
   const updateAim = (event: MouseEvent) => {
