@@ -24,7 +24,7 @@ export default defineConfig({
     },
     {
       command: `pnpm --filter @2dayz/server exec tsx src/index.ts`,
-      url: `${baseURL}/`,
+      url: `${baseURL}/health`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: {
