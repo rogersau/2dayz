@@ -41,6 +41,10 @@ export const bootGame = ({
       return;
     }
 
+    if (store.getState().connectionState.phase !== "joined") {
+      return;
+    }
+
     const input = inputController.pollInput(sequence++);
     socketClient.sendInput(input);
 

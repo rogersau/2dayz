@@ -128,19 +128,39 @@ describe("bootGame", () => {
     clearIntervalSpy.mockRestore();
   });
 
-  it("sends typed input on a fixed interval instead of every render frame", () => {
+  it("does not send input packets until the player is joined, then sends them on the fixed interval", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
+    const store = {
+      getState: () => ({
+        connectionState: { phase: "idle" },
+        latestTick: 0,
+        playerEntityId: null,
+        worldEntities: { loot: [], players: [], zombies: [] },
+      }),
+      toggleInventory: vi.fn(),
+    };
 
     bootGame({
       canvas,
       socketClient: { sendInput },
-      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+      store: store as never,
     });
 
     scheduledFrame?.(16);
 
     expect(sendInput).not.toHaveBeenCalled();
+    scheduledInterval?.();
+
+    expect(sendInput).not.toHaveBeenCalled();
+
+    store.getState = () => ({
+      connectionState: { phase: "joined" },
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    });
+
     scheduledInterval?.();
 
     expect(sendInput).toHaveBeenCalledWith({
@@ -182,7 +202,14 @@ describe("bootGame", () => {
     bootGame({
       canvas: document.createElement("canvas"),
       socketClient: { sendInput: vi.fn() },
-      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+      store: {
+        getState: () => ({
+          connectionState: { phase: "joined" },
+          latestTick: 0,
+          playerEntityId: null,
+          worldEntities: { loot: [], players: [], zombies: [] },
+        }),
+      } as never,
     });
 
     scheduledInterval?.();
