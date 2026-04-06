@@ -28,6 +28,7 @@ const measureFrameStats = async (page: import("@playwright/test").Page) => {
         if (samples.length >= 120) {
           const sortedSamples = [...samples].sort((left, right) => left - right);
           const total = samples.reduce((sum, sample) => sum + sample, 0);
+
           resolve({
             average: total / samples.length,
             p90: sortedSamples[Math.floor(sortedSamples.length * 0.9)] ?? Number.POSITIVE_INFINITY,
@@ -50,19 +51,26 @@ test("reports when average frame time misses the 60 fps local target", async ({ 
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
   await expect(page.getByLabel("survival hud")).toBeVisible();
-  let frameStats: FrameStats = {
-    average: Number.POSITIVE_INFINITY,
-    p90: Number.POSITIVE_INFINITY,
-  };
+  await page.evaluate(async () => {
+    await new Promise<void>((resolve) => {
+      let remainingFrames = 480;
 
-  await expect.poll(async () => {
-    frameStats = await measureFrameStats(page);
+      const warmUp = () => {
+        remainingFrames -= 1;
 
-    return frameStats.average <= 16.67 && frameStats.p90 <= 20;
-  }, {
-    message: "Frame pacing never settled under the 60 fps local target.",
-    timeout: 20_000,
-  }).toBe(true);
+        if (remainingFrames <= 0) {
+          resolve();
+          return;
+        }
+
+        window.requestAnimationFrame(warmUp);
+      };
+
+      window.requestAnimationFrame(warmUp);
+    });
+  });
+
+  const frameStats = await measureFrameStats(page);
 
   expect(
     frameStats.average,
@@ -70,6 +78,6 @@ test("reports when average frame time misses the 60 fps local target", async ({ 
   ).toBeLessThanOrEqual(16.67);
   expect(
     frameStats.p90,
-    `90th percentile frame time ${frameStats.p90.toFixed(2)}ms exceeded the 20ms steady-state budget.`,
+    `90th percentile frame time ${frameStats.p90.toFixed(2)}ms exceeded the 20ms steady-state budget. Average was ${frameStats.average.toFixed(2)}ms.`,
   ).toBeLessThanOrEqual(20);
 });
