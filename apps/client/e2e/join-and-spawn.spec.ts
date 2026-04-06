@@ -51,6 +51,33 @@ test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
   ).toBe(true);
 });
 
+test("keeps the joined hud reachable on a shorter phone viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await page.goto("/");
+
+  await page.getByLabel("Display name").fill("Short Scout");
+  await page.getByRole("button", { name: "Review briefing" }).click();
+  await page.getByRole("button", { name: "Enter session" }).click();
+
+  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await page.getByRole("button", { name: "Open inventory" }).click();
+
+  const collapseInventoryButton = page.getByRole("button", { name: "Collapse inventory" });
+  await expect(collapseInventoryButton).toBeVisible();
+  await expect(collapseInventoryButton).toBeInViewport();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const hudLayer = document.querySelector(".game-hud-layer");
+      if (!(hudLayer instanceof HTMLElement)) {
+        return false;
+      }
+
+      return hudLayer.scrollHeight > hudLayer.clientHeight;
+    }),
+  ).toBe(true);
+});
+
 test("landing-to-spawn stays under 10 seconds in healthy local conditions", async ({ page }) => {
   const startedAt = Date.now();
 

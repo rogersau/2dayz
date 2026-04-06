@@ -385,20 +385,6 @@ button {
     padding: 12px;
   }
 
-  .shell-layer::before,
-  .interrupt-layer::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(9, 8, 7, 0.2), rgba(9, 8, 7, 0.56) 42%, rgba(9, 8, 7, 0.74));
-    pointer-events: none;
-  }
-
-  .shell-layer > *,
-  .interrupt-layer > * {
-    position: relative;
-  }
-
   .title-menu {
     padding: 18px;
     background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
@@ -419,7 +405,8 @@ button {
     gap: 12px;
     padding: 12px;
     justify-content: flex-start;
-    overflow: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .survival-hud {
@@ -427,6 +414,7 @@ button {
     width: 100%;
     max-width: none;
     padding: 12px;
+    background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
   }
 
   .hud-module {
@@ -461,6 +449,11 @@ button {
     gap: 10px;
     max-height: min(42dvh, 320px);
     overflow: auto;
+  }
+
+  .controls-card,
+  .death-overlay {
+    background: linear-gradient(180deg, rgba(17, 15, 12, 0.96), rgba(17, 15, 12, 0.9));
   }
 
   .inventory-grid {
