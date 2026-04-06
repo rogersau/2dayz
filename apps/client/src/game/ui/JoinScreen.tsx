@@ -45,7 +45,7 @@ export const JoinScreen = ({
           />
         </label>
         <button className="primary-button" disabled={!canSubmit} type="submit">
-          Ready up
+          Review briefing
         </button>
       </form>
     </section>

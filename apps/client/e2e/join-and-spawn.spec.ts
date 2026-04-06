@@ -5,7 +5,7 @@ test("joins from landing page and reaches the in-game HUD", async ({ page }) => 
 
   await expect(page.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
   await page.getByLabel("Display name").fill("Scout");
-  await page.getByRole("button", { name: "Ready up" }).click();
+  await page.getByRole("button", { name: "Review briefing" }).click();
 
   await expect(page.getByRole("heading", { name: "Field briefing" })).toBeVisible();
   await page.getByRole("button", { name: "Enter session" }).click();
@@ -22,7 +22,7 @@ test("landing-to-spawn stays under 10 seconds in healthy local conditions", asyn
 
   await page.goto("/");
   await page.getByLabel("Display name").fill("Speed Scout");
-  await page.getByRole("button", { name: "Ready up" }).click();
+  await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
   await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
 
