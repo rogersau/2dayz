@@ -37,6 +37,16 @@ export const bootGame = ({
   let previousFrameTime = performance.now();
   const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
 
+  const unsubscribeFromStore = store.subscribe(() => {
+    const isJoined = store.getState().connectionState.phase === "joined";
+
+    if (wasJoined && !isJoined) {
+      inputController.reset();
+    }
+
+    wasJoined = isJoined;
+  });
+
   const sendInput = () => {
     if (isDisposed) {
       return;
@@ -45,14 +55,8 @@ export const bootGame = ({
     const isJoined = store.getState().connectionState.phase === "joined";
 
     if (!isJoined) {
-      if (wasJoined) {
-        inputController.reset();
-      }
-      wasJoined = false;
       return;
     }
-
-    wasJoined = true;
 
     const input = inputController.pollInput(sequence++);
     socketClient.sendInput(input);
@@ -108,6 +112,7 @@ export const bootGame = ({
     window.cancelAnimationFrame(animationFrame);
     window.clearInterval(inputLoop);
     window.removeEventListener("resize", resize);
+    unsubscribeFromStore();
     inputController.destroy();
     entityViewStore.dispose();
     disposeScene();

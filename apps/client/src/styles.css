@@ -11,6 +11,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background:
     radial-gradient(circle at top, rgba(109, 92, 62, 0.28), transparent 40%),
     linear-gradient(180deg, #1f1915 0%, #151311 100%);
@@ -28,6 +29,7 @@ button {
 .app-shell {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
 }
 
@@ -203,6 +205,7 @@ button {
 
 .game-canvas-shell {
   height: 100vh;
+  height: 100dvh;
   background: #0f120e;
 }
 
@@ -210,6 +213,7 @@ button {
   display: block;
   width: 100%;
   height: 100vh;
+  height: 100dvh;
 }
 
 .game-hud-layer {

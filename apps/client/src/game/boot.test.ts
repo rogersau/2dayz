@@ -141,6 +141,7 @@ describe("bootGame", () => {
         playerEntityId: null,
         worldEntities: { loot: [], players: [], zombies: [] },
       }),
+      subscribe: () => () => {},
       toggleInventory: vi.fn(),
     };
 
@@ -189,6 +190,7 @@ describe("bootGame", () => {
           playerEntityId: null,
           worldEntities: { loot: [], players: [], zombies: [] },
         }),
+        subscribe: () => () => {},
       } as never,
     });
 
@@ -219,6 +221,7 @@ describe("bootGame", () => {
           playerEntityId: null,
           worldEntities: { loot: [], players: [], zombies: [] },
         }),
+        subscribe: () => () => {},
       } as never,
     });
 
@@ -241,6 +244,7 @@ describe("bootGame", () => {
         playerEntityId: null,
         worldEntities: { loot: [], players: [], zombies: [] },
       }),
+      subscribe: () => () => {},
       toggleInventory: vi.fn(),
     };
 
@@ -274,8 +278,13 @@ describe("bootGame", () => {
       playerEntityId: "player_survivor",
       worldEntities: { loot: [], players: [], zombies: [] },
     };
+    let storeListener: (() => void) | undefined;
     const store = {
       getState: () => state,
+      subscribe: (listener: () => void) => {
+        storeListener = listener;
+        return () => {};
+      },
       toggleInventory: vi.fn(),
     };
 
@@ -291,13 +300,55 @@ describe("bootGame", () => {
     expect(resetInputControllerMock).not.toHaveBeenCalled();
 
     state.connectionState = { phase: "failed", reason: "internal-error" };
-
-    scheduledInterval?.();
+    storeListener?.();
 
     expect(sendInput).toHaveBeenCalledTimes(1);
     expect(resetInputControllerMock).toHaveBeenCalledTimes(1);
 
     state.connectionState = { phase: "joined" };
+    storeListener?.();
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets held input on a joined-to-non-joined transition even if the client rejoins before the next send tick", () => {
+    const sendInput = vi.fn();
+    const canvas = document.createElement("canvas");
+    const state = {
+      connectionState: { phase: "joined" as const },
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    };
+    const store = {
+      getState: () => state,
+      subscribe: (listener: () => void) => {
+        storeListener = listener;
+        return () => {};
+      },
+      toggleInventory: vi.fn(),
+    };
+    let storeListener: (() => void) | undefined;
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput },
+      store: store as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(resetInputControllerMock).not.toHaveBeenCalled();
+
+    state.connectionState = { phase: "failed", reason: "internal-error" };
+    storeListener?.();
+    state.connectionState = { phase: "joined" };
+    storeListener?.();
+
+    expect(resetInputControllerMock).toHaveBeenCalledTimes(1);
 
     scheduledInterval?.();
 
