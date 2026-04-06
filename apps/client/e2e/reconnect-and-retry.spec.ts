@@ -147,7 +147,7 @@ const joinIntoHud = async (page: import("@playwright/test").Page, displayName: s
   await page.getByLabel("Display name").fill(displayName);
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 };
 
 const readSessionHud = async (page: import("@playwright/test").Page) => {
@@ -199,7 +199,7 @@ test("reconnects inside the reclaim window using the stored session token", asyn
   const sessionBeforeReconnect = await readSessionHud(page);
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 
   await expect.poll(() => readSessionHud(page)).toEqual(sessionBeforeReconnect);
 });
@@ -210,7 +210,7 @@ test("reconnect completes in under 5 seconds during the reclaim window", async (
 
   const startedAt = Date.now();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 
   const reconnectDurationMs = Date.now() - startedAt;
   expect(
@@ -227,7 +227,7 @@ test("does not reuse the reconnect token in a fresh page", async ({ context, pag
   await freshPage.goto("/");
 
   await expect(freshPage.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
-  await expect(freshPage.getByRole("heading", { name: "Session HUD" })).not.toBeVisible();
+  await expect(freshPage.getByLabel("survival hud")).not.toBeVisible();
   await expect(freshPage.getByLabel("Display name")).toHaveValue("Fresh Page Scout");
 });
 

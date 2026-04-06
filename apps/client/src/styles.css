@@ -36,7 +36,9 @@ button {
 .hero-copy h1,
 .join-card h2,
 .controls-card h2,
-.hud-card h2 {
+.hud-card h2,
+.inventory-card h2,
+.death-overlay h2 {
   margin: 0 0 8px;
 }
 
@@ -51,6 +53,7 @@ button {
 .join-card p,
 .banner,
 .hud-card p,
+.inventory-card p,
 .death-overlay p {
   color: #d8d0c4;
 }
@@ -255,6 +258,61 @@ button {
   padding: 16px;
 }
 
+.survival-hud {
+  align-self: stretch;
+  display: grid;
+  gap: 12px;
+  max-width: min(100%, 640px);
+  background: rgba(24, 21, 19, 0.92);
+  backdrop-filter: none;
+}
+
+.hud-primary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hud-module {
+  display: grid;
+  gap: 6px;
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(216, 185, 128, 0.12);
+}
+
+.hud-module-critical {
+  background: rgba(89, 30, 30, 0.34);
+  border-color: rgba(194, 93, 93, 0.35);
+}
+
+.hud-module-label,
+.inventory-kicker,
+.death-overlay-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
+.hud-module-value {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.hud-module-detail,
+.inventory-summary {
+  color: #d8d0c4;
+}
+
+.hud-secondary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .game-hud-layer .hud-card,
 .game-hud-layer .inventory-card,
 .game-hud-layer .death-overlay {
@@ -285,6 +343,22 @@ button {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
+.inventory-card {
+  align-self: flex-end;
+  width: min(100%, 360px);
+  display: grid;
+  gap: 12px;
+  background: rgba(24, 21, 19, 0.9);
+  backdrop-filter: none;
+}
+
+.inventory-panel-header {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
 .inventory-slot {
   border-radius: 14px;
   min-height: 84px;
@@ -300,6 +374,9 @@ button {
   border-color: rgba(194, 93, 93, 0.45);
   pointer-events: auto;
   width: min(100%, 480px);
+  background: linear-gradient(180deg, rgba(58, 14, 14, 0.96), rgba(22, 9, 9, 0.94));
+  text-align: center;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
 }
 
 @media (max-width: 640px) {
@@ -310,5 +387,17 @@ button {
 
   .title-menu {
     padding: 18px;
+  }
+
+  .hud-primary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inventory-panel-header {
+    flex-direction: column;
+  }
+
+  .inventory-card {
+    width: 100%;
   }
 }

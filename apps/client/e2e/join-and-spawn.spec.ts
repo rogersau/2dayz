@@ -10,10 +10,10 @@ test("joins from landing page and reaches the in-game HUD", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Field briefing" })).toBeVisible();
   await page.getByRole("button", { name: "Enter session" }).click();
 
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
-  await expect(page.getByText("Health:")).toBeVisible();
-  await expect(page.getByText("Player:")).toBeVisible();
-  await expect(page.getByText("Room:")).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByText("Health")).toBeVisible();
+  await expect(page.getByText("Ammo")).toBeVisible();
+  await expect(page.getByText(/\d\/\d slots filled/i)).toBeVisible();
   await expect(page.getByLabel("game shell")).toBeVisible();
 });
 
@@ -24,7 +24,7 @@ test("landing-to-spawn stays under 10 seconds in healthy local conditions", asyn
   await page.getByLabel("Display name").fill("Speed Scout");
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 
   const joinDurationMs = Date.now() - startedAt;
   expect(

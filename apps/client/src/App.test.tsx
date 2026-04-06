@@ -160,12 +160,13 @@ describe("App join and reconnect flow", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
+      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByText((content) => content.includes("Health: 86/100"))).toBeInTheDocument();
-    expect(screen.getByText((content) => content.includes("Weapon: weapon_pistol"))).toBeInTheDocument();
-    expect(screen.getByText((content) => content.includes("Ammo: 21"))).toBeInTheDocument();
+    expect(screen.getByText("86/100")).toBeInTheDocument();
+    expect(screen.getByText(/weapon: weapon_pistol/i)).toBeInTheDocument();
+    expect(screen.getByText("21")).toBeInTheDocument();
+    expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
     expect(window.localStorage.getItem("2dayz:display-name")).toBe("Saved Survivor");
   });
 
@@ -244,7 +245,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
+      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
     });
 
     handleConnectionChange?.({ type: "closed", reason: "internal-error" });
@@ -323,7 +324,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
+      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
     });
 
     await act(async () => {
@@ -376,7 +377,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByText((content) => content.includes("Room: room_browser-v1"))).toBeInTheDocument();
+      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
     });
 
     firstRender.unmount();
