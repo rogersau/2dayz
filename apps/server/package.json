@@ -1,0 +1,27 @@
+{
+  "name": "@2dayz/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "prebuild": "pnpm --filter @2dayz/shared build",
+    "build": "tsc -p tsconfig.json",
+    "predev": "pnpm --filter @2dayz/shared build",
+    "dev": "tsx watch src/index.ts",
+    "pretest": "pnpm --filter @2dayz/shared build",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@2dayz/shared": "workspace:*",
+    "ws": "^8.18.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.1",
+    "@types/ws": "^8.5.14",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

@@ -1,0 +1,464 @@
+:root {
+  color: #f2eadc;
+  background: #151311;
+  font-family: Inter, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at top, rgba(109, 92, 62, 0.28), transparent 40%),
+    linear-gradient(180deg, #1f1915 0%, #151311 100%);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.app-shell {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.hero-copy h1,
+.join-card h2,
+.controls-card h2,
+.hud-card h2,
+.inventory-card h2,
+.death-overlay h2 {
+  margin: 0 0 8px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
+.hero-body,
+.join-card p,
+.banner,
+.hud-card p,
+.inventory-card p,
+.death-overlay p {
+  color: #d8d0c4;
+}
+
+.join-kicker {
+  margin: 0 0 10px;
+  font-size: 0.76rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
+.join-card,
+.controls-card,
+.hud-card,
+.inventory-card,
+.banner,
+.death-overlay {
+  border-radius: 16px;
+  border: 1px solid rgba(200, 179, 138, 0.16);
+  background: rgba(33, 28, 24, 0.88);
+  padding: 16px;
+}
+
+.join-card,
+.controls-card,
+.banner,
+.death-overlay {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.join-card,
+.controls-card,
+.hud-card,
+.inventory-card,
+.banner,
+.death-overlay {
+  backdrop-filter: blur(18px);
+}
+
+.scene-layer,
+.shell-layer,
+.interrupt-layer,
+.game-shell,
+.game-hud-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-layer {
+  z-index: 0;
+}
+
+.shell-layer,
+.interrupt-layer {
+  pointer-events: none;
+}
+
+.shell-layer {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+}
+
+.interrupt-layer {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.interrupt-card {
+  pointer-events: auto;
+}
+
+.title-menu {
+  pointer-events: auto;
+  width: min(100%, 720px);
+  margin-top: auto;
+  background: linear-gradient(180deg, rgba(19, 16, 12, 0.9), rgba(19, 16, 12, 0.76));
+  border: 1px solid rgba(200, 179, 138, 0.24);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+}
+
+.title-menu .join-card {
+  margin-top: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.banner {
+  pointer-events: auto;
+  align-self: flex-end;
+  width: min(100%, 420px);
+  border-top-right-radius: 0;
+  border-right: 0;
+  background: rgba(33, 28, 24, 0.94);
+}
+
+.join-form {
+  display: grid;
+  gap: 12px;
+}
+
+.join-form label,
+.controls-card ul,
+.inventory-grid,
+.ammo-list {
+  display: grid;
+  gap: 8px;
+}
+
+.join-form input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: #120f0d;
+  color: inherit;
+}
+
+.primary-button,
+.secondary-button {
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 0;
+}
+
+.primary-button {
+  background: #d8b980;
+  color: #18120d;
+}
+
+.primary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.secondary-button {
+  background: rgba(216, 185, 128, 0.14);
+  color: inherit;
+}
+
+.banner {
+  display: grid;
+  gap: 12px;
+}
+
+.controls-card {
+  width: min(100%, 460px);
+}
+
+.controls-card p {
+  margin: 0 0 12px;
+}
+
+.controls-card ul {
+  margin: 0 0 16px;
+  padding-left: 18px;
+}
+
+.banner-error {
+  border-color: rgba(194, 93, 93, 0.45);
+}
+
+.banner-info {
+  border-color: rgba(111, 151, 214, 0.4);
+}
+
+.game-shell {
+  pointer-events: none;
+}
+
+.game-canvas-shell {
+  height: 100vh;
+  height: 100dvh;
+  background: #0f120e;
+}
+
+.game-canvas {
+  display: block;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.game-hud-layer {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+  padding: 16px;
+}
+
+.survival-hud {
+  align-self: stretch;
+  display: grid;
+  gap: 12px;
+  max-width: min(100%, 640px);
+  background: rgba(24, 21, 19, 0.92);
+  backdrop-filter: none;
+}
+
+.hud-primary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.hud-module {
+  display: grid;
+  gap: 6px;
+  border-radius: 14px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(216, 185, 128, 0.12);
+}
+
+.hud-module-critical {
+  background: rgba(89, 30, 30, 0.34);
+  border-color: rgba(194, 93, 93, 0.35);
+}
+
+.hud-module-label,
+.inventory-kicker,
+.death-overlay-kicker {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
+.hud-module-value {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+
+.hud-module-detail,
+.inventory-summary {
+  color: #d8d0c4;
+}
+
+.hud-secondary-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.game-hud-layer .hud-card,
+.game-hud-layer .inventory-card,
+.game-hud-layer .death-overlay {
+  pointer-events: auto;
+}
+
+.game-runtime-error {
+  margin: 0;
+  padding: 12px 16px;
+  color: #d8d0c4;
+}
+
+.status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.status-pill,
+.inventory-slot,
+.ammo-pill {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.inventory-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.inventory-card {
+  align-self: flex-end;
+  width: min(100%, 360px);
+  display: grid;
+  gap: 12px;
+  background: rgba(24, 21, 19, 0.9);
+  backdrop-filter: none;
+}
+
+.inventory-panel-header {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.inventory-slot {
+  border-radius: 14px;
+  min-height: 84px;
+}
+
+.inventory-slot strong,
+.ammo-pill strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
+.death-overlay {
+  border-color: rgba(194, 93, 93, 0.45);
+  pointer-events: auto;
+  width: min(100%, 480px);
+  background: linear-gradient(180deg, rgba(58, 14, 14, 0.96), rgba(22, 9, 9, 0.94));
+  text-align: center;
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.55);
+}
+
+@media (max-width: 640px) {
+  .shell-layer,
+  .interrupt-layer {
+    padding: 12px;
+  }
+
+  .title-menu {
+    padding: 18px;
+    background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
+  }
+
+  .banner {
+    align-self: stretch;
+    width: 100%;
+    border-radius: 16px;
+    border-right: 1px solid rgba(200, 179, 138, 0.16);
+  }
+
+  .hud-primary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-hud-layer {
+    gap: 12px;
+    padding: 12px;
+    justify-content: flex-start;
+  }
+
+  .survival-hud {
+    pointer-events: auto;
+    gap: 10px;
+    width: 100%;
+    max-width: none;
+    max-height: calc(100dvh - 24px);
+    padding: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
+  }
+
+  .hud-module {
+    padding: 12px;
+  }
+
+  .hud-module-value {
+    font-size: 1.3rem;
+  }
+
+  .status-row,
+  .hud-secondary-strip {
+    gap: 8px;
+  }
+
+  .status-pill,
+  .ammo-pill,
+  .inventory-slot,
+  .primary-button,
+  .secondary-button,
+  .join-form input {
+    max-width: 100%;
+  }
+
+  .inventory-panel-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .inventory-card {
+    width: 100%;
+    gap: 10px;
+    max-height: min(42dvh, 320px);
+    overflow: auto;
+  }
+
+  .controls-card,
+  .death-overlay {
+    background: linear-gradient(180deg, rgba(17, 15, 12, 0.96), rgba(17, 15, 12, 0.9));
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  }
+}
