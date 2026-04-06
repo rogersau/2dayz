@@ -10,6 +10,39 @@ test.use({
   },
 });
 
+type FrameStats = {
+  average: number;
+  p90: number;
+};
+
+const measureFrameStats = async (page: import("@playwright/test").Page) => {
+  return await page.evaluate(async (): Promise<FrameStats> => {
+    return await new Promise<FrameStats>((resolve) => {
+      const samples: number[] = [];
+      let previousTimestamp = performance.now();
+
+      const collectSample = (timestamp: number) => {
+        samples.push(timestamp - previousTimestamp);
+        previousTimestamp = timestamp;
+
+        if (samples.length >= 120) {
+          const sortedSamples = [...samples].sort((left, right) => left - right);
+          const total = samples.reduce((sum, sample) => sum + sample, 0);
+          resolve({
+            average: total / samples.length,
+            p90: sortedSamples[Math.floor(sortedSamples.length * 0.9)] ?? Number.POSITIVE_INFINITY,
+          });
+          return;
+        }
+
+        window.requestAnimationFrame(collectSample);
+      };
+
+      window.requestAnimationFrame(collectSample);
+    });
+  });
+};
+
 test("reports when average frame time misses the 60 fps local target", async ({ page }) => {
   await page.bringToFront();
   await page.goto("/");
@@ -17,39 +50,26 @@ test("reports when average frame time misses the 60 fps local target", async ({ 
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
   await expect(page.getByLabel("survival hud")).toBeVisible();
-  let averageFrameTimeMs = Number.POSITIVE_INFINITY;
+  let frameStats: FrameStats = {
+    average: Number.POSITIVE_INFINITY,
+    p90: Number.POSITIVE_INFINITY,
+  };
 
   await expect.poll(async () => {
-    averageFrameTimeMs = await page.evaluate(async () => {
-      return await new Promise<number>((resolve) => {
-        const samples: number[] = [];
-        let previousTimestamp = performance.now();
+    frameStats = await measureFrameStats(page);
 
-        const collectSample = (timestamp: number) => {
-          samples.push(timestamp - previousTimestamp);
-          previousTimestamp = timestamp;
-
-          if (samples.length >= 60) {
-            const total = samples.reduce((sum, sample) => sum + sample, 0);
-            resolve(total / samples.length);
-            return;
-          }
-
-          window.requestAnimationFrame(collectSample);
-        };
-
-        window.requestAnimationFrame(collectSample);
-      });
-    });
-
-    return averageFrameTimeMs;
+    return frameStats.average <= 16.67 && frameStats.p90 <= 20;
   }, {
-    message: "Average frame time never settled under the 60 fps local target.",
+    message: "Frame pacing never settled under the 60 fps local target.",
     timeout: 20_000,
-  }).toBeLessThanOrEqual(16.67);
+  }).toBe(true);
 
   expect(
-    averageFrameTimeMs,
-    `Average frame time ${averageFrameTimeMs.toFixed(2)}ms exceeded 16.67ms (60 fps target).`,
+    frameStats.average,
+    `Average frame time ${frameStats.average.toFixed(2)}ms exceeded 16.67ms (60 fps target).`,
   ).toBeLessThanOrEqual(16.67);
+  expect(
+    frameStats.p90,
+    `90th percentile frame time ${frameStats.p90.toFixed(2)}ms exceeded the 20ms steady-state budget.`,
+  ).toBeLessThanOrEqual(20);
 });

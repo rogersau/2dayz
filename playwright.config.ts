@@ -7,7 +7,6 @@ const baseURL = `http://127.0.0.1:${serverPort}`;
 export default defineConfig({
   testDir: "./apps/client/e2e",
   timeout: 30_000,
-  workers: 1,
   expect: {
     timeout: 10_000,
   },
