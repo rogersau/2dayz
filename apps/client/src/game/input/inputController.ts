@@ -25,11 +25,15 @@ export const createInputController = ({
 
   const clearLatchedState = () => {
     pressedKeys.clear();
-    aim.x = 0;
-    aim.y = 0;
     isFiring = false;
     queuedActions.interact = false;
     queuedActions.reload = false;
+  };
+
+  const clearDisabledState = () => {
+    clearLatchedState();
+    aim.x = 0;
+    aim.y = 0;
   };
 
   const updateAim = (event: MouseEvent) => {
@@ -43,7 +47,7 @@ export const createInputController = ({
 
   const canCaptureInput = () => {
     if (isEnabled?.() === false) {
-      clearLatchedState();
+      clearDisabledState();
       return false;
     }
 

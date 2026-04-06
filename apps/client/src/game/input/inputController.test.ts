@@ -174,7 +174,7 @@ describe("inputController", () => {
 
     expect(controller.pollInput(1)).toEqual({
       actions: {},
-      aim: { x: 0, y: 0 },
+      aim: { x: 60, y: 0 },
       movement: { x: 0, y: 0 },
       sequence: 1,
       type: "input",
@@ -192,7 +192,7 @@ describe("inputController", () => {
 
     expect(controller.pollInput(2)).toEqual({
       actions: {},
-      aim: { x: 0, y: 0 },
+      aim: { x: 60, y: 0 },
       movement: { x: 0, y: 0 },
       sequence: 2,
       type: "input",
