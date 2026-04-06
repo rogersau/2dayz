@@ -8,6 +8,7 @@ type InventoryPanelProps = {
 
 export const InventoryPanel = ({ inventory, isOpen, onToggle }: InventoryPanelProps) => {
   const occupiedSlots = inventory.slots.filter((slot) => slot !== null).length;
+  const panelContentId = "inventory-panel-content";
 
   return (
     <section className="inventory-card">
@@ -18,6 +19,7 @@ export const InventoryPanel = ({ inventory, isOpen, onToggle }: InventoryPanelPr
           <p className="inventory-summary">{occupiedSlots}/{inventory.slots.length} slots carrying supplies</p>
         </div>
         <button
+          aria-controls={panelContentId}
           aria-expanded={isOpen}
           className="secondary-button"
           onClick={onToggle}
@@ -28,7 +30,7 @@ export const InventoryPanel = ({ inventory, isOpen, onToggle }: InventoryPanelPr
       </div>
 
       {isOpen ? (
-        <>
+        <div data-testid={panelContentId} id={panelContentId}>
           <div className="inventory-grid">
             {inventory.slots.map((slot, index) => (
               <article className="inventory-slot" key={index}>
@@ -42,7 +44,7 @@ export const InventoryPanel = ({ inventory, isOpen, onToggle }: InventoryPanelPr
               <div className="ammo-pill" key={stack.ammoItemId}>{`${stack.ammoItemId}: ${stack.quantity}`}</div>
             ))}
           </div>
-        </>
+        </div>
       ) : null}
     </section>
   );

@@ -40,10 +40,16 @@ describe("InventoryPanel", () => {
     render(<InventoryHarness />);
 
     const toggleButton = screen.getByRole("button", { name: /inventory/i });
+    expect(toggleButton).toHaveAttribute("aria-controls", "inventory-panel-content");
     expect(screen.queryByText(/slot 1/i)).not.toBeInTheDocument();
 
     fireEvent.click(toggleButton);
 
+    expect(screen.getByRole("button", { name: /collapse inventory/i })).toHaveAttribute(
+      "aria-controls",
+      "inventory-panel-content",
+    );
+    expect(screen.getByTestId("inventory-panel-content")).toBeInTheDocument();
     expect(screen.getByText(/slot 1/i)).toBeInTheDocument();
     expect(screen.getByText(/weapon_rifle x1/i)).toBeInTheDocument();
     expect(screen.getByText(/bandage x2/i)).toBeInTheDocument();
