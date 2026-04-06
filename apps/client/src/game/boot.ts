@@ -32,6 +32,7 @@ export const bootGame = ({
   let animationFrame = 0;
   let isDisposed = false;
   let inputLoop = 0;
+  let wasJoined = store.getState().connectionState.phase === "joined";
   let sequence = 0;
   let previousFrameTime = performance.now();
   const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
@@ -41,9 +42,17 @@ export const bootGame = ({
       return;
     }
 
-    if (store.getState().connectionState.phase !== "joined") {
+    const isJoined = store.getState().connectionState.phase === "joined";
+
+    if (!isJoined) {
+      if (wasJoined) {
+        inputController.reset();
+      }
+      wasJoined = false;
       return;
     }
+
+    wasJoined = true;
 
     const input = inputController.pollInput(sequence++);
     socketClient.sendInput(input);

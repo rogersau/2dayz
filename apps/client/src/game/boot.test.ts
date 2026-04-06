@@ -5,6 +5,7 @@ const {
   createInputControllerMock,
   clearIntervalMock,
   destroyInputControllerMock,
+  resetInputControllerMock,
   entityViewDisposeMock,
   predictionApplyInputMock,
   predictionAdvanceSmoothingMock,
@@ -22,6 +23,7 @@ const {
   createInputControllerMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
+  resetInputControllerMock: vi.fn(),
   entityViewDisposeMock: vi.fn(),
   predictionApplyInputMock: vi.fn(),
   predictionAdvanceSmoothingMock: vi.fn(),
@@ -62,6 +64,7 @@ vi.mock("./input/inputController", () => ({
     return {
       destroy: destroyInputControllerMock,
       pollInput: pollInputMock,
+      reset: resetInputControllerMock,
     };
   },
 }));
@@ -179,7 +182,14 @@ describe("bootGame", () => {
     const dispose = bootGame({
       canvas,
       socketClient: { sendInput: vi.fn() },
-      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+      store: {
+        getState: () => ({
+          connectionState: { phase: "idle" },
+          latestTick: 0,
+          playerEntityId: null,
+          worldEntities: { loot: [], players: [], zombies: [] },
+        }),
+      } as never,
     });
 
     dispose();
@@ -253,5 +263,44 @@ describe("bootGame", () => {
     });
 
     expect(isEnabled()).toBe(true);
+  });
+
+  it("resets held input when the connection leaves joined so reconnect cannot replay stale input", () => {
+    const sendInput = vi.fn();
+    const canvas = document.createElement("canvas");
+    const state = {
+      connectionState: { phase: "joined" as const },
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    };
+    const store = {
+      getState: () => state,
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput },
+      store: store as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(resetInputControllerMock).not.toHaveBeenCalled();
+
+    state.connectionState = { phase: "failed", reason: "internal-error" };
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(resetInputControllerMock).toHaveBeenCalledTimes(1);
+
+    state.connectionState = { phase: "joined" };
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(2);
   });
 });

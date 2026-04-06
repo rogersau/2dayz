@@ -144,6 +144,9 @@ export const createInputController = ({
       element.removeEventListener("mouseup", handleMouseUp);
       element.removeEventListener("mouseleave", handleMouseUp);
     },
+    reset() {
+      clearDisabledState();
+    },
     pollInput(sequence: number) {
       if (!canCaptureInput()) {
         return inputMessageSchema.parse({
