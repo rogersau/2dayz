@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import { ControlsOverlay } from "./ControlsOverlay";
 
 describe("ControlsOverlay", () => {
-  it("shows the first-join controls list, continues the pending join, and remembers dismissal for the current browser session", () => {
+  it("shows the first-join field briefing, continues the pending join, and remembers dismissal for the current browser session", () => {
     const onContinue = vi.fn();
 
     const firstRender = render(<ControlsOverlay onContinue={onContinue} />);
 
-    expect(screen.getByRole("heading", { name: /before you drop in/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /field briefing/i })).toBeInTheDocument();
     expect(screen.getByText(/wasd move/i)).toBeInTheDocument();
     expect(screen.getByText(/mouse aim/i)).toBeInTheDocument();
     expect(screen.getByText(/click shoot/i)).toBeInTheDocument();
@@ -18,13 +18,13 @@ describe("ControlsOverlay", () => {
     expect(screen.getByText(/r reload/i)).toBeInTheDocument();
     expect(screen.getByText(/tab inventory/i)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     expect(onContinue).toHaveBeenCalledTimes(1);
 
     firstRender.unmount();
     render(<ControlsOverlay onContinue={onContinue} />);
 
-    expect(screen.queryByRole("heading", { name: /before you drop in/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /field briefing/i })).not.toBeInTheDocument();
   });
 });
