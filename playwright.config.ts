@@ -1,48 +1,33 @@
 import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 import { defineConfig } from "@playwright/test";
 
 const requestedClientPort = Number(process.env.CLIENT_PORT ?? 3200);
 const requestedServerPort = Number(process.env.PORT ?? 3201);
 
-const findOpenPort = (startPort: number, blockedPorts: Set<number>) => {
-  const blockedPortList = [...blockedPorts].join(",");
-  const script = `
-const net = require("node:net");
+const listListeningPorts = () => {
+  const output = execFileSync("ss", ["-H", "-ltn"], { encoding: "utf8" });
+  const ports = new Set<number>();
 
-const startPort = Number(process.argv[1]);
-const blockedPorts = new Set((process.argv[2] || "").split(",").filter(Boolean).map(Number));
+  for (const line of output.split("\n")) {
+    const columns = line.trim().split(/\s+/);
+    const localAddress = columns[3];
 
-const tryPort = (port) => {
-  if (port >= startPort + 50) {
-    process.exit(1);
+    if (!localAddress) {
+      continue;
+    }
+
+    const port = Number(localAddress.slice(localAddress.lastIndexOf(":") + 1));
+
+    if (Number.isFinite(port)) {
+      ports.add(port);
+    }
   }
 
-  if (blockedPorts.has(port)) {
-    tryPort(port + 1);
-    return;
-  }
-
-  const server = net.createServer();
-  server.unref();
-  server.once("error", () => tryPort(port + 1));
-  server.listen({ host: "127.0.0.1", port }, () => {
-    server.close(() => process.stdout.write(String(port)));
-  });
-};
-
-tryPort(startPort);
-`;
-
-  const result = execFileSync(process.execPath, ["-e", script, String(startPort), blockedPortList], {
-    encoding: "utf8",
-  }).trim();
-
-  if (!result) {
-    throw new Error(`No open local port found starting at ${startPort}.`);
-  }
-
-  return Number(result);
+  return ports;
 };
 
 const resolvePortPair = () => {
@@ -54,24 +39,51 @@ const resolvePortPair = () => {
   }
 
   if (process.env.CLIENT_PORT) {
-    return {
-      clientPort: requestedClientPort,
-      serverPort: findOpenPort(requestedServerPort, new Set([requestedClientPort])),
-    };
+    const listeningPorts = listListeningPorts();
+
+    for (let candidate = requestedServerPort; candidate < requestedServerPort + 50; candidate += 1) {
+      if (candidate !== requestedClientPort && !listeningPorts.has(candidate)) {
+        return {
+          clientPort: requestedClientPort,
+          serverPort: candidate,
+        };
+      }
+    }
+
+    throw new Error("No open server port available for Playwright.");
   }
 
   if (process.env.PORT) {
+    const listeningPorts = listListeningPorts();
+
+    for (let candidate = requestedClientPort; candidate < requestedClientPort + 50; candidate += 1) {
+      if (candidate !== requestedServerPort && !listeningPorts.has(candidate)) {
+        return {
+          clientPort: candidate,
+          serverPort: requestedServerPort,
+        };
+      }
+    }
+
+    throw new Error("No open client port available for Playwright.");
+  }
+
+  const listeningPorts = listListeningPorts();
+
+  if (!listeningPorts.has(requestedClientPort) && !listeningPorts.has(requestedServerPort)) {
     return {
-      clientPort: findOpenPort(requestedClientPort, new Set([requestedServerPort])),
+      clientPort: requestedClientPort,
       serverPort: requestedServerPort,
     };
   }
 
-  for (let clientStart = requestedClientPort; clientStart < requestedClientPort + 50; clientStart += 2) {
-    const clientPort = findOpenPort(clientStart, new Set());
-    const serverPort = findOpenPort(requestedServerPort, new Set([clientPort]));
+  const fallbackBase = 43_000 + ((process.ppid % 1000) * 2);
 
-    if (serverPort !== clientPort) {
+  for (let offset = 0; offset < 100; offset += 2) {
+    const clientPort = fallbackBase + offset;
+    const serverPort = clientPort + 1;
+
+    if (!listeningPorts.has(clientPort) && !listeningPorts.has(serverPort)) {
       return { clientPort, serverPort };
     }
   }
@@ -79,8 +91,32 @@ const resolvePortPair = () => {
   throw new Error("No open client/server port pair available.");
 };
 
-const resolvedPorts = resolvePortPair();
+const portsStateFile = process.env._2DAYZ_PLAYWRIGHT_PORTS_FILE
+  ?? join(tmpdir(), `2dayz-playwright-ports-${process.pid}.json`);
 
+const resolvedPorts = (() => {
+  if (process.env.CLIENT_PORT && process.env.PORT) {
+    return {
+      clientPort: Number(process.env.CLIENT_PORT),
+      serverPort: Number(process.env.PORT),
+    };
+  }
+
+  if (existsSync(portsStateFile)) {
+    const parsed = JSON.parse(readFileSync(portsStateFile, "utf8")) as {
+      clientPort: number;
+      serverPort: number;
+    };
+
+    return parsed;
+  }
+
+  const ports = resolvePortPair();
+  writeFileSync(portsStateFile, JSON.stringify(ports), "utf8");
+  return ports;
+})();
+
+process.env._2DAYZ_PLAYWRIGHT_PORTS_FILE = portsStateFile;
 process.env.CLIENT_PORT ??= String(resolvedPorts.clientPort);
 process.env.PORT ??= String(resolvedPorts.serverPort);
 
