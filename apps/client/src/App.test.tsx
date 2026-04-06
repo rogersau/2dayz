@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
 import { SocketClientError } from "./game/net/socketClient";
+import "./styles.css";
 
 const joinMock = vi.fn();
 const protocolSubscribeMock = vi.fn();
@@ -99,6 +100,20 @@ describe("App join and reconnect flow", () => {
     await waitFor(() => {
       expect(joinMock).toHaveBeenCalledWith({ displayName: "Survivor" });
     });
+  });
+
+  it("keeps the controls step interactive inside the interrupt layer", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+    const controlsCard = screen.getByRole("heading", { name: /before you drop in/i }).closest("section");
+
+    expect(controlsCard).not.toBeNull();
+    expect(controlsCard).toHaveClass("interrupt-card");
   });
 
   it("persists the display name and session token locally and reconnects with the saved display name", async () => {

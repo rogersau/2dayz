@@ -115,6 +115,10 @@ button {
   padding: 24px;
 }
 
+.interrupt-card {
+  pointer-events: auto;
+}
+
 .title-menu {
   pointer-events: auto;
   width: min(100%, 720px);

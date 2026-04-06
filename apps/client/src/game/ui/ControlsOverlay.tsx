@@ -22,7 +22,7 @@ export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
   }
 
   return (
-    <section className="controls-card">
+    <section className="controls-card interrupt-card">
       <h2>Before you drop in</h2>
       <ul>
         <li>WASD move</li>
