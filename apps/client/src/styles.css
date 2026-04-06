@@ -26,19 +26,9 @@ button {
 }
 
 .app-shell {
+  position: relative;
   min-height: 100vh;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-}
-
-.app-panel {
-  width: min(100%, 720px);
-  background: rgba(18, 15, 12, 0.92);
-  border: 1px solid rgba(200, 179, 138, 0.24);
-  border-radius: 20px;
-  padding: 24px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
 }
 
 .hero-copy h1,
@@ -69,11 +59,81 @@ button {
 .inventory-card,
 .banner,
 .death-overlay {
-  margin-top: 20px;
   border-radius: 16px;
   border: 1px solid rgba(200, 179, 138, 0.16);
   background: rgba(33, 28, 24, 0.88);
   padding: 16px;
+}
+
+.join-card,
+.controls-card,
+.banner,
+.death-overlay {
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.join-card,
+.controls-card,
+.hud-card,
+.inventory-card,
+.banner,
+.death-overlay {
+  backdrop-filter: blur(18px);
+}
+
+.scene-layer,
+.shell-layer,
+.interrupt-layer,
+.game-shell,
+.game-hud-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-layer {
+  z-index: 0;
+}
+
+.shell-layer,
+.interrupt-layer {
+  pointer-events: none;
+}
+
+.shell-layer {
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+}
+
+.interrupt-layer {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.title-menu {
+  pointer-events: auto;
+  width: min(100%, 720px);
+  margin-top: auto;
+  background: rgba(18, 15, 12, 0.92);
+  border: 1px solid rgba(200, 179, 138, 0.24);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(18px);
+}
+
+.title-menu .join-card {
+  margin-top: 20px;
+}
+
+.banner {
+  pointer-events: auto;
+  align-self: flex-start;
 }
 
 .join-form {
@@ -134,32 +194,21 @@ button {
 }
 
 .game-shell {
-  display: grid;
-  gap: 16px;
-}
-
-.game-stage {
-  position: relative;
-  min-height: 520px;
+  pointer-events: none;
 }
 
 .game-canvas-shell {
-  min-height: 520px;
-  border-radius: 18px;
-  overflow: hidden;
-  border: 1px solid rgba(200, 179, 138, 0.16);
+  height: 100vh;
   background: #0f120e;
 }
 
 .game-canvas {
   display: block;
   width: 100%;
-  height: 520px;
+  height: 100vh;
 }
 
 .game-hud-layer {
-  position: absolute;
-  inset: 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -210,21 +259,17 @@ button {
 
 .death-overlay {
   border-color: rgba(194, 93, 93, 0.45);
+  pointer-events: auto;
+  width: min(100%, 480px);
 }
 
 @media (max-width: 640px) {
-  .app-shell {
+  .shell-layer,
+  .interrupt-layer {
     padding: 12px;
   }
 
-  .app-panel {
+  .title-menu {
     padding: 18px;
-  }
-
-  .game-stage,
-  .game-canvas-shell,
-  .game-canvas {
-    min-height: 360px;
-    height: 360px;
   }
 }

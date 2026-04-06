@@ -14,7 +14,7 @@ const subscribeToConnectionMock = vi.fn();
 const closeMock = vi.fn();
 
 vi.mock("./game/GameCanvas", () => ({
-  GameCanvas: () => <div aria-label="game canvas">mock game canvas</div>,
+  GameCanvas: () => <div aria-label="game world">mock game canvas</div>,
 }));
 
 vi.mock("./game/net/socketClient", () => {
@@ -71,6 +71,15 @@ describe("App join and reconnect flow", () => {
       return () => {};
     });
     protocolDrainWorldUpdatesMock.mockReturnValue({ deltas: [], snapshot: null });
+  });
+
+  it("shows the title menu over the live scene before join", () => {
+    render(<App />);
+
+    expect(screen.getByLabelText(/game world/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/title menu/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
+    expect(joinMock).not.toHaveBeenCalled();
   });
 
   it("gates the first join attempt behind the controls card and only joins after continue", async () => {
@@ -143,6 +152,21 @@ describe("App join and reconnect flow", () => {
     expect(screen.getByText((content) => content.includes("Weapon: weapon_pistol"))).toBeInTheDocument();
     expect(screen.getByText((content) => content.includes("Ammo: 21"))).toBeInTheDocument();
     expect(window.localStorage.getItem("2dayz:display-name")).toBe("Saved Survivor");
+  });
+
+  it("clears legacy localStorage reconnect tokens before attempting reconnect", async () => {
+    window.localStorage.setItem("2dayz:display-name", "Saved Survivor");
+    window.localStorage.setItem("2dayz:session-token", "session_legacy");
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(reconnectMock).not.toHaveBeenCalled();
+    });
+
+    expect(window.localStorage.getItem("2dayz:session-token")).toBeNull();
+    expect(screen.getByRole("heading", { name: /join a live session/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/display name/i)).toHaveValue("Saved Survivor");
   });
 
   it("retries reconnect briefly when the server still reports not-disconnected", async () => {
