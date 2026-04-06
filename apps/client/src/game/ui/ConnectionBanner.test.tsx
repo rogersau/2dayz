@@ -14,9 +14,10 @@ describe("ConnectionBanner", () => {
       />,
     );
 
-    expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/could not join the session/i);
     fireEvent.click(screen.getByRole("button", { name: /retry join/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole("alert")).not.toContainElement(screen.getByRole("button", { name: /retry join/i }));
 
     rerender(
       <ConnectionBanner
@@ -25,7 +26,7 @@ describe("ConnectionBanner", () => {
       />,
     );
 
-    expect(screen.getByText(/reconnecting to your session/i)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/reconnecting to your session/i);
 
     rerender(
       <ConnectionBanner
@@ -34,7 +35,8 @@ describe("ConnectionBanner", () => {
       />,
     );
 
-    expect(screen.getByText(/the room was unavailable or unhealthy/i)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/the room was unavailable or unhealthy/i);
     expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
+    expect(screen.getByRole("alert")).not.toContainElement(screen.getByRole("button", { name: /retry join/i }));
   });
 });

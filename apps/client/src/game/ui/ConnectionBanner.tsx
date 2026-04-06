@@ -38,8 +38,8 @@ export const ConnectionBanner = ({ connectionState, onRetry }: ConnectionBannerP
   }
 
   return (
-    <section aria-live="assertive" className="banner banner-error" role="alert">
-      <p>{getFailureMessage(connectionState.reason)}</p>
+    <section className="banner banner-error">
+      <p aria-live="assertive" role="alert">{getFailureMessage(connectionState.reason)}</p>
       <button className="secondary-button" onClick={onRetry} type="button">
         Retry join
       </button>
