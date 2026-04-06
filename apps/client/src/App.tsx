@@ -247,7 +247,7 @@ export const App = () => {
 
       <div className="interrupt-layer">
         {!isConnected && showControlsStep ? <ControlsOverlay onContinue={handleControlsContinue} /> : null}
-        <DeathOverlay isVisible={state.isDead} />
+        <DeathOverlay isVisible={isConnected && state.isDead} />
       </div>
     </main>
   );

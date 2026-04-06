@@ -240,6 +240,58 @@ describe("App join and reconnect flow", () => {
     expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
   });
 
+  it("hides the death overlay after a dead player disconnects out of the joined shell", async () => {
+    let handleConnectionChange: ((state: { type: "closed"; reason: string } | { type: "open" }) => void) | undefined;
+    subscribeToConnectionMock.mockImplementation((listener: typeof handleConnectionChange) => {
+      handleConnectionChange = listener;
+      return () => {};
+    });
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Dead Survivor",
+            entityId: "player_survivor",
+            health: { current: 0, isDead: true, max: 100 },
+            inventory: {
+              ammoStacks: [],
+              equippedWeaponSlot: null,
+              slots: [null, null, null, null, null, null],
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    fireEvent.click(screen.getByRole("button", { name: /continue to session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: /you died/i })).toBeInTheDocument();
+    });
+
+    handleConnectionChange?.({ type: "closed", reason: "internal-error" });
+
+    await waitFor(() => {
+      expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("heading", { name: /you died/i })).not.toBeInTheDocument();
+  });
+
   it("handles a socket close emitted immediately after join completion", async () => {
     let handleConnectionChange: ((state: { type: "closed"; reason: string } | { type: "open" }) => void) | undefined;
     subscribeToConnectionMock.mockImplementation((listener: typeof handleConnectionChange) => {
