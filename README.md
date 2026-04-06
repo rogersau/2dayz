@@ -5,9 +5,10 @@ Install dependencies with `pnpm install`.
 Local run steps:
 
 1. Install dependencies: `pnpm install`
-2. Start the browser client: `pnpm dev:client`
-3. Start the game server: `pnpm dev:server`
-4. Open `http://127.0.0.1:3201`, enter a display name, accept the controls overlay, and wait for the in-game HUD.
+2. Start everything together: `pnpm dev`
+3. The client browser opens automatically at `http://127.0.0.1:3200`
+4. The game server runs on `http://127.0.0.1:3201`
+5. Enter a display name, accept the controls overlay, and wait for the in-game HUD.
 
 Verification commands:
 

@@ -8,9 +8,11 @@ const isMatchingKey = (eventKey: string, keys: readonly string[]) => {
 
 export const createInputController = ({
   element,
+  isEnabled,
   onToggleInventory,
 }: {
   element: HTMLElement;
+  isEnabled?: () => boolean;
   onToggleInventory?: () => void;
 }) => {
   const pressedKeys = new Set<string>();
@@ -28,6 +30,12 @@ export const createInputController = ({
     queuedActions.reload = false;
   };
 
+  const clearDisabledState = () => {
+    clearLatchedState();
+    aim.x = 0;
+    aim.y = 0;
+  };
+
   const updateAim = (event: MouseEvent) => {
     const bounds = element.getBoundingClientRect();
     const centerX = bounds.left + bounds.width / 2;
@@ -37,7 +45,20 @@ export const createInputController = ({
     aim.y = centerY - event.clientY;
   };
 
+  const canCaptureInput = () => {
+    if (isEnabled?.() === false) {
+      clearDisabledState();
+      return false;
+    }
+
+    return true;
+  };
+
   const handleKeyDown = (event: KeyboardEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     const key = event.key.toLowerCase();
 
     if (isMatchingKey(key, ACTION_KEYS.inventory)) {
@@ -60,10 +81,18 @@ export const createInputController = ({
   };
 
   const handleKeyUp = (event: KeyboardEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     pressedKeys.delete(event.key.toLowerCase());
   };
 
   const handleMouseDown = (event: MouseEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     updateAim(event);
     if (event.button === 0) {
       isFiring = true;
@@ -71,6 +100,10 @@ export const createInputController = ({
   };
 
   const handleMouseUp = (event: MouseEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     updateAim(event);
     if (event.button === 0) {
       isFiring = false;
@@ -83,11 +116,19 @@ export const createInputController = ({
     }
   };
 
+  const handleMouseMove = (event: MouseEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
+    updateAim(event);
+  };
+
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
   window.addEventListener("blur", clearLatchedState);
   document.addEventListener("visibilitychange", handleVisibilityChange);
-  element.addEventListener("mousemove", updateAim);
+  element.addEventListener("mousemove", handleMouseMove);
   element.addEventListener("mousedown", handleMouseDown);
   element.addEventListener("mouseup", handleMouseUp);
   element.addEventListener("mouseleave", handleMouseUp);
@@ -98,12 +139,25 @@ export const createInputController = ({
       window.removeEventListener("keyup", handleKeyUp);
       window.removeEventListener("blur", clearLatchedState);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      element.removeEventListener("mousemove", updateAim);
+      element.removeEventListener("mousemove", handleMouseMove);
       element.removeEventListener("mousedown", handleMouseDown);
       element.removeEventListener("mouseup", handleMouseUp);
       element.removeEventListener("mouseleave", handleMouseUp);
     },
+    reset() {
+      clearDisabledState();
+    },
     pollInput(sequence: number) {
+      if (!canCaptureInput()) {
+        return inputMessageSchema.parse({
+          actions: {},
+          aim,
+          movement: { x: 0, y: 0 },
+          sequence,
+          type: "input",
+        });
+      }
+
       const movement = {
         x: (MOVEMENT_KEYS.right.some((key) => pressedKeys.has(key)) ? 1 : 0)
           - (MOVEMENT_KEYS.left.some((key) => pressedKeys.has(key)) ? 1 : 0),

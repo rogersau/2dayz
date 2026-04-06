@@ -145,9 +145,9 @@ const installExpiredReconnectSocketMock = async (page: import("@playwright/test"
 const joinIntoHud = async (page: import("@playwright/test").Page, displayName: string) => {
   await page.goto("/");
   await page.getByLabel("Display name").fill(displayName);
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue to session" }).click();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await page.getByRole("button", { name: "Review briefing" }).click();
+  await page.getByRole("button", { name: "Enter session" }).click();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 };
 
 const readSessionHud = async (page: import("@playwright/test").Page) => {
@@ -199,7 +199,7 @@ test("reconnects inside the reclaim window using the stored session token", asyn
   const sessionBeforeReconnect = await readSessionHud(page);
 
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 
   await expect.poll(() => readSessionHud(page)).toEqual(sessionBeforeReconnect);
 });
@@ -210,13 +210,25 @@ test("reconnect completes in under 5 seconds during the reclaim window", async (
 
   const startedAt = Date.now();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
 
   const reconnectDurationMs = Date.now() - startedAt;
   expect(
     reconnectDurationMs,
     `Reconnect took ${reconnectDurationMs}ms, exceeding the 5000ms reclaim-window target.`,
   ).toBeLessThanOrEqual(5_000);
+});
+
+test("does not reuse the reconnect token in a fresh page", async ({ context, page }) => {
+  await installReconnectSocketMock(context);
+  await joinIntoHud(page, "Fresh Page Scout");
+
+  const freshPage = await context.newPage();
+  await freshPage.goto("/");
+
+  await expect(freshPage.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
+  await expect(freshPage.getByLabel("survival hud")).not.toBeVisible();
+  await expect(freshPage.getByLabel("Display name")).toHaveValue("Fresh Page Scout");
 });
 
 test("falls back to a fresh run after an expired stored token", async ({ page }) => {
@@ -231,7 +243,7 @@ test("falls back to a fresh run after an expired stored token", async ({ page })
 
   await expect(page.getByText("Your previous session expired. Retry to enter a fresh run.")).toBeVisible();
   await page.getByRole("button", { name: "Retry join" }).click();
-  await expect(page.getByRole("heading", { name: "Join a live session" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
   await expect(page.getByLabel("Display name")).toHaveValue("Expired Scout");
 });
 
@@ -293,8 +305,8 @@ test("shows retryable join failure messaging for unavailable rooms", async ({ pa
 
   await page.goto("/");
   await page.getByLabel("Display name").fill("Fail Room");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue to session" }).click();
+  await page.getByRole("button", { name: "Review briefing" }).click();
+  await page.getByRole("button", { name: "Enter session" }).click();
 
   await expect(
     page.getByText("The room was unavailable or unhealthy. Retry to join a healthy session."),

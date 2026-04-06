@@ -202,51 +202,53 @@ export const App = () => {
 
   return (
     <main className="app-shell">
-      <section className="app-panel">
-        <header className="hero-copy">
-          <p className="eyebrow">Browser V1</p>
-          <h1>2D DayZ</h1>
-          <p className="hero-body">
-            Drop in with a name, review the controls, and reconnect fast inside the same
-            browser session.
-          </p>
-        </header>
+      <div className="scene-layer">
+        <GameCanvas socketClient={socketClient} store={gameStore} />
+      </div>
 
+      <div className="shell-layer">
         <ConnectionBanner connectionState={state.connectionState} onRetry={handleRetry} />
 
         {!isConnected && !showControlsStep ? (
-          <JoinScreen
-            initialDisplayName={displayName || state.lastJoinDisplayName}
-            onContinue={(nextDisplayName) => {
-              setDisplayName(nextDisplayName);
-              setPendingJoinDisplayName(nextDisplayName);
-            }}
-          />
+          <section className="title-menu" aria-label="title menu">
+            <header className="hero-copy">
+              <p className="eyebrow">Browser V1</p>
+              <h1>2D DayZ</h1>
+              <p className="hero-body">
+                Take your place, step through the field briefing, and fight your way back in if the
+                line goes cold.
+              </p>
+            </header>
+            <JoinScreen
+              initialDisplayName={displayName || state.lastJoinDisplayName}
+              onContinue={(nextDisplayName) => {
+                setDisplayName(nextDisplayName);
+                setPendingJoinDisplayName(nextDisplayName);
+              }}
+            />
+          </section>
         ) : null}
 
-        {!isConnected && showControlsStep ? (
-          <ControlsOverlay onContinue={handleControlsContinue} />
-        ) : (
-          isConnected ? (
-            <section className="game-shell" aria-label="game shell">
-              <div className="game-stage">
-                <GameCanvas socketClient={socketClient} store={gameStore} />
-                <div className="game-hud-layer">
-                  <Hud
-                    health={state.health}
-                    inventory={state.inventory}
-                    isInventoryOpen={state.isInventoryOpen}
-                    onToggleInventory={() => gameStore.toggleInventory()}
-                    playerEntityId={state.playerEntityId}
-                    roomId={state.roomId}
-                  />
-                  <DeathOverlay isVisible={state.isDead} />
-                </div>
-              </div>
-            </section>
-          ) : null
-        )}
-      </section>
+        {isConnected ? (
+          <section className="game-shell" aria-label="game shell">
+            <div className="game-hud-layer">
+              <Hud
+                health={state.health}
+                inventory={state.inventory}
+                isInventoryOpen={state.isInventoryOpen}
+                onToggleInventory={() => gameStore.toggleInventory()}
+                playerEntityId={state.playerEntityId}
+                roomId={state.roomId}
+              />
+            </div>
+          </section>
+        ) : null}
+      </div>
+
+      <div className="interrupt-layer">
+        {!isConnected && showControlsStep ? <ControlsOverlay onContinue={handleControlsContinue} /> : null}
+        <DeathOverlay isVisible={isConnected && state.isDead} />
+      </div>
     </main>
   );
 };

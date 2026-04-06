@@ -5,12 +5,12 @@ import { describe, expect, it, vi } from "vitest";
 import { JoinScreen } from "./JoinScreen";
 
 describe("JoinScreen", () => {
-  it("requires a display name before continuing and submits the trimmed name to the parent flow", async () => {
+  it("requires a display name before reviewing the briefing and submits the trimmed name to the parent flow", async () => {
     const onContinue = vi.fn();
 
     render(<JoinScreen onContinue={onContinue} />);
 
-    const continueButton = screen.getByRole("button", { name: /continue/i });
+    const continueButton = screen.getByRole("button", { name: /review briefing/i });
     const nameInput = screen.getByLabelText(/display name/i);
 
     expect(nameInput).toHaveValue("");

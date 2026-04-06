@@ -22,8 +22,10 @@ export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
   }
 
   return (
-    <section className="controls-card">
-      <h2>Before you drop in</h2>
+    <section className="controls-card interrupt-card">
+      <p className="join-kicker">Field briefing</p>
+      <h2>Field briefing</h2>
+      <p>Stay light, move fast, and make your first contact count.</p>
       <ul>
         <li>WASD move</li>
         <li>Mouse aim</li>
@@ -43,7 +45,7 @@ export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
         }}
         type="button"
       >
-        Continue to session
+        Enter session
       </button>
     </section>
   );

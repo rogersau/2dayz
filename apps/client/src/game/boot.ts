@@ -24,6 +24,7 @@ export const bootGame = ({
   const { dispose: disposeScene, scene } = createScene();
   const inputController = createInputController({
     element: canvas,
+    isEnabled: () => store.getState().connectionState.phase === "joined",
     onToggleInventory: () => store.toggleInventory(),
   });
   const entityViewStore = createEntityViewStore(scene);
@@ -31,12 +32,29 @@ export const bootGame = ({
   let animationFrame = 0;
   let isDisposed = false;
   let inputLoop = 0;
+  let wasJoined = store.getState().connectionState.phase === "joined";
   let sequence = 0;
   let previousFrameTime = performance.now();
   const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
 
+  const unsubscribeFromStore = store.subscribe(() => {
+    const isJoined = store.getState().connectionState.phase === "joined";
+
+    if (wasJoined && !isJoined) {
+      inputController.reset();
+    }
+
+    wasJoined = isJoined;
+  });
+
   const sendInput = () => {
     if (isDisposed) {
+      return;
+    }
+
+    const isJoined = store.getState().connectionState.phase === "joined";
+
+    if (!isJoined) {
       return;
     }
 
@@ -94,6 +112,7 @@ export const bootGame = ({
     window.cancelAnimationFrame(animationFrame);
     window.clearInterval(inputLoop);
     window.removeEventListener("resize", resize);
+    unsubscribeFromStore();
     inputController.destroy();
     entityViewStore.dispose();
     disposeScene();

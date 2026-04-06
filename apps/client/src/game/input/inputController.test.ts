@@ -108,6 +108,46 @@ describe("inputController", () => {
     controller.destroy();
   });
 
+  it("does not capture keyboard input while disabled", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    element.getBoundingClientRect = () => ({
+      bottom: 220,
+      height: 120,
+      left: 10,
+      right: 210,
+      top: 100,
+      width: 200,
+      x: 10,
+      y: 100,
+      toJSON: () => ({}),
+    });
+    const onToggleInventory = vi.fn();
+    const controller = createInputController({
+      element,
+      isEnabled: () => false,
+      onToggleInventory,
+    });
+
+    const keydownEvent = new KeyboardEvent("keydown", { cancelable: true, key: "Tab" });
+    window.dispatchEvent(keydownEvent);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "w" }));
+    element.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 170, clientY: 160 }));
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
+
+    expect(onToggleInventory).not.toHaveBeenCalled();
+    expect(keydownEvent.defaultPrevented).toBe(false);
+    expect(controller.pollInput(1)).toEqual({
+      actions: {},
+      aim: { x: 0, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
   it("clears held and queued input state on blur and visibility changes", () => {
     const element = document.createElement("div");
     document.body.append(element);

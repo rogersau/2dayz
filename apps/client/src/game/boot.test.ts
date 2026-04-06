@@ -1,9 +1,25 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ErrorReason } from "@2dayz/shared";
+
+type TestConnectionState =
+  | { phase: "idle" }
+  | { phase: "joined" }
+  | { phase: "failed"; reason: ErrorReason };
+
+type TestStoreState = {
+  connectionState: TestConnectionState;
+  latestTick: number;
+  playerEntityId: string | null;
+  worldEntities: { loot: []; players: []; zombies: [] };
+};
+
 const {
   createPredictionControllerMock,
+  createInputControllerMock,
   clearIntervalMock,
   destroyInputControllerMock,
+  resetInputControllerMock,
   entityViewDisposeMock,
   predictionApplyInputMock,
   predictionAdvanceSmoothingMock,
@@ -18,8 +34,10 @@ const {
   setIntervalMock,
 } = vi.hoisted(() => ({
   createPredictionControllerMock: vi.fn(),
+  createInputControllerMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
+  resetInputControllerMock: vi.fn(),
   entityViewDisposeMock: vi.fn(),
   predictionApplyInputMock: vi.fn(),
   predictionAdvanceSmoothingMock: vi.fn(),
@@ -55,10 +73,14 @@ vi.mock("./createScene", () => ({
 }));
 
 vi.mock("./input/inputController", () => ({
-  createInputController: () => ({
-    destroy: destroyInputControllerMock,
-    pollInput: pollInputMock,
-  }),
+  createInputController: (...args: unknown[]) => {
+    createInputControllerMock(...args);
+    return {
+      destroy: destroyInputControllerMock,
+      pollInput: pollInputMock,
+      reset: resetInputControllerMock,
+    };
+  },
 }));
 
 vi.mock("./render/entityViewStore", () => ({
@@ -123,19 +145,40 @@ describe("bootGame", () => {
     clearIntervalSpy.mockRestore();
   });
 
-  it("sends typed input on a fixed interval instead of every render frame", () => {
+  it("does not send input packets until the player is joined, then sends them on the fixed interval", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
+    const store = {
+      getState: (): TestStoreState => ({
+        connectionState: { phase: "idle" },
+        latestTick: 0,
+        playerEntityId: null,
+        worldEntities: { loot: [], players: [], zombies: [] },
+      }),
+      subscribe: () => () => {},
+      toggleInventory: vi.fn(),
+    };
 
     bootGame({
       canvas,
       socketClient: { sendInput },
-      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+      store: store as never,
     });
 
     scheduledFrame?.(16);
 
     expect(sendInput).not.toHaveBeenCalled();
+    scheduledInterval?.();
+
+    expect(sendInput).not.toHaveBeenCalled();
+
+    store.getState = (): TestStoreState => ({
+      connectionState: { phase: "joined" },
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    });
+
     scheduledInterval?.();
 
     expect(sendInput).toHaveBeenCalledWith({
@@ -154,7 +197,15 @@ describe("bootGame", () => {
     const dispose = bootGame({
       canvas,
       socketClient: { sendInput: vi.fn() },
-      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+      store: {
+        getState: () => ({
+          connectionState: { phase: "idle" },
+          latestTick: 0,
+          playerEntityId: null,
+          worldEntities: { loot: [], players: [], zombies: [] },
+        }),
+        subscribe: () => () => {},
+      } as never,
     });
 
     dispose();
@@ -177,7 +228,15 @@ describe("bootGame", () => {
     bootGame({
       canvas: document.createElement("canvas"),
       socketClient: { sendInput: vi.fn() },
-      store: { getState: () => ({ latestTick: 0, playerEntityId: null, worldEntities: { loot: [], players: [], zombies: [] } }) } as never,
+      store: {
+        getState: () => ({
+          connectionState: { phase: "joined" },
+          latestTick: 0,
+          playerEntityId: null,
+          worldEntities: { loot: [], players: [], zombies: [] },
+        }),
+        subscribe: () => () => {},
+      } as never,
     });
 
     scheduledInterval?.();
@@ -188,5 +247,133 @@ describe("bootGame", () => {
       movement: { x: 0, y: 0 },
       sequence: 3,
     });
+  });
+
+  it("keeps gameplay input disabled until the player is joined", () => {
+    const canvas = document.createElement("canvas");
+    const store = {
+      getState: (): TestStoreState => ({
+        connectionState: { phase: "idle" },
+        latestTick: 0,
+        playerEntityId: null,
+        worldEntities: { loot: [], players: [], zombies: [] },
+      }),
+      subscribe: () => () => {},
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput: vi.fn() },
+      store: store as never,
+    });
+
+    expect(createInputControllerMock).toHaveBeenCalledTimes(1);
+    const firstCall = createInputControllerMock.mock.calls[0] as [{ isEnabled: () => boolean }] | undefined;
+
+    expect(firstCall).toBeDefined();
+
+    if (!firstCall) {
+      throw new Error("Expected createInputController to be called.");
+    }
+
+    const [{ isEnabled }] = firstCall;
+
+    expect(isEnabled()).toBe(false);
+
+    store.getState = (): TestStoreState => ({
+      connectionState: { phase: "joined" },
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    });
+
+    expect(isEnabled()).toBe(true);
+  });
+
+  it("resets held input when the connection leaves joined so reconnect cannot replay stale input", () => {
+    const sendInput = vi.fn();
+    const canvas = document.createElement("canvas");
+    const state = {
+      connectionState: { phase: "joined" } as TestConnectionState,
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    };
+    let storeListener: (() => void) | undefined;
+    const store = {
+      getState: () => state,
+      subscribe: (listener: () => void) => {
+        storeListener = listener;
+        return () => {};
+      },
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput },
+      store: store as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(resetInputControllerMock).not.toHaveBeenCalled();
+
+    state.connectionState = { phase: "failed", reason: "internal-error" };
+    storeListener?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(resetInputControllerMock).toHaveBeenCalledTimes(1);
+
+    state.connectionState = { phase: "joined" };
+    storeListener?.();
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(2);
+  });
+
+  it("resets held input on a joined-to-non-joined transition even if the client rejoins before the next send tick", () => {
+    const sendInput = vi.fn();
+    const canvas = document.createElement("canvas");
+    const state = {
+      connectionState: { phase: "joined" } as TestConnectionState,
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    };
+    const store = {
+      getState: () => state,
+      subscribe: (listener: () => void) => {
+        storeListener = listener;
+        return () => {};
+      },
+      toggleInventory: vi.fn(),
+    };
+    let storeListener: (() => void) | undefined;
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput },
+      store: store as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(resetInputControllerMock).not.toHaveBeenCalled();
+
+    state.connectionState = { phase: "failed", reason: "internal-error" };
+    storeListener?.();
+    state.connectionState = { phase: "joined" };
+    storeListener?.();
+
+    expect(resetInputControllerMock).toHaveBeenCalledTimes(1);
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(2);
   });
 });

@@ -3,9 +3,9 @@ import { expect, test } from "@playwright/test";
 test("reports when average frame time misses the 60 fps local target", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Display name").fill("Perf Scout");
-  await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("button", { name: "Continue to session" }).click();
-  await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
+  await page.getByRole("button", { name: "Review briefing" }).click();
+  await page.getByRole("button", { name: "Enter session" }).click();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
   await page.waitForTimeout(250);
 
   const averageFrameTimeMs = await page.evaluate(async () => {
