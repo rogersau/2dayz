@@ -14,7 +14,7 @@ const subscribeToConnectionMock = vi.fn();
 const closeMock = vi.fn();
 
 vi.mock("./game/GameCanvas", () => ({
-  GameCanvas: () => <div aria-label="game canvas">mock game canvas</div>,
+  GameCanvas: () => <div aria-label="game world">mock game canvas</div>,
 }));
 
 vi.mock("./game/net/socketClient", () => {
@@ -71,6 +71,15 @@ describe("App join and reconnect flow", () => {
       return () => {};
     });
     protocolDrainWorldUpdatesMock.mockReturnValue({ deltas: [], snapshot: null });
+  });
+
+  it("shows the title menu over the live scene before join", () => {
+    render(<App />);
+
+    expect(screen.getByLabelText(/game world/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/title menu/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
+    expect(joinMock).not.toHaveBeenCalled();
   });
 
   it("gates the first join attempt behind the controls card and only joins after continue", async () => {
