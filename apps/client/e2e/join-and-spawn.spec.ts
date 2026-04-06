@@ -63,8 +63,20 @@ test("keeps the joined hud reachable on a shorter phone viewport", async ({ page
   await page.getByRole("button", { name: "Open inventory" }).click();
 
   const collapseInventoryButton = page.getByRole("button", { name: "Collapse inventory" });
+  const lastInventorySlot = page.getByText("Slot 6");
   await expect(collapseInventoryButton).toBeVisible();
   await expect(collapseInventoryButton).toBeInViewport();
+  await expect(lastInventorySlot).not.toBeInViewport();
+
+  await page.locator(".game-hud-layer").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+
+  await page.locator(".inventory-card").evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
+
+  await expect(lastInventorySlot).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(
     await page.evaluate(() => {

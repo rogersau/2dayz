@@ -53,7 +53,7 @@ test("reports when average frame time misses the 60 fps local target", async ({ 
   await expect(page.getByLabel("survival hud")).toBeVisible();
   await page.evaluate(async () => {
     await new Promise<void>((resolve) => {
-      let remainingFrames = 360;
+      let remainingFrames = 420;
 
       const warmUp = () => {
         remainingFrames -= 1;
