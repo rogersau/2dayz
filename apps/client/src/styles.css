@@ -385,19 +385,85 @@ button {
     padding: 12px;
   }
 
+  .shell-layer::before,
+  .interrupt-layer::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(9, 8, 7, 0.2), rgba(9, 8, 7, 0.56) 42%, rgba(9, 8, 7, 0.74));
+    pointer-events: none;
+  }
+
+  .shell-layer > *,
+  .interrupt-layer > * {
+    position: relative;
+  }
+
   .title-menu {
     padding: 18px;
+    background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
+  }
+
+  .banner {
+    align-self: stretch;
+    width: 100%;
+    border-radius: 16px;
+    border-right: 1px solid rgba(200, 179, 138, 0.16);
   }
 
   .hud-primary-grid {
     grid-template-columns: 1fr;
   }
 
+  .game-hud-layer {
+    gap: 12px;
+    padding: 12px;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  .survival-hud {
+    gap: 10px;
+    width: 100%;
+    max-width: none;
+    padding: 12px;
+  }
+
+  .hud-module {
+    padding: 12px;
+  }
+
+  .hud-module-value {
+    font-size: 1.3rem;
+  }
+
+  .status-row,
+  .hud-secondary-strip {
+    gap: 8px;
+  }
+
+  .status-pill,
+  .ammo-pill,
+  .inventory-slot,
+  .primary-button,
+  .secondary-button,
+  .join-form input {
+    max-width: 100%;
+  }
+
   .inventory-panel-header {
     flex-direction: column;
+    align-items: stretch;
   }
 
   .inventory-card {
     width: 100%;
+    gap: 10px;
+    max-height: min(42dvh, 320px);
+    overflow: auto;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   }
 }

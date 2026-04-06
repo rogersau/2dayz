@@ -1,5 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ErrorReason } from "@2dayz/shared";
+
+type TestConnectionState =
+  | { phase: "idle" }
+  | { phase: "joined" }
+  | { phase: "failed"; reason: ErrorReason };
+
+type TestStoreState = {
+  connectionState: TestConnectionState;
+  latestTick: number;
+  playerEntityId: string | null;
+  worldEntities: { loot: []; players: []; zombies: [] };
+};
+
 const {
   createPredictionControllerMock,
   createInputControllerMock,
@@ -135,7 +149,7 @@ describe("bootGame", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
     const store = {
-      getState: () => ({
+      getState: (): TestStoreState => ({
         connectionState: { phase: "idle" },
         latestTick: 0,
         playerEntityId: null,
@@ -158,7 +172,7 @@ describe("bootGame", () => {
 
     expect(sendInput).not.toHaveBeenCalled();
 
-    store.getState = () => ({
+    store.getState = (): TestStoreState => ({
       connectionState: { phase: "joined" },
       latestTick: 0,
       playerEntityId: "player_survivor",
@@ -238,7 +252,7 @@ describe("bootGame", () => {
   it("keeps gameplay input disabled until the player is joined", () => {
     const canvas = document.createElement("canvas");
     const store = {
-      getState: () => ({
+      getState: (): TestStoreState => ({
         connectionState: { phase: "idle" },
         latestTick: 0,
         playerEntityId: null,
@@ -255,11 +269,19 @@ describe("bootGame", () => {
     });
 
     expect(createInputControllerMock).toHaveBeenCalledTimes(1);
-    const [[{ isEnabled }]] = createInputControllerMock.mock.calls;
+    const firstCall = createInputControllerMock.mock.calls[0] as [{ isEnabled: () => boolean }] | undefined;
+
+    expect(firstCall).toBeDefined();
+
+    if (!firstCall) {
+      throw new Error("Expected createInputController to be called.");
+    }
+
+    const [{ isEnabled }] = firstCall;
 
     expect(isEnabled()).toBe(false);
 
-    store.getState = () => ({
+    store.getState = (): TestStoreState => ({
       connectionState: { phase: "joined" },
       latestTick: 0,
       playerEntityId: "player_survivor",
@@ -273,7 +295,7 @@ describe("bootGame", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
     const state = {
-      connectionState: { phase: "joined" as const },
+      connectionState: { phase: "joined" } as TestConnectionState,
       latestTick: 0,
       playerEntityId: "player_survivor",
       worldEntities: { loot: [], players: [], zombies: [] },
@@ -317,7 +339,7 @@ describe("bootGame", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
     const state = {
-      connectionState: { phase: "joined" as const },
+      connectionState: { phase: "joined" } as TestConnectionState,
       latestTick: 0,
       playerEntityId: "player_survivor",
       worldEntities: { loot: [], players: [], zombies: [] },

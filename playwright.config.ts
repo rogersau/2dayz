@@ -7,6 +7,7 @@ const baseURL = `http://127.0.0.1:${serverPort}`;
 export default defineConfig({
   testDir: "./apps/client/e2e",
   timeout: 30_000,
+  workers: 1,
   expect: {
     timeout: 10_000,
   },
@@ -23,7 +24,7 @@ export default defineConfig({
     },
     {
       command: `pnpm --filter @2dayz/server exec tsx src/index.ts`,
-      url: `${baseURL}/health`,
+      url: `${baseURL}/`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: {

@@ -17,6 +17,40 @@ test("joins from landing page and reaches the in-game HUD", async ({ page }) => 
   await expect(page.getByLabel("game shell")).toBeVisible();
 });
 
+test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+
+  await expect(page.getByLabel("title menu")).toBeVisible();
+  await expect(page.getByLabel("Display name")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Review briefing" })).toBeVisible();
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByLabel("Display name").fill("Phone Scout");
+  await page.getByRole("button", { name: "Review briefing" }).click();
+
+  await expect(page.getByRole("heading", { name: "Field briefing" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Enter session" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+  await page.getByRole("button", { name: "Enter session" }).click();
+  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await page.getByRole("button", { name: "Open inventory" }).click();
+  await expect(page.getByRole("button", { name: "Collapse inventory" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(
+    await page.evaluate(() => {
+      const inventoryPanel = document.querySelector(".inventory-card");
+      if (!(inventoryPanel instanceof HTMLElement)) {
+        return false;
+      }
+
+      return inventoryPanel.getBoundingClientRect().bottom <= window.innerHeight;
+    }),
+  ).toBe(true);
+});
+
 test("landing-to-spawn stays under 10 seconds in healthy local conditions", async ({ page }) => {
   const startedAt = Date.now();
 
