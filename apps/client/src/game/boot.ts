@@ -24,6 +24,7 @@ export const bootGame = ({
   const { dispose: disposeScene, scene } = createScene();
   const inputController = createInputController({
     element: canvas,
+    isEnabled: () => store.getState().connectionState.phase === "joined",
     onToggleInventory: () => store.toggleInventory(),
   });
   const entityViewStore = createEntityViewStore(scene);

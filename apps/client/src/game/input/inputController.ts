@@ -8,9 +8,11 @@ const isMatchingKey = (eventKey: string, keys: readonly string[]) => {
 
 export const createInputController = ({
   element,
+  isEnabled,
   onToggleInventory,
 }: {
   element: HTMLElement;
+  isEnabled?: () => boolean;
   onToggleInventory?: () => void;
 }) => {
   const pressedKeys = new Set<string>();
@@ -37,7 +39,20 @@ export const createInputController = ({
     aim.y = centerY - event.clientY;
   };
 
+  const canCaptureInput = () => {
+    if (isEnabled?.() === false) {
+      clearLatchedState();
+      return false;
+    }
+
+    return true;
+  };
+
   const handleKeyDown = (event: KeyboardEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     const key = event.key.toLowerCase();
 
     if (isMatchingKey(key, ACTION_KEYS.inventory)) {
@@ -60,10 +75,18 @@ export const createInputController = ({
   };
 
   const handleKeyUp = (event: KeyboardEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     pressedKeys.delete(event.key.toLowerCase());
   };
 
   const handleMouseDown = (event: MouseEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     updateAim(event);
     if (event.button === 0) {
       isFiring = true;
@@ -71,6 +94,10 @@ export const createInputController = ({
   };
 
   const handleMouseUp = (event: MouseEvent) => {
+    if (!canCaptureInput()) {
+      return;
+    }
+
     updateAim(event);
     if (event.button === 0) {
       isFiring = false;
@@ -104,6 +131,16 @@ export const createInputController = ({
       element.removeEventListener("mouseleave", handleMouseUp);
     },
     pollInput(sequence: number) {
+      if (!canCaptureInput()) {
+        return inputMessageSchema.parse({
+          actions: {},
+          aim,
+          movement: { x: 0, y: 0 },
+          sequence,
+          type: "input",
+        });
+      }
+
       const movement = {
         x: (MOVEMENT_KEYS.right.some((key) => pressedKeys.has(key)) ? 1 : 0)
           - (MOVEMENT_KEYS.left.some((key) => pressedKeys.has(key)) ? 1 : 0),

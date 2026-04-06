@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   createPredictionControllerMock,
+  createInputControllerMock,
   clearIntervalMock,
   destroyInputControllerMock,
   entityViewDisposeMock,
@@ -18,6 +19,7 @@ const {
   setIntervalMock,
 } = vi.hoisted(() => ({
   createPredictionControllerMock: vi.fn(),
+  createInputControllerMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
   entityViewDisposeMock: vi.fn(),
@@ -55,10 +57,13 @@ vi.mock("./createScene", () => ({
 }));
 
 vi.mock("./input/inputController", () => ({
-  createInputController: () => ({
-    destroy: destroyInputControllerMock,
-    pollInput: pollInputMock,
-  }),
+  createInputController: (...args: unknown[]) => {
+    createInputControllerMock(...args);
+    return {
+      destroy: destroyInputControllerMock,
+      pollInput: pollInputMock,
+    };
+  },
 }));
 
 vi.mock("./render/entityViewStore", () => ({
@@ -188,5 +193,38 @@ describe("bootGame", () => {
       movement: { x: 0, y: 0 },
       sequence: 3,
     });
+  });
+
+  it("keeps gameplay input disabled until the player is joined", () => {
+    const canvas = document.createElement("canvas");
+    const store = {
+      getState: () => ({
+        connectionState: { phase: "idle" },
+        latestTick: 0,
+        playerEntityId: null,
+        worldEntities: { loot: [], players: [], zombies: [] },
+      }),
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput: vi.fn() },
+      store: store as never,
+    });
+
+    expect(createInputControllerMock).toHaveBeenCalledTimes(1);
+    const [[{ isEnabled }]] = createInputControllerMock.mock.calls;
+
+    expect(isEnabled()).toBe(false);
+
+    store.getState = () => ({
+      connectionState: { phase: "joined" },
+      latestTick: 0,
+      playerEntityId: "player_survivor",
+      worldEntities: { loot: [], players: [], zombies: [] },
+    });
+
+    expect(isEnabled()).toBe(true);
   });
 });
