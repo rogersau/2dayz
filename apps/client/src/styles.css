@@ -55,6 +55,14 @@ button {
   color: #d8d0c4;
 }
 
+.join-kicker {
+  margin: 0 0 10px;
+  font-size: 0.76rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
 .join-card,
 .controls-card,
 .hud-card,
@@ -125,21 +133,31 @@ button {
   pointer-events: auto;
   width: min(100%, 720px);
   margin-top: auto;
-  background: rgba(18, 15, 12, 0.92);
+  background: linear-gradient(180deg, rgba(19, 16, 12, 0.9), rgba(19, 16, 12, 0.76));
   border: 1px solid rgba(200, 179, 138, 0.24);
   border-radius: 20px;
-  padding: 24px;
+  padding: 28px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
   backdrop-filter: blur(18px);
 }
 
 .title-menu .join-card {
-  margin-top: 20px;
+  margin-top: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
 }
 
 .banner {
   pointer-events: auto;
-  align-self: flex-start;
+  align-self: flex-end;
+  width: min(100%, 420px);
+  border-top-right-radius: 0;
+  border-right: 0;
+  background: rgba(33, 28, 24, 0.94);
 }
 
 .join-form {
@@ -189,6 +207,19 @@ button {
 .banner {
   display: grid;
   gap: 12px;
+}
+
+.controls-card {
+  width: min(100%, 460px);
+}
+
+.controls-card p {
+  margin: 0 0 12px;
+}
+
+.controls-card ul {
+  margin: 0 0 16px;
+  padding-left: 18px;
 }
 
 .banner-error {

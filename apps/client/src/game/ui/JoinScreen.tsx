@@ -30,8 +30,9 @@ export const JoinScreen = ({
 
   return (
     <section className="join-card">
-      <h2>Join a live session</h2>
-      <p>Enter a display name and review the controls before joining the current browser room.</p>
+      <p className="join-kicker">Live title menu</p>
+      <h2>Enter the quarantine</h2>
+      <p>Choose your display name, check the field briefing, and drop into the current browser run.</p>
       <form className="join-form" onSubmit={handleSubmit}>
         <label>
           <span>Display name</span>
@@ -44,10 +45,10 @@ export const JoinScreen = ({
           />
         </label>
         <button className="primary-button" disabled={!canSubmit} type="submit">
-          Continue
+          Review briefing
         </button>
       </form>
-      <p>Local mock mode: use any name containing `fail` to simulate a retryable join error after the controls step.</p>
+      <p>Local mock mode: use any name containing `fail` to simulate a retryable join failure after the briefing.</p>
     </section>
   );
 };

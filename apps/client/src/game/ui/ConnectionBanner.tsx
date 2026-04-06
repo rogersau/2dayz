@@ -26,7 +26,11 @@ const getFailureMessage = (reason: ErrorReason) => {
 
 export const ConnectionBanner = ({ connectionState, onRetry }: ConnectionBannerProps) => {
   if (connectionState.phase === "reconnecting") {
-    return <section className="banner banner-info">Reconnecting to your session...</section>;
+    return (
+      <section aria-live="polite" className="banner banner-info" role="status">
+        Reconnecting to your session...
+      </section>
+    );
   }
 
   if (connectionState.phase !== "failed") {
@@ -34,7 +38,7 @@ export const ConnectionBanner = ({ connectionState, onRetry }: ConnectionBannerP
   }
 
   return (
-    <section className="banner banner-error">
+    <section aria-live="assertive" className="banner banner-error" role="alert">
       <p>{getFailureMessage(connectionState.reason)}</p>
       <button className="secondary-button" onClick={onRetry} type="button">
         Retry join
