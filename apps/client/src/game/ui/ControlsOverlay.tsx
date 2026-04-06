@@ -25,7 +25,7 @@ export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
     <section className="controls-card interrupt-card">
       <p className="join-kicker">Field briefing</p>
       <h2>Field briefing</h2>
-      <p>Stay light, move fast, and keep your first contact short. You can reopen the full controls reference after you spawn.</p>
+      <p>Stay light, move fast, and make your first contact count.</p>
       <ul>
         <li>WASD move</li>
         <li>Mouse aim</li>

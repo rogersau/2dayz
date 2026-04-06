@@ -145,7 +145,7 @@ const installExpiredReconnectSocketMock = async (page: import("@playwright/test"
 const joinIntoHud = async (page: import("@playwright/test").Page, displayName: string) => {
   await page.goto("/");
   await page.getByLabel("Display name").fill(displayName);
-  await page.getByRole("button", { name: "Review briefing" }).click();
+  await page.getByRole("button", { name: "Ready up" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
   await expect(page.getByRole("heading", { name: "Session HUD" })).toBeVisible();
 };
@@ -305,7 +305,7 @@ test("shows retryable join failure messaging for unavailable rooms", async ({ pa
 
   await page.goto("/");
   await page.getByLabel("Display name").fill("Fail Room");
-  await page.getByRole("button", { name: "Review briefing" }).click();
+  await page.getByRole("button", { name: "Ready up" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
 
   await expect(

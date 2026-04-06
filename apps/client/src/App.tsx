@@ -215,8 +215,8 @@ export const App = () => {
               <p className="eyebrow">Browser V1</p>
               <h1>2D DayZ</h1>
               <p className="hero-body">
-                Drop in with a name, review the controls, and reconnect fast inside the same
-                browser session.
+                Take your place, step through the field briefing, and fight your way back in if the
+                line goes cold.
               </p>
             </header>
             <JoinScreen

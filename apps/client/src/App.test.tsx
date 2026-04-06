@@ -90,7 +90,7 @@ describe("App join and reconnect flow", () => {
       target: { value: "  Survivor  " },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
 
     expect(joinMock).not.toHaveBeenCalled();
     expect(screen.getByRole("heading", { name: /field briefing/i })).toBeInTheDocument();
@@ -108,7 +108,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
 
     const controlsCard = screen.getByRole("heading", { name: /field briefing/i }).closest("section");
 
@@ -240,7 +240,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
@@ -292,7 +292,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
@@ -319,7 +319,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
@@ -343,7 +343,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
@@ -372,7 +372,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
@@ -386,7 +386,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "fail survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
 
     await waitFor(() => {
       expect(screen.getByText(/could not join the session/i)).toBeInTheDocument();
@@ -401,7 +401,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: "Second Survivor" },
     });
-    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /ready up/i }));
 
     await waitFor(() => {
       expect(joinMock).toHaveBeenLastCalledWith({ displayName: "Second Survivor" });
