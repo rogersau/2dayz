@@ -405,15 +405,17 @@ button {
     gap: 12px;
     padding: 12px;
     justify-content: flex-start;
-    overflow-y: auto;
-    overscroll-behavior: contain;
   }
 
   .survival-hud {
+    pointer-events: auto;
     gap: 10px;
     width: 100%;
     max-width: none;
+    max-height: calc(100dvh - 24px);
     padding: 12px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
   }
 

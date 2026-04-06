@@ -16,7 +16,9 @@ const readSessionToken = () => {
     return null;
   }
 
-  return window.sessionStorage.getItem(SESSION_TOKEN_KEY);
+  const sessionToken = window.sessionStorage.getItem(SESSION_TOKEN_KEY);
+  window.localStorage.removeItem(SESSION_TOKEN_KEY);
+  return sessionToken;
 };
 
 export const useSessionToken = () => {
@@ -38,6 +40,7 @@ export const useSessionToken = () => {
     setSessionTokenState(value);
     if (typeof window !== "undefined") {
       window.sessionStorage.setItem(SESSION_TOKEN_KEY, value);
+      window.localStorage.removeItem(SESSION_TOKEN_KEY);
     }
   }, []);
 
@@ -45,6 +48,7 @@ export const useSessionToken = () => {
     setSessionTokenState(null);
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(SESSION_TOKEN_KEY);
+      window.localStorage.removeItem(SESSION_TOKEN_KEY);
     }
   }, []);
 

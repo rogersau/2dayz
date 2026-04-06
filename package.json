@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.7.1",
   "scripts": {
+    "dev": "concurrently -k -n client,server -c cyan,magenta \"pnpm dev:client\" \"pnpm dev:server\"",
     "dev:client": "CLIENT_PORT=3200 pnpm --filter @2dayz/client dev -- --host 127.0.0.1 --port 3200",
     "dev:server": "CLIENT_ORIGIN=http://127.0.0.1:3200 HOST=127.0.0.1 PORT=3201 pnpm --filter @2dayz/server dev",
     "pretest": "node ./scripts/check-workspace-packages.cjs",
@@ -24,6 +25,7 @@
     "@typescript-eslint/eslint-plugin": "^8.30.1",
     "@typescript-eslint/parser": "^8.30.1",
     "eslint": "^8.57.1",
+    "concurrently": "^9.2.1",
     "typescript": "^5.8.3",
     "vite": "^7.3.1",
     "vitest": "^3.1.1"

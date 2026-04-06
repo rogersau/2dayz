@@ -68,26 +68,13 @@ test("keeps the joined hud reachable on a shorter phone viewport", async ({ page
   await expect(collapseInventoryButton).toBeInViewport();
   await expect(lastInventorySlot).not.toBeInViewport();
 
-  await page.locator(".game-hud-layer").evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-  });
-
-  await page.locator(".inventory-card").evaluate((element) => {
-    element.scrollTop = element.scrollHeight;
-  });
+  await page.getByLabel("survival hud").hover();
+  await page.mouse.wheel(0, 600);
+  await page.locator(".inventory-card").hover();
+  await page.mouse.wheel(0, 1200);
 
   await expect(lastInventorySlot).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(
-    await page.evaluate(() => {
-      const hudLayer = document.querySelector(".game-hud-layer");
-      if (!(hudLayer instanceof HTMLElement)) {
-        return false;
-      }
-
-      return hudLayer.scrollHeight > hudLayer.clientHeight;
-    }),
-  ).toBe(true);
 });
 
 test("landing-to-spawn stays under 10 seconds in healthy local conditions", async ({ page }) => {

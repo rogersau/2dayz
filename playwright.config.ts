@@ -123,10 +123,12 @@ process.env.PORT ??= String(resolvedPorts.serverPort);
 const clientPort = Number(process.env.CLIENT_PORT);
 const serverPort = Number(process.env.PORT);
 const baseURL = `http://127.0.0.1:${serverPort}`;
+const serialiseForPerformanceSpec = process.argv.some((argument) => argument.includes("client-performance.spec.ts"));
 
 export default defineConfig({
   testDir: "./apps/client/e2e",
   timeout: 30_000,
+  workers: serialiseForPerformanceSpec ? 1 : undefined,
   expect: {
     timeout: 10_000,
   },
