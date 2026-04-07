@@ -120,8 +120,11 @@ export const bootGame = ({
           roomId: state.roomId,
         }),
       );
+      const previousAutoClear = renderer.autoClear;
       renderer.clearDepth();
+      renderer.autoClear = false;
       renderer.render(hudScene, hudCamera);
+      renderer.autoClear = previousAutoClear;
     }
 
     animationFrame = window.requestAnimationFrame(tick);

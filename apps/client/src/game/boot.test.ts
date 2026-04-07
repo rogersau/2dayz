@@ -60,6 +60,7 @@ const {
   setIntervalMock,
   updateHudSceneMock,
   disposeHudSceneMock,
+  rendererMock,
 } = vi.hoisted(() => ({
   createPredictionControllerMock: vi.fn(),
   createInputControllerMock: vi.fn(),
@@ -82,13 +83,19 @@ const {
   setIntervalMock: vi.fn(),
   updateHudSceneMock: vi.fn(),
   disposeHudSceneMock: vi.fn(),
+  rendererMock: {
+    autoClear: true,
+    clearDepth: vi.fn(),
+    dispose: vi.fn(),
+    render: vi.fn(),
+  },
 }));
 
 import { bootGame } from "./boot";
 
 vi.mock("./createRenderer", () => ({
   createRenderer: () => ({
-    renderer: { clearDepth: rendererClearDepthMock, dispose: rendererDisposeMock, render: renderMock },
+    renderer: rendererMock,
     resize: resizeRendererMock,
   }),
 }));
@@ -153,9 +160,18 @@ describe("bootGame", () => {
   let clearIntervalSpy: { mockRestore: () => void };
   let scheduledInterval: (() => void) | null;
   let scheduledFrame: FrameRequestCallback | null;
+  let autoClearDuringRender: boolean[];
 
   beforeEach(() => {
     vi.clearAllMocks();
+    rendererMock.autoClear = true;
+    rendererMock.clearDepth = rendererClearDepthMock;
+    rendererMock.dispose = rendererDisposeMock;
+    autoClearDuringRender = [];
+    rendererMock.render = (...args: Parameters<typeof renderMock>) => {
+      autoClearDuringRender.push(rendererMock.autoClear);
+      return renderMock(...args);
+    };
     scheduledInterval = null;
     scheduledFrame = null;
     pollInputMock.mockReturnValue({
@@ -431,9 +447,33 @@ describe("bootGame", () => {
       playerLabel: "Player: player_survivor",
       roomLabel: "Room: room_browser-v1",
     });
+    expect(rendererMock.autoClear).toBe(true);
     expect(renderMock).toHaveBeenNthCalledWith(1, { kind: "hud-scene" }, { kind: "hud-camera" });
+    expect(autoClearDuringRender).toEqual([false]);
     expect(rendererClearDepthMock).toHaveBeenCalledTimes(1);
     expect(renderFrameMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("disables renderer autoClear only for the joined hud pass", () => {
+    const state = createStoreState({ connectionState: { phase: "joined" } });
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: () => state,
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledFrame?.(16);
+
+    expect(rendererClearDepthMock).toHaveBeenCalledOnce();
+    expect(renderMock).toHaveBeenCalledOnce();
+    expect(autoClearDuringRender).toEqual([false]);
+    expect(rendererMock.autoClear).toBe(true);
+    expect(renderMock.mock.calls[0]?.[0]).toEqual({ kind: "hud-scene" });
   });
 
   it("resizes the hud camera with the canvas", () => {
