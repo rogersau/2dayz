@@ -92,9 +92,19 @@ describe("createEntityViewStore", () => {
     });
 
     store.render({
-      deltaSeconds: 0.4,
+      deltaSeconds: 0.2,
       entities: [],
       latestTick: 3,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    expect(scene.getObjectByName("entity:zombie_1")).toBeTruthy();
+
+    store.render({
+      deltaSeconds: 0.4,
+      entities: [],
+      latestTick: 4,
       localOverrides: new Map(),
       playerEntityId: null,
     });
