@@ -147,6 +147,44 @@ describe("createMovementSystem", () => {
     expect(player.stamina).toMatchObject({ current: 9, max: 10 });
   });
 
+  it("does not drain stamina when sprinting into blocked movement", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        staminaBaseline: 10,
+        staminaFloor: 4,
+        staminaDrainPerSecond: 2,
+        staminaRegenPerSecond: 1,
+        isPositionBlocked: (position) => position.x >= 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-blocked-sprint",
+      displayName: "Ira",
+      position: { x: 0.5, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    const player = state.players.get("player_test-blocked-sprint");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    queueInputIntent(state, "player_test-blocked-sprint", {
+      ...defaultIntent,
+      sequence: 1,
+      movement: { x: 1, y: 0 },
+      actions: { sprint: true },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    expect(player.transform).toMatchObject({ x: 0.5, y: 0, rotation: 0 });
+    expect(player.velocity).toEqual({ x: 0, y: 0 });
+    expect(player.stamina).toMatchObject({ current: 10, max: 10 });
+  });
+
   it("regenerates stamina while not sprinting", () => {
     const state = createRoomState({
       roomId: "room_test",
@@ -322,6 +360,37 @@ describe("createMovementSystem", () => {
 
     expect(player.stamina.max).toBeCloseTo(8);
     expect(player.stamina.current).toBeCloseTo(8);
+  });
+
+  it("recomputes and clamps stamina from inventory changes without movement input", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        staminaBaseline: 10,
+        staminaFloor: 4,
+        staminaLoadPenalty: 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-passive-load",
+      displayName: "Owen",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    const player = state.players.get("player_test-passive-load");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.stamina.current = 10;
+    player.inventory.slots = fillInventorySlots(3);
+    player.inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 30 }];
+
+    createMovementSystem().update(state, 0);
+
+    expect(player.stamina).toMatchObject({ current: 6, max: 6 });
   });
 
   it("blocks movement when the next authoritative position collides", () => {

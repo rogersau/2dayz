@@ -49,6 +49,10 @@ export const createMovementSystem = (): MovementSystem => {
     name: "movement",
     update(state, deltaSeconds) {
       for (const player of getPlayers(state)) {
+        const staminaMax = getStaminaMax(state, player);
+        player.stamina.max = staminaMax;
+        player.stamina.current = Math.min(player.stamina.current, staminaMax);
+
         const intent = state.inputIntents.get(player.entityId);
         if (!intent) {
           continue;
@@ -63,10 +67,6 @@ export const createMovementSystem = (): MovementSystem => {
 
         const direction = normalizeMovement(intent.movement);
         const moving = direction.x !== 0 || direction.y !== 0;
-        const staminaMax = getStaminaMax(state, player);
-        player.stamina.max = staminaMax;
-        player.stamina.current = Math.min(player.stamina.current, staminaMax);
-
         const sprinting = Boolean(intent.actions.sprint) && moving && player.stamina.current > 0;
         const speed = sprinting
           ? state.config.maxPlayerSpeed * state.config.sprintSpeedMultiplier
@@ -96,7 +96,8 @@ export const createMovementSystem = (): MovementSystem => {
           rotation,
         };
         player.velocity = blocked ? { x: 0, y: 0 } : velocity;
-        player.stamina.current = sprinting
+        const consumedSprintMovement = sprinting && !blocked;
+        player.stamina.current = consumedSprintMovement
           ? Math.max(0, player.stamina.current - state.config.staminaDrainPerSecond * deltaSeconds)
           : Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
         state.inputIntents.delete(player.entityId);
