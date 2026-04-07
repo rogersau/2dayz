@@ -16,6 +16,7 @@ const closeMock = vi.fn();
 
 vi.mock("./game/GameCanvas", () => ({
   GameCanvas: () => <div aria-label="game world">mock game canvas</div>,
+  GameCanvas: () => <div aria-label="game world">mock game canvas</div>,
 }));
 
 vi.mock("./game/net/socketClient", () => {
