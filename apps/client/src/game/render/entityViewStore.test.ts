@@ -111,4 +111,38 @@ describe("createEntityViewStore", () => {
 
     expect(scene.getObjectByName("entity:zombie_1")).toBeUndefined();
   });
+
+  it("does not apply the recent-hit death fallback to removed non-zombies", () => {
+    const scene = new THREE.Scene();
+    const store = createEntityViewStore(scene);
+
+    store.render({
+      deltaSeconds: 1 / 20,
+      entities: [
+        {
+          displayName: "Survivor",
+          entityId: "player_other",
+          inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
+          kind: "player",
+          transform: { rotation: 0, x: 10, y: 18 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      latestTick: 1,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    store.markRecentCombatHit("player_other");
+
+    store.render({
+      deltaSeconds: 1 / 20,
+      entities: [],
+      latestTick: 2,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    expect(scene.getObjectByName("entity:player_other")).toBeUndefined();
+  });
 });

@@ -19,6 +19,7 @@ type EntityView = {
   isDying: boolean;
   deathRemainingMs: number;
   removeWhenFinished: boolean;
+  kind: RenderEntity["kind"];
 };
 
 type RecentCombatHit = {
@@ -309,6 +310,7 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
             flashRemainingMs: 0,
             isDying: false,
             deathRemainingMs: 0,
+            kind: entity.kind,
             removeWhenFinished: false,
           };
           if (isZombieDead(entity)) {
@@ -353,7 +355,7 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
         }
 
         if (!activeIds.has(entityId)) {
-          if (!view.isDying && recentCombatHits.has(entityId)) {
+          if (view.kind === "zombie" && !view.isDying && recentCombatHits.has(entityId)) {
             startDeathAnimation(view);
           }
 
