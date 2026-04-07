@@ -5,7 +5,7 @@ test("reports when average frame time misses the 60 fps local target", async ({ 
   await page.getByLabel("Display name").fill("Perf Scout");
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
   await page.waitForTimeout(250);
 
   const averageFrameTimeMs = await page.evaluate(async () => {

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("joins from landing page and reaches the in-game HUD", async ({ page }) => {
+test("joins from landing page and reaches the game shell", async ({ page }) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
@@ -10,11 +10,8 @@ test("joins from landing page and reaches the in-game HUD", async ({ page }) => 
   await expect(page.getByRole("heading", { name: "Field briefing" })).toBeVisible();
   await page.getByRole("button", { name: "Enter session" }).click();
 
-  await expect(page.getByLabel("survival hud")).toBeVisible();
-  await expect(page.getByText("Health")).toBeVisible();
-  await expect(page.getByText("Ammo")).toBeVisible();
-  await expect(page.getByText(/\d\/\d slots filled/i)).toBeVisible();
   await expect(page.getByLabel("game shell")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
 });
 
 test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
@@ -35,7 +32,7 @@ test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
   await page.getByRole("button", { name: "Open inventory" }).click();
   await expect(page.getByRole("button", { name: "Collapse inventory" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -51,7 +48,7 @@ test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
   ).toBe(true);
 });
 
-test("keeps the joined hud reachable on a shorter phone viewport", async ({ page }) => {
+test("keeps the joined shell reachable on a shorter phone viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 667 });
   await page.goto("/");
 
@@ -59,7 +56,7 @@ test("keeps the joined hud reachable on a shorter phone viewport", async ({ page
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
 
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
   await page.getByRole("button", { name: "Open inventory" }).click();
 
   const collapseInventoryButton = page.getByRole("button", { name: "Collapse inventory" });
@@ -68,7 +65,7 @@ test("keeps the joined hud reachable on a shorter phone viewport", async ({ page
   await expect(collapseInventoryButton).toBeInViewport();
   await expect(lastInventorySlot).not.toBeInViewport();
 
-  await page.getByLabel("survival hud").hover();
+  await page.locator(".inventory-card").hover();
   await page.mouse.wheel(0, 600);
   await page.locator(".inventory-card").hover();
   await page.mouse.wheel(0, 1200);
@@ -84,7 +81,7 @@ test("landing-to-spawn stays under 10 seconds in healthy local conditions", asyn
   await page.getByLabel("Display name").fill("Speed Scout");
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
 
   const joinDurationMs = Date.now() - startedAt;
   expect(

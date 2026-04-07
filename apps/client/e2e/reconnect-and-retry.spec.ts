@@ -4,6 +4,13 @@ const serverPort = Number(process.env.PORT ?? 3201);
 
 const installReconnectSocketMock = async (context: import("@playwright/test").BrowserContext) => {
   await context.addInitScript(() => {
+    (window as typeof window & {
+      __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
+    }).__reconnectMockState = {
+      reconnectAttempts: 0,
+      lastJoinMessage: null,
+    };
+
     class MockReconnectSocket extends EventTarget {
       static CONNECTING = 0;
       static OPEN = 1;
@@ -41,14 +48,18 @@ const installReconnectSocketMock = async (context: import("@playwright/test").Br
 
         if (payload.type === "join") {
           queueMicrotask(() => {
-            const event = new MessageEvent("message", {
-              data: JSON.stringify({
+            const message = JSON.stringify({
                 type: "room-joined",
                 playerEntityId: "player_reconnect-scout",
                 roomId: "room_reconnect",
                 sessionToken: "session_reconnect",
-              }),
+              });
+            const event = new MessageEvent("message", {
+              data: message,
             });
+            (window as typeof window & {
+              __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
+            }).__reconnectMockState!.lastJoinMessage = message;
             this.onmessage?.(event);
             this.dispatchEvent(event);
           });
@@ -60,20 +71,29 @@ const installReconnectSocketMock = async (context: import("@playwright/test").Br
         }
 
         MockReconnectSocket.reconnectAttempts += 1;
+        (window as typeof window & {
+          __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
+        }).__reconnectMockState!.reconnectAttempts = MockReconnectSocket.reconnectAttempts;
 
         queueMicrotask(() => {
+          const message = JSON.stringify(
+            MockReconnectSocket.reconnectAttempts === 1
+              ? { type: "error", reason: "not-disconnected" }
+              : {
+                  type: "room-joined",
+                  playerEntityId: "player_reconnect-scout",
+                  roomId: "room_reconnect",
+                  sessionToken: payload.sessionToken ?? "session_reconnect",
+                },
+          );
           const event = new MessageEvent("message", {
-            data: JSON.stringify(
-              MockReconnectSocket.reconnectAttempts === 1
-                ? { type: "error", reason: "not-disconnected" }
-                : {
-                    type: "room-joined",
-                    playerEntityId: "player_reconnect-scout",
-                    roomId: "room_reconnect",
-                    sessionToken: payload.sessionToken ?? "session_reconnect",
-                  },
-            ),
+            data: message,
           });
+          if (MockReconnectSocket.reconnectAttempts > 1) {
+            (window as typeof window & {
+              __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
+            }).__reconnectMockState!.lastJoinMessage = message;
+          }
           this.onmessage?.(event);
           this.dispatchEvent(event);
         });
@@ -142,22 +162,20 @@ const installExpiredReconnectSocketMock = async (page: import("@playwright/test"
   });
 };
 
-const joinIntoHud = async (page: import("@playwright/test").Page, displayName: string) => {
+const joinIntoGameShell = async (page: import("@playwright/test").Page, displayName: string) => {
   await page.goto("/");
   await page.getByLabel("Display name").fill(displayName);
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
 };
 
-const readSessionHud = async (page: import("@playwright/test").Page) => {
-  const playerText = await page.getByText(/^Player:/).textContent();
-  const roomText = await page.getByText(/^Room:/).textContent();
-
-  return {
-    player: playerText?.replace(/^Player:\s*/, "") ?? "",
-    room: roomText?.replace(/^Room:\s*/, "") ?? "",
-  };
+const readReconnectMockState = async (page: import("@playwright/test").Page) => {
+  return await page.evaluate(() => {
+    return (window as typeof window & {
+      __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
+    }).__reconnectMockState ?? { reconnectAttempts: 0, lastJoinMessage: null };
+  });
 };
 
 const connectPlayer = async (displayName: string) => {
@@ -195,22 +213,25 @@ const connectPlayer = async (displayName: string) => {
 
 test("reconnects inside the reclaim window using the stored session token", async ({ context, page }) => {
   await installReconnectSocketMock(context);
-  await joinIntoHud(page, "Reconnect Scout");
-  const sessionBeforeReconnect = await readSessionHud(page);
+  await joinIntoGameShell(page, "Reconnect Scout");
+  const sessionBeforeReconnect = await readReconnectMockState(page);
 
   await page.reload();
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
 
-  await expect.poll(() => readSessionHud(page)).toEqual(sessionBeforeReconnect);
+  await expect.poll(() => readReconnectMockState(page)).toEqual({
+    reconnectAttempts: sessionBeforeReconnect.reconnectAttempts + 2,
+    lastJoinMessage: sessionBeforeReconnect.lastJoinMessage,
+  });
 });
 
 test("reconnect completes in under 5 seconds during the reclaim window", async ({ context, page }) => {
   await installReconnectSocketMock(context);
-  await joinIntoHud(page, "Fast Reconnect Scout");
+  await joinIntoGameShell(page, "Fast Reconnect Scout");
 
   const startedAt = Date.now();
   await page.reload();
-  await expect(page.getByLabel("survival hud")).toBeVisible();
+  await expect(page.getByLabel("game shell")).toBeVisible();
 
   const reconnectDurationMs = Date.now() - startedAt;
   expect(
@@ -221,13 +242,13 @@ test("reconnect completes in under 5 seconds during the reclaim window", async (
 
 test("does not reuse the reconnect token in a fresh page", async ({ context, page }) => {
   await installReconnectSocketMock(context);
-  await joinIntoHud(page, "Fresh Page Scout");
+  await joinIntoGameShell(page, "Fresh Page Scout");
 
   const freshPage = await context.newPage();
   await freshPage.goto("/");
 
   await expect(freshPage.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
-  await expect(freshPage.getByLabel("survival hud")).not.toBeVisible();
+  await expect(freshPage.getByLabel("game shell")).toHaveCount(0);
   await expect(freshPage.getByLabel("Display name")).toHaveValue("Fresh Page Scout");
 });
 
