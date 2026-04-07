@@ -6,6 +6,7 @@ import type {
   ErrorReason,
   Health,
   Inventory,
+  InventoryAction,
   LootEntity,
   PlayerState,
   SnapshotMessage,
@@ -191,6 +192,7 @@ export const createClientGameStore = () => {
     worldEntities: createEmptyWorldEntities(),
   };
   const listeners = new Set<() => void>();
+  let queuedInventoryAction: InventoryAction | undefined;
 
   const emit = () => {
     for (const listener of listeners) {
@@ -276,6 +278,7 @@ export const createClientGameStore = () => {
       playerEntityId: string;
       roomId: string;
     }) {
+      queuedInventoryAction = undefined;
       update((current) => {
         const isSameIdentity = current.playerEntityId === playerEntityId;
 
@@ -295,6 +298,7 @@ export const createClientGameStore = () => {
       });
     },
     failConnection(reason: ErrorReason) {
+      queuedInventoryAction = undefined;
       update((current) => ({
         ...current,
         connectionState: { phase: "failed", reason },
@@ -305,6 +309,7 @@ export const createClientGameStore = () => {
       return state;
     },
     resetToIdle() {
+      queuedInventoryAction = undefined;
       update((current) => ({
         connectionState: { phase: "idle" },
         health: null,
@@ -317,6 +322,33 @@ export const createClientGameStore = () => {
         roomId: null,
         worldEntities: createEmptyWorldEntities(),
       }));
+    },
+    selectInventorySlot(slotIndex: number) {
+      update((current) => {
+        if (slotIndex < 0 || slotIndex >= current.inventory.slots.length) {
+          return current;
+        }
+
+        if (current.inventory.slots[slotIndex] === null) {
+          return current;
+        }
+
+        return {
+          ...current,
+          inventory: {
+            ...current.inventory,
+            equippedWeaponSlot: slotIndex,
+          },
+        };
+      });
+    },
+    queueInventoryAction(action: InventoryAction) {
+      queuedInventoryAction = action;
+    },
+    consumeQueuedInventoryAction() {
+      const nextAction = queuedInventoryAction;
+      queuedInventoryAction = undefined;
+      return nextAction;
     },
     setInventory(inventory: Inventory) {
       update((current) => ({

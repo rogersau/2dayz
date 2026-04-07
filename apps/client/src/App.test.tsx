@@ -48,6 +48,7 @@ vi.mock("./game/net/protocolStore", () => ({
 
 const expectJoinedShell = () => {
   expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /open inventory/i })).toBeInTheDocument();
   expect(screen.queryByLabelText(/survival hud/i)).not.toBeInTheDocument();
 };
@@ -358,6 +359,182 @@ describe("App join and reconnect flow", () => {
     });
 
     expectJoinedShell();
+  });
+
+  it("keeps the quickbar visible and toggles the inventory panel from the joined hud", async () => {
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Quickbar Survivor",
+            entityId: "player_survivor",
+            health: { current: 100, isDead: false, max: 100 },
+            inventory: {
+              ammoStacks: [],
+              equippedWeaponSlot: 0,
+              slots: [
+                { itemId: "weapon_pistol", quantity: 1 },
+                { itemId: "bandage", quantity: 2 },
+                null,
+                null,
+                null,
+                null,
+              ],
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/slot 1/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1, weapon_pistol x1, equipped/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /quickbar slot 2, bandage x2, not equipped/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: /open inventory/i }).closest("section")).toHaveClass("inventory-card");
+    expect(screen.getByRole("button", { name: /quickbar slot 1/i }).closest("section")).toHaveClass("quickbar-hud");
+
+    fireEvent.click(screen.getByRole("button", { name: /open inventory/i }));
+
+    expect(screen.getByTestId("inventory-panel-content")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /collapse inventory/i }));
+
+    expect(screen.queryByTestId("inventory-panel-content")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
+  });
+
+  it("does not steal Tab from focused joined-state controls", async () => {
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Accessible Survivor",
+            entityId: "player_survivor",
+            health: { current: 100, isDead: false, max: 100 },
+            inventory: {
+              ammoStacks: [],
+              equippedWeaponSlot: 0,
+              slots: [
+                { itemId: "weapon_pistol", quantity: 1 },
+                { itemId: "bandage", quantity: 2 },
+                null,
+                null,
+                null,
+                null,
+              ],
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
+
+    const inventoryToggle = await screen.findByRole("button", { name: /open inventory/i });
+
+    inventoryToggle.focus();
+    fireEvent.keyDown(inventoryToggle, {
+      code: "Tab",
+      key: "Tab",
+    });
+
+    expect(screen.queryByTestId("inventory-panel-content")).not.toBeInTheDocument();
+  });
+
+  it("does not optimistically change the equipped quickbar slot before authoritative replication", async () => {
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Quickbar Survivor",
+            entityId: "player_survivor",
+            health: { current: 100, isDead: false, max: 100 },
+            inventory: {
+              ammoStacks: [],
+              equippedWeaponSlot: 0,
+              slots: [
+                { itemId: "weapon_pistol", quantity: 1 },
+                { itemId: "bandage", quantity: 2 },
+                null,
+                null,
+                null,
+                null,
+              ],
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
+
+    const slotOne = await screen.findByRole("button", { name: /quickbar slot 1, weapon_pistol x1, equipped/i });
+    const slotTwo = screen.getByRole("button", { name: /quickbar slot 2, bandage x2, not equipped/i });
+
+    expect(slotOne).toHaveAttribute("aria-pressed", "true");
+    expect(slotTwo).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(slotTwo);
+
+    expect(slotOne).toHaveAttribute("aria-pressed", "true");
+    expect(slotTwo).toHaveAttribute("aria-pressed", "false");
   });
 
   it("bypasses the field briefing on a later same-session join after it was already dismissed", async () => {

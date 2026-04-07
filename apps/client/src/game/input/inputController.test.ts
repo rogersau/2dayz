@@ -108,6 +108,26 @@ describe("inputController", () => {
     controller.destroy();
   });
 
+  it("does not toggle inventory or prevent Tab when a focusable control is targeted", () => {
+    const element = document.createElement("div");
+    const button = document.createElement("button");
+    document.body.append(element, button);
+    const onToggleInventory = vi.fn();
+    const controller = createInputController({ element, onToggleInventory });
+
+    const keydownEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+    });
+    button.dispatchEvent(keydownEvent);
+
+    expect(onToggleInventory).not.toHaveBeenCalled();
+    expect(keydownEvent.defaultPrevented).toBe(false);
+
+    controller.destroy();
+  });
+
   it("does not capture keyboard input while disabled", () => {
     const element = document.createElement("div");
     document.body.append(element);

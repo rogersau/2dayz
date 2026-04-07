@@ -5,8 +5,6 @@ import { createCamera } from "./createCamera";
 import { createRenderer } from "./createRenderer";
 import { createScene } from "./createScene";
 import { createInputController } from "./input/inputController";
-import { createHudScene } from "./render/createHudScene";
-import { deriveHudState } from "./render/hudState";
 import { createEntityViewStore } from "./render/entityViewStore";
 import { createPredictionController } from "./render/prediction";
 import { renderFrame } from "./render/renderFrame";
@@ -24,13 +22,6 @@ export const bootGame = ({
   const { renderer, resize: resizeRenderer } = createRenderer(canvas);
   const { camera, resize: resizeCamera } = createCamera(canvas);
   const { dispose: disposeScene, scene } = createScene();
-  const {
-    camera: hudCamera,
-    dispose: disposeHudScene,
-    resize: resizeHudScene,
-    scene: hudScene,
-    update: updateHudScene,
-  } = createHudScene();
   const inputController = createInputController({
     element: canvas,
     isEnabled: () => store.getState().connectionState.phase === "joined",
@@ -44,7 +35,6 @@ export const bootGame = ({
   let wasJoined = store.getState().connectionState.phase === "joined";
   let sequence = 0;
   let previousFrameTime = performance.now();
-  let previousHudState: ReturnType<typeof deriveHudState> | null = null;
   const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
 
   const unsubscribeFromStore = store.subscribe(() => {
@@ -52,7 +42,6 @@ export const bootGame = ({
 
     if (wasJoined && !isJoined) {
       inputController.reset();
-      previousHudState = null;
     }
 
     wasJoined = isJoined;
@@ -70,19 +59,29 @@ export const bootGame = ({
     }
 
     const input = inputController.pollInput(sequence++);
-    socketClient.sendInput(input);
+    const inventoryAction = store.consumeQueuedInventoryAction?.();
+    const nextInput = inventoryAction
+      ? {
+          ...input,
+          actions: {
+            ...input.actions,
+            inventory: inventoryAction,
+          },
+        }
+      : input;
+    socketClient.sendInput(nextInput);
 
     if (
-      input.movement.x !== 0 ||
-      input.movement.y !== 0 ||
-      input.aim.x !== 0 ||
-      input.aim.y !== 0
+      nextInput.movement.x !== 0 ||
+      nextInput.movement.y !== 0 ||
+      nextInput.aim.x !== 0 ||
+      nextInput.aim.y !== 0
     ) {
       predictionController.applyInput({
-        aim: input.aim,
+        aim: nextInput.aim,
         deltaSeconds: inputDeltaSeconds,
-        movement: input.movement,
-        sequence: input.sequence,
+        movement: nextInput.movement,
+        sequence: nextInput.sequence,
       });
     }
   };
@@ -90,7 +89,6 @@ export const bootGame = ({
   const resize = () => {
     resizeRenderer();
     resizeCamera();
-    resizeHudScene(canvas);
   };
 
   const tick = (frameTime: number) => {
@@ -110,40 +108,6 @@ export const bootGame = ({
       scene,
       store,
     });
-
-    const state = store.getState();
-
-    if (state.connectionState.phase === "joined") {
-      const nextHudState = deriveHudState({
-        health: state.health,
-        inventory: state.inventory,
-        playerEntityId: state.playerEntityId,
-        roomId: state.roomId,
-      });
-
-      if (
-        previousHudState === null
-        || previousHudState.ammoValue !== nextHudState.ammoValue
-        || previousHudState.equippedWeaponDetail !== nextHudState.equippedWeaponDetail
-        || previousHudState.healthDetail !== nextHudState.healthDetail
-        || previousHudState.healthValue !== nextHudState.healthValue
-        || previousHudState.inventorySummary !== nextHudState.inventorySummary
-        || previousHudState.playerLabel !== nextHudState.playerLabel
-        || previousHudState.roomLabel !== nextHudState.roomLabel
-      ) {
-        updateHudScene(nextHudState);
-        previousHudState = nextHudState;
-      }
-
-      const previousAutoClear = renderer.autoClear;
-      renderer.clearDepth();
-      renderer.autoClear = false;
-      renderer.render(hudScene, hudCamera);
-      renderer.autoClear = previousAutoClear;
-    } else {
-      previousHudState = null;
-    }
-
     animationFrame = window.requestAnimationFrame(tick);
   };
 
@@ -160,7 +124,6 @@ export const bootGame = ({
     unsubscribeFromStore();
     inputController.destroy();
     entityViewStore.dispose();
-    disposeHudScene();
     disposeScene();
     renderer.dispose();
   };

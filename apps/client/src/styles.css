@@ -253,18 +253,61 @@ button {
 .game-hud-layer {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-end;
   pointer-events: none;
   padding: 16px;
 }
 
-.survival-hud {
-  align-self: stretch;
+.hud-bottom {
+  margin-top: auto;
   display: grid;
   gap: 12px;
-  max-width: min(100%, 640px);
+}
+
+.quickbar-hud {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  align-self: center;
+  pointer-events: auto;
+  width: min(100%, 640px);
+  padding: 10px;
+  border-radius: 18px;
+  border: 1px solid rgba(200, 179, 138, 0.16);
   background: rgba(24, 21, 19, 0.92);
-  backdrop-filter: none;
+  backdrop-filter: blur(18px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+}
+
+.quickbar-slot {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid rgba(216, 185, 128, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  text-align: left;
+}
+
+.quickbar-slot[aria-pressed="true"],
+.quickbar-slot[data-equipped="true"] {
+  border-color: rgba(216, 185, 128, 0.75);
+  background: rgba(216, 185, 128, 0.14);
+}
+
+.quickbar-slot-number {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
+.quickbar-slot-item {
+  font-size: 0.82rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .hud-primary-grid {
@@ -359,6 +402,11 @@ button {
   align-items: flex-start;
 }
 
+.inventory-panel-content {
+  display: grid;
+  gap: 8px;
+}
+
 .inventory-slot {
   border-radius: 14px;
   min-height: 84px;
@@ -404,18 +452,19 @@ button {
   .game-hud-layer {
     gap: 12px;
     padding: 12px;
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
-  .survival-hud {
-    pointer-events: auto;
+  .hud-bottom {
     gap: 10px;
     width: 100%;
+  }
+
+  .quickbar-hud {
+    width: 100%;
     max-width: none;
-    max-height: calc(100dvh - 24px);
-    padding: 12px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
+    padding: 8px;
+    border-radius: 16px;
     background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
   }
 
@@ -449,7 +498,7 @@ button {
   .inventory-card {
     width: 100%;
     gap: 10px;
-    max-height: min(42dvh, 320px);
+    max-height: min(36dvh, 280px);
     overflow: auto;
   }
 

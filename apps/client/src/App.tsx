@@ -235,6 +235,16 @@ export const App = () => {
               <Hud
                 inventory={state.inventory}
                 isInventoryOpen={state.isInventoryOpen}
+                onSelectSlot={(slotIndex) => {
+                  if (state.inventory.slots[slotIndex] === null) {
+                    return;
+                  }
+
+                  gameStore.queueInventoryAction({
+                    type: "equip",
+                    toSlot: slotIndex,
+                  });
+                }}
                 onToggleInventory={() => gameStore.toggleInventory()}
               />
             </div>

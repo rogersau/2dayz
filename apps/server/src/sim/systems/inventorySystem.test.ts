@@ -106,6 +106,44 @@ describe("createInventorySystem", () => {
     expect(state.dirtyPlayerIds.has("player_test-equip")).toBe(true);
   });
 
+  it("equips an occupied carried slot through the authoritative inventory action path", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-select",
+      displayName: "Avery",
+      position: { x: 1, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-select");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.inventory.slots[0] = { itemId: "item_revolver", quantity: 1 };
+    player.inventory.slots[1] = { itemId: "item_bandage", quantity: 2 };
+    player.inventory.equippedWeaponSlot = 0;
+    state.dirtyPlayerIds.clear();
+
+    queueInputIntent(state, "player_test-select", {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: {
+        inventory: {
+          type: "equip",
+          toSlot: 1,
+        },
+      },
+    });
+
+    createInventorySystem().update(state, 0);
+
+    expect(player.inventory.equippedWeaponSlot).toBe(1);
+    expect(state.dirtyPlayerIds.has("player_test-select")).toBe(true);
+  });
+
   it("consumes reserve ammo to refill a magazine and leaves leftovers stacked", () => {
     const state = createRoomState({ roomId: "room_test" });
     queueSpawnPlayer(state, {
