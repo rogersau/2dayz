@@ -7,6 +7,8 @@ import { createSocketClient } from "./socketClient";
 
 describe("socketClient", () => {
   const mockSpawn = defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_main-road")?.position ?? { x: 12, y: 20 };
+  const mockBanditSpawn = defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_square")?.position ?? { x: 15, y: 16 };
+  const mockZombieSpawn = defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === "zone_town-center")?.center ?? { x: 26, y: 20 };
 
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -195,7 +197,7 @@ describe("socketClient", () => {
     });
   });
 
-  it("places the mock world inside the shared default town coordinates", async () => {
+  it("places both mock players and the zombie at exact shared default town positions", async () => {
     const protocolStore = createProtocolStore();
     const socketClient = createSocketClient({ mode: "mock", protocolStore });
 
@@ -203,11 +205,14 @@ describe("socketClient", () => {
 
     const { snapshot } = protocolStore.drainWorldUpdates();
     const self = snapshot?.players.find((player) => player.entityId === "player_survivor");
+    const bandit = snapshot?.players.find((player) => player.entityId === "player_bandit");
     const zombie = snapshot?.zombies.find((entity) => entity.entityId === "zombie_1");
 
-    expect(self?.transform.x).toBeGreaterThan(5);
-    expect(self?.transform.y).toBeGreaterThan(5);
-    expect(zombie?.transform.x).toBeGreaterThan(self?.transform.x ?? 0);
+    expect(snapshot?.players).toHaveLength(2);
+    expect(snapshot?.zombies).toHaveLength(1);
+    expect(self?.transform).toEqual({ rotation: 0, ...mockSpawn });
+    expect(bandit?.transform).toEqual({ rotation: 0.2, ...mockBanditSpawn });
+    expect(zombie?.transform).toEqual({ rotation: 0.1, ...mockZombieSpawn });
   });
 
   it("emits mock combat deltas and eventually removes the mock zombie", async () => {
