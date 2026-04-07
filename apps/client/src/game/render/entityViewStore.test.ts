@@ -146,7 +146,7 @@ describe("createEntityViewStore", () => {
     expect(scene.getObjectByName("entity:player_other")).toBeUndefined();
   });
 
-  it("applies the recent-hit death fallback only once when a zombie disappears without a dead-state frame", () => {
+  it("does not extend the recent-hit death fallback across repeated removal frames", () => {
     const scene = new THREE.Scene();
     const store = createEntityViewStore(scene);
 
@@ -178,12 +178,24 @@ describe("createEntityViewStore", () => {
       playerEntityId: null,
     });
 
-    expect(scene.getObjectByName("entity:zombie_1")).toBeTruthy();
+    const zombieAfterRemoval = scene.getObjectByName("entity:zombie_1");
+
+    expect(zombieAfterRemoval).toBeTruthy();
 
     store.render({
-      deltaSeconds: 0.4,
+      deltaSeconds: 0.2,
       entities: [],
       latestTick: 3,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    expect(scene.getObjectByName("entity:zombie_1")).toBe(zombieAfterRemoval);
+
+    store.render({
+      deltaSeconds: 0.06,
+      entities: [],
+      latestTick: 4,
       localOverrides: new Map(),
       playerEntityId: null,
     });
