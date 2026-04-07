@@ -205,8 +205,20 @@ export const App = () => {
       return;
     }
 
+    const isFocusableControl = (eventTarget: EventTarget | null) => {
+      if (!(eventTarget instanceof HTMLElement)) {
+        return false;
+      }
+
+      return eventTarget.matches("button, input, select, textarea, [contenteditable='true'], [tabindex]");
+    };
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Tab") {
+        return;
+      }
+
+      if (isFocusableControl(event.target)) {
         return;
       }
 
