@@ -6,6 +6,7 @@ const createLabel = ({ color, fontSize }: { color: string; fontSize: number }) =
   const canvas = document.createElement("canvas");
   canvas.width = 512;
   canvas.height = 128;
+  let currentText: string | null = null;
 
   const context = canvas.getContext("2d");
   if (!context) {
@@ -28,6 +29,11 @@ const createLabel = ({ color, fontSize }: { color: string; fontSize: number }) =
       sprite.position.set(x, y, 0);
     },
     setText(text: string) {
+      if (text === currentText) {
+        return;
+      }
+
+      currentText = text;
       context.clearRect(0, 0, canvas.width, canvas.height);
       context.fillStyle = color;
       context.font = `600 ${fontSize}px monospace`;

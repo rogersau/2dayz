@@ -168,10 +168,10 @@ describe("bootGame", () => {
     rendererMock.clearDepth = rendererClearDepthMock;
     rendererMock.dispose = rendererDisposeMock;
     autoClearDuringRender = [];
-    rendererMock.render = (...args: Parameters<typeof renderMock>) => {
+    rendererMock.render.mockImplementation((...args: Parameters<typeof renderMock>) => {
       autoClearDuringRender.push(rendererMock.autoClear);
       return renderMock(...args);
-    };
+    });
     scheduledInterval = null;
     scheduledFrame = null;
     pollInputMock.mockReturnValue({
