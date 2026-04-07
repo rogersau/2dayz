@@ -1,5 +1,5 @@
 import { getPlayers } from "../query";
-import type { PlayerInputIntent, RoomSimulationState } from "../state";
+import type { PlayerInputIntent, RoomSimulationState, SimPlayer } from "../state";
 
 export type MovementSystem = {
   name: "movement";
@@ -16,6 +16,25 @@ const normalizeMovement = (intent: PlayerInputIntent["movement"]): { x: number; 
     x: intent.x / magnitude,
     y: intent.y / magnitude,
   };
+};
+
+const getInventoryLoad = (state: RoomSimulationState, player: SimPlayer): number => {
+  const occupiedSlots = player.inventory.slots.reduce((count, slot) => count + (slot ? 1 : 0), 0);
+  const ammoLoad = player.inventory.ammoStacks.reduce((total, stack) => {
+    const item = state.itemDefinitions.get(stack.ammoItemId);
+    if (!item || item.category !== "ammo") {
+      return total;
+    }
+
+    return total + stack.quantity / 30;
+  }, 0);
+
+  return occupiedSlots + ammoLoad;
+};
+
+const getStaminaMax = (state: RoomSimulationState, player: SimPlayer): number => {
+  const load = getInventoryLoad(state, player);
+  return Math.max(state.config.staminaFloor, state.config.staminaBaseline - load * state.config.staminaLoadPenalty);
 };
 
 export const createMovementSystem = (): MovementSystem => {
@@ -36,7 +55,15 @@ export const createMovementSystem = (): MovementSystem => {
         }
 
         const direction = normalizeMovement(intent.movement);
-        const speed = state.config.maxPlayerSpeed;
+        const moving = direction.x !== 0 || direction.y !== 0;
+        const staminaMax = getStaminaMax(state, player);
+        player.stamina.max = staminaMax;
+        player.stamina.current = Math.min(player.stamina.current, staminaMax);
+
+        const sprinting = Boolean(intent.actions.sprint) && moving && player.stamina.current > 0;
+        const speed = sprinting
+          ? state.config.maxPlayerSpeed * state.config.sprintSpeedMultiplier
+          : state.config.maxPlayerSpeed;
         const velocity = {
           x: direction.x * speed,
           y: direction.y * speed,
@@ -62,6 +89,9 @@ export const createMovementSystem = (): MovementSystem => {
           rotation,
         };
         player.velocity = blocked ? { x: 0, y: 0 } : velocity;
+        player.stamina.current = sprinting
+          ? Math.max(0, player.stamina.current - state.config.staminaDrainPerSecond * deltaSeconds)
+          : Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
         state.inputIntents.delete(player.entityId);
         state.lastProcessedInputSequence.set(player.entityId, intent.sequence);
         state.dirtyPlayerIds.add(player.entityId);

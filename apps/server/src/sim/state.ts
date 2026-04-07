@@ -27,6 +27,12 @@ export const MAX_ROOM_PLAYER_CAPACITY = 12;
 export const DEFAULT_MAX_ZOMBIES = 24;
 export const DEFAULT_MAX_DROPPED_ITEMS = 64;
 export const DEFAULT_MAX_PLAYER_SPEED = 4;
+export const DEFAULT_SPRINT_SPEED_MULTIPLIER = 1.5;
+export const DEFAULT_STAMINA_BASELINE = 10;
+export const DEFAULT_STAMINA_FLOOR = 4;
+export const DEFAULT_STAMINA_DRAIN_PER_SECOND = 2;
+export const DEFAULT_STAMINA_REGEN_PER_SECOND = 1;
+export const DEFAULT_STAMINA_LOAD_PENALTY = 1;
 
 export type PlayerInputIntent = Omit<InputMessage, "type">;
 
@@ -36,8 +42,19 @@ export type RoomSimulationConfig = {
   maxZombies: number;
   maxDroppedItems: number;
   maxPlayerSpeed: number;
+   sprintSpeedMultiplier: number;
+   staminaBaseline: number;
+   staminaFloor: number;
+   staminaDrainPerSecond: number;
+   staminaRegenPerSecond: number;
+   staminaLoadPenalty: number;
   isMovementBlocked(movement: { from: Vector2; to: Vector2; radius: number }, entityId: string): boolean;
   isPositionBlocked(position: Vector2, entityId: string): boolean;
+};
+
+export type StaminaState = {
+  current: number;
+  max: number;
 };
 
 export type SimPlayer = {
@@ -46,6 +63,7 @@ export type SimPlayer = {
   transform: Transform;
   velocity: Velocity;
   health: Health;
+  stamina: StaminaState;
   inventory: Inventory;
   weaponState: WeaponState;
   lastDamagedByEntityId: string | null;
@@ -196,6 +214,12 @@ export const createRoomSimulationConfig = (
     maxZombies: overrides.maxZombies ?? DEFAULT_MAX_ZOMBIES,
     maxDroppedItems: overrides.maxDroppedItems ?? DEFAULT_MAX_DROPPED_ITEMS,
     maxPlayerSpeed: overrides.maxPlayerSpeed ?? DEFAULT_MAX_PLAYER_SPEED,
+    sprintSpeedMultiplier: overrides.sprintSpeedMultiplier ?? DEFAULT_SPRINT_SPEED_MULTIPLIER,
+    staminaBaseline: overrides.staminaBaseline ?? DEFAULT_STAMINA_BASELINE,
+    staminaFloor: overrides.staminaFloor ?? DEFAULT_STAMINA_FLOOR,
+    staminaDrainPerSecond: overrides.staminaDrainPerSecond ?? DEFAULT_STAMINA_DRAIN_PER_SECOND,
+    staminaRegenPerSecond: overrides.staminaRegenPerSecond ?? DEFAULT_STAMINA_REGEN_PER_SECOND,
+    staminaLoadPenalty: overrides.staminaLoadPenalty ?? DEFAULT_STAMINA_LOAD_PENALTY,
     isMovementBlocked:
       overrides.isMovementBlocked ??
       ((movement, entityId) => {
@@ -209,6 +233,12 @@ export const createRoomSimulationConfig = (
   assertPositive(config.maxZombies, "zombie cap");
   assertPositive(config.maxDroppedItems, "dropped item cap");
   assertPositive(config.maxPlayerSpeed, "player speed");
+  assertPositive(config.sprintSpeedMultiplier, "sprint speed multiplier");
+  assertPositive(config.staminaBaseline, "stamina baseline");
+  assertPositive(config.staminaFloor, "stamina floor");
+  assertPositive(config.staminaDrainPerSecond, "stamina drain");
+  assertPositive(config.staminaRegenPerSecond, "stamina regen");
+  assertPositive(config.staminaLoadPenalty, "stamina load penalty");
 
   return config;
 };
@@ -284,6 +314,8 @@ export const clearTransientSimulationState = (state: RoomSimulationState): void 
 };
 
 export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerRequest): void => {
+  const staminaMax = state.config.staminaBaseline;
+
   state.players.set(request.entityId, {
     entityId: request.entityId,
     displayName: request.displayName,
@@ -294,6 +326,7 @@ export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerR
     },
     velocity: { x: 0, y: 0 },
     health: createDefaultHealth(),
+    stamina: { current: staminaMax, max: staminaMax },
     inventory: createEmptyInventory(),
     weaponState: createDefaultWeaponState(),
     lastDamagedByEntityId: null,
