@@ -72,6 +72,10 @@ export const processPendingRespawns = (state: RoomSimulationState): void => {
       max: player.health.max,
       isDead: false,
     };
+    player.stamina = {
+      current: player.stamina.max,
+      max: player.stamina.max,
+    };
     player.lastDamagedByEntityId = null;
 
     state.handledDeathEntityIds.delete(player.entityId);

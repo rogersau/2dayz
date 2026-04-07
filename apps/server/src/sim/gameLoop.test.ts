@@ -170,4 +170,52 @@ describe("createSimulationRoomRuntime", () => {
     });
     expect(deltas[0]).toMatchObject({ enteredEntities: [] });
   });
+
+  it("restores stamina when a dead player respawns", () => {
+    const runtime = createSimulationRoomRuntime({
+      roomId: "room_test",
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [],
+          respawnPoints: [{ pointId: "point_respawn-a", position: { x: 10, y: 10 } }],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 10, y: 10 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: { nodes: new Map(), neighbors: new Map() },
+        respawnPoints: [{ x: 10, y: 10 }],
+      },
+    });
+
+    const joined = runtime.joinPlayer({ displayName: "Avery" });
+    runtime.tick();
+
+    const player = runtime.simulationState.players.get(joined.playerEntityId);
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.health = { current: 0, max: 100, isDead: true };
+    player.stamina.current = 0;
+    runtime.simulationState.pendingRespawns.push({
+      entityId: joined.playerEntityId,
+      respawnAtMs: runtime.simulationState.elapsedMs,
+      position: { x: 10, y: 10 },
+    });
+
+    runtime.tick();
+
+    expect(player.transform).toMatchObject({ x: 10, y: 10, rotation: 0 });
+    expect(player.velocity).toEqual({ x: 0, y: 0 });
+    expect(player.health).toMatchObject({ current: 100, max: 100, isDead: false });
+    expect(player.stamina).toMatchObject({ current: 10, max: 10 });
+  });
 });

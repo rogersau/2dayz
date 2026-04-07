@@ -195,6 +195,12 @@ const assertPositive = (value: number, label: string): void => {
   }
 };
 
+const assertGreaterThan = (value: number, minimum: number, label: string): void => {
+  if (value <= minimum) {
+    throw new Error(`${label} must be greater than ${minimum}`);
+  }
+};
+
 const assertFixedTickRate = (value: number): void => {
   if (value !== SERVER_TICK_RATE) {
     throw new Error(`fixed tick rate must be ${SERVER_TICK_RATE}`);
@@ -233,7 +239,7 @@ export const createRoomSimulationConfig = (
   assertPositive(config.maxZombies, "zombie cap");
   assertPositive(config.maxDroppedItems, "dropped item cap");
   assertPositive(config.maxPlayerSpeed, "player speed");
-  assertPositive(config.sprintSpeedMultiplier, "sprint speed multiplier");
+  assertGreaterThan(config.sprintSpeedMultiplier, 1, "sprint speed multiplier");
   assertPositive(config.staminaBaseline, "stamina baseline");
   assertPositive(config.staminaFloor, "stamina floor");
   assertPositive(config.staminaDrainPerSecond, "stamina drain");
