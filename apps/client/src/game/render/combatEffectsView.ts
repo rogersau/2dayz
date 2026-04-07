@@ -158,24 +158,26 @@ export const createCombatEffectsView = (scene: THREE.Scene) => {
       localPlayerTransform: Transform | null;
       renderEvents: Array<CombatEvent | DeathEvent>;
     }) {
-      while (queuedLocalShots.length > 0) {
-        const shot = queuedLocalShots.shift();
-        if (!shot || !localPlayerTransform) {
-          continue;
-        }
+      if (localPlayerTransform) {
+        while (queuedLocalShots.length > 0) {
+          const shot = queuedLocalShots.shift();
+          if (!shot) {
+            continue;
+          }
 
-        addEffect({
-          effects: activeEffects,
-          object: createMuzzleFlash(localPlayerTransform),
-          root,
-          seconds: MUZZLE_FLASH_DURATION_SECONDS,
-        });
-        addEffect({
-          effects: activeEffects,
-          object: createTracer({ aim: shot.aim, transform: localPlayerTransform }),
-          root,
-          seconds: TRACER_DURATION_SECONDS,
-        });
+          addEffect({
+            effects: activeEffects,
+            object: createMuzzleFlash(localPlayerTransform),
+            root,
+            seconds: MUZZLE_FLASH_DURATION_SECONDS,
+          });
+          addEffect({
+            effects: activeEffects,
+            object: createTracer({ aim: shot.aim, transform: localPlayerTransform }),
+            root,
+            seconds: TRACER_DURATION_SECONDS,
+          });
+        }
       }
 
       for (const event of renderEvents) {
