@@ -320,6 +320,10 @@ export const createClientGameStore = () => {
     },
     selectInventorySlot(slotIndex: number) {
       update((current) => {
+        if (slotIndex < 0 || slotIndex >= current.inventory.slots.length) {
+          return current;
+        }
+
         if (current.inventory.slots[slotIndex] === null) {
           return current;
         }
