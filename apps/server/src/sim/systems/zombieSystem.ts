@@ -320,16 +320,9 @@ export const createZombieSystem = () => {
           lockAggroToTarget(zombie, target.entityId);
         } else if (zombie.heardTargetEntityId) {
           const heardTarget = state.players.get(zombie.heardTargetEntityId);
-          if (heardTarget && !heardTarget.health.isDead) {
-            zombie.heardPosition = {
-              x: heardTarget.transform.x,
-              y: heardTarget.transform.y,
-            };
-
-            if (canSeeTarget(state, zombie, heardTarget.transform)) {
-              lockAggroToTarget(zombie, heardTarget.entityId);
-              target = heardTarget;
-            }
+          if (heardTarget && !heardTarget.health.isDead && canSeeTarget(state, zombie, heardTarget.transform)) {
+            lockAggroToTarget(zombie, heardTarget.entityId);
+            target = heardTarget;
           }
         }
 

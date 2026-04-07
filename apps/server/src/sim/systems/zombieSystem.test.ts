@@ -282,6 +282,54 @@ describe("createZombieSystem", () => {
     expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: player.transform.x, y: player.transform.y });
   });
 
+  it("keeps the last heard hidden sprint position until a new sound is produced", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        isMovementBlocked: ({ from, to }) => from.x < 5 && to.x > 5 && from.y <= 3 && to.y <= 3,
+      }),
+      world: createBlockedHearingWorld(),
+    });
+
+    const player = spawnPlayer(state, "player_test-heard-frozen", "Avery", { x: 8, y: 2 });
+    state.zombies.set("zombie_test-heard-frozen", {
+      entityId: "zombie_test-heard-frozen",
+      archetypeId: "zombie_shambler",
+      transform: { x: 2, y: 2, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    queueInputIntent(state, player.entityId, {
+      sequence: 1,
+      movement: { x: 1, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { sprint: true },
+    });
+
+    const movementSystem = createMovementSystem();
+    const zombieSystem = createZombieSystem();
+    movementSystem.update(state, 0.1);
+    zombieSystem.update(state, 0.1);
+
+    const zombie = state.zombies.get("zombie_test-heard-frozen");
+    const firstHeardPosition = asHearingZombie(zombie)?.heardPosition;
+    expect(firstHeardPosition).toEqual({ x: player.transform.x, y: player.transform.y });
+
+    state.sprintNoiseEvents.length = 0;
+    player.transform = { x: 8, y: 3.5, rotation: player.transform.rotation };
+    player.velocity = { x: 0, y: 0 };
+
+    zombieSystem.update(state, 0.1);
+
+    expect(asHearingZombie(zombie)?.heardPosition).toEqual(firstHeardPosition);
+    expect(asHearingZombie(zombie)?.heardPosition).not.toEqual({ x: player.transform.x, y: player.transform.y });
+  });
+
   it("returns to roaming or idle after reaching a heard position without reacquiring a target", () => {
     const state = createRoomState({
       roomId: "room_test",
