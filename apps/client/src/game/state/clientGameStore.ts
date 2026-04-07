@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react";
 
 import type {
+  CombatEvent,
+  DeathEvent,
   DeltaMessage,
   EnteredEntity,
   ErrorReason,
@@ -34,6 +36,7 @@ export type RenderZombieEntity = ZombieEntity & {
   kind: "zombie";
   velocity?: { x: number; y: number };
 };
+export type ClientRenderEvent = CombatEvent | DeathEvent;
 
 type WorldEntities = {
   loot: RenderLootEntity[];
@@ -193,6 +196,7 @@ export const createClientGameStore = () => {
   };
   const listeners = new Set<() => void>();
   let queuedInventoryAction: InventoryAction | undefined;
+  let queuedRenderEvents: ClientRenderEvent[] = [];
 
   const emit = () => {
     for (const listener of listeners) {
@@ -224,6 +228,10 @@ export const createClientGameStore = () => {
         }
 
         for (const event of delta.events) {
+          if (event.type === "combat" || event.type === "death") {
+            queuedRenderEvents.push(event);
+          }
+
           if (event.type === "death" && event.victimEntityId === current.playerEntityId) {
             nextState = {
               ...nextState,
@@ -279,6 +287,7 @@ export const createClientGameStore = () => {
       roomId: string;
     }) {
       queuedInventoryAction = undefined;
+      queuedRenderEvents = [];
       update((current) => {
         const isSameIdentity = current.playerEntityId === playerEntityId;
 
@@ -299,6 +308,7 @@ export const createClientGameStore = () => {
     },
     failConnection(reason: ErrorReason) {
       queuedInventoryAction = undefined;
+      queuedRenderEvents = [];
       update((current) => ({
         ...current,
         connectionState: { phase: "failed", reason },
@@ -310,6 +320,7 @@ export const createClientGameStore = () => {
     },
     resetToIdle() {
       queuedInventoryAction = undefined;
+      queuedRenderEvents = [];
       update((current) => ({
         connectionState: { phase: "idle" },
         health: null,
@@ -349,6 +360,11 @@ export const createClientGameStore = () => {
       const nextAction = queuedInventoryAction;
       queuedInventoryAction = undefined;
       return nextAction;
+    },
+    drainRenderEvents() {
+      const events = queuedRenderEvents;
+      queuedRenderEvents = [];
+      return events;
     },
     setInventory(inventory: Inventory) {
       update((current) => ({

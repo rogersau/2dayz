@@ -216,6 +216,56 @@ describe("clientGameStore", () => {
     });
   });
 
+  it("queues combat and death render events while preserving existing state updates", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+
+    store.applyDelta({
+      enteredEntities: [],
+      entityUpdates: [],
+      events: [
+        {
+          attackerEntityId: "player_self",
+          damage: 12,
+          hitPosition: { x: 18, y: 20 },
+          remainingHealth: 28,
+          roomId: "room_browser-v1",
+          targetEntityId: "zombie_1",
+          type: "combat",
+          weaponItemId: "weapon_pistol",
+        },
+        {
+          droppedInventory: {
+            ammoStacks: [],
+            equippedWeaponSlot: null,
+            slots: [null, null, null, null, null, null],
+          },
+          killerEntityId: "zombie_1",
+          respawnAt: { x: 7, y: 14 },
+          roomId: "room_browser-v1",
+          type: "death",
+          victimEntityId: "player_self",
+        },
+      ],
+      removedEntityIds: [],
+      roomId: "room_browser-v1",
+      tick: 2,
+      type: "delta",
+    });
+
+    expect(store.getState().isDead).toBe(true);
+    expect(store.drainRenderEvents()).toEqual([
+      expect.objectContaining({ type: "combat" }),
+      expect.objectContaining({ type: "death" }),
+    ]);
+    expect(store.drainRenderEvents()).toEqual([]);
+  });
+
   it("updates equippedWeaponSlot when selecting an occupied inventory slot", () => {
     const store = createClientGameStore();
 
