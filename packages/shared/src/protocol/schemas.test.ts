@@ -59,6 +59,7 @@ describe("protocol schemas", () => {
             displayName: "Survivor",
             transform: { x: 10, y: 5, rotation: 0.4 },
             velocity: { x: 1, y: 0 },
+            stamina: { current: 8, max: 10 },
             inventory: {
               slots: [
                 { itemId: "bandage", quantity: 1 },
@@ -106,6 +107,7 @@ describe("protocol schemas", () => {
             displayName: "Scout",
             transform: { x: 12, y: 5, rotation: 0.2 },
             velocity: { x: 0, y: 0 },
+            stamina: { current: 6, max: 10 },
             inventory: {
               slots: [null, null, null, null, null, null],
               equippedWeaponSlot: null,
@@ -130,6 +132,7 @@ describe("protocol schemas", () => {
               ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
             },
             lastProcessedInputSequence: 8,
+            stamina: { current: 7, max: 10 },
             transform: { x: 11, y: 5, rotation: 1.2 },
             velocity: { x: 1, y: 0 },
           },

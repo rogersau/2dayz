@@ -35,7 +35,18 @@ export const healthSchema = z
     message: "health current must be <= max",
   });
 
+export const staminaSchema = z
+  .object({
+    current: finiteNumber.nonnegative(),
+    max: finiteNumber.positive(),
+  })
+  .strict()
+  .refine((value) => value.current <= value.max, {
+    message: "stamina current must be <= max",
+  });
+
 export type Vector2 = z.infer<typeof vector2Schema>;
 export type Transform = z.infer<typeof transformSchema>;
 export type Velocity = z.infer<typeof velocitySchema>;
 export type Health = z.infer<typeof healthSchema>;
+export type Stamina = z.infer<typeof staminaSchema>;

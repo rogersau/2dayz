@@ -39,6 +39,7 @@ describe("clientGameStore", () => {
               null,
             ],
           },
+          stamina: { current: 8, max: 10 },
           transform: { rotation: 0, x: 4, y: 6 },
           velocity: { x: 0, y: 0 },
         },
@@ -50,6 +51,7 @@ describe("clientGameStore", () => {
             equippedWeaponSlot: null,
             slots: [null, null, null, null, null, null],
           },
+          stamina: { current: 10, max: 10 },
           transform: { rotation: 0, x: 10, y: 2 },
           velocity: { x: 0, y: 0 },
         },
@@ -116,6 +118,7 @@ describe("clientGameStore", () => {
       isDead: true,
       isInventoryOpen: true,
       latestTick: 21,
+      stamina: { current: 8, max: 10 },
     });
     expect(store.getState().worldEntities.loot.map((entity) => entity.entityId)).toEqual(["loot_medkit"]);
     expect(store.getState().worldEntities.players.find((entity) => entity.entityId === "player_other")).toMatchObject({
@@ -155,6 +158,7 @@ describe("clientGameStore", () => {
             ],
           },
           lastProcessedInputSequence: 2,
+          stamina: { current: 9, max: 10 },
           transform: { rotation: 0, x: 0, y: 0 },
           velocity: { x: 0, y: 0 },
         },
@@ -184,6 +188,7 @@ describe("clientGameStore", () => {
             ],
           },
           lastProcessedInputSequence: 4,
+          stamina: { current: 5, max: 8 },
           transform: { rotation: 0.2, x: 1, y: 0 },
           velocity: { x: 1, y: 0 },
         },
@@ -209,9 +214,11 @@ describe("clientGameStore", () => {
           null,
         ],
       },
+      stamina: { current: 5, max: 8 },
     });
     expect(store.getState().worldEntities.players[0]).toMatchObject({
       lastProcessedInputSequence: 4,
+      stamina: { current: 5, max: 8 },
       transform: { rotation: 0.2, x: 1, y: 0 },
     });
   });

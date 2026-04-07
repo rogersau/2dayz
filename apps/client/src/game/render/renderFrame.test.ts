@@ -35,6 +35,7 @@ describe("renderFrame", () => {
               entityId: "player_self",
               inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
               kind: "player",
+              stamina: { current: 8, max: 10 },
               transform: { rotation: 0.1, x: 3, y: 4 },
               velocity: { x: 0, y: 0 },
             },
@@ -63,6 +64,12 @@ describe("renderFrame", () => {
         localOverrides: new Map([["player_self", { rotation: 0.3, x: 12, y: -6 }]]),
       }),
     );
+    expect(predictionController.syncAuthoritative).toHaveBeenCalledWith({
+      authoritativeStamina: { current: 8, max: 10 },
+      authoritativeTransform: { rotation: 0.1, x: 3, y: 4 },
+      entityId: "player_self",
+      lastProcessedSequence: -1,
+    });
   });
 
   it("passes the resolved local transform and drained render events into combat effects", () => {
@@ -118,6 +125,7 @@ describe("renderFrame", () => {
               entityId: "player_self",
               inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
               kind: "player",
+              stamina: { current: 7, max: 10 },
               transform: { rotation: 0.1, x: 3, y: 4 },
               velocity: { x: 0, y: 0 },
             },

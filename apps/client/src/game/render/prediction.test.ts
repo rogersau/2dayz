@@ -15,15 +15,18 @@ describe("prediction", () => {
       deltaSeconds: 0.5,
       movement: { x: 1, y: 0 },
       sequence: 1,
+      sprint: false,
     });
     const afterSecondInput = applyPredictedInput(afterFirstInput, {
       aim: { x: 1, y: 0 },
       deltaSeconds: 0.5,
       movement: { x: 1, y: 0 },
       sequence: 2,
+      sprint: false,
     });
 
     const reconciled = reconcilePrediction({
+      authoritativeStamina: { current: 10, max: 10 },
       authoritativeTransform: { rotation: 0, x: 1.6, y: 0 },
       lastProcessedSequence: 1,
       state: afterSecondInput,
@@ -45,18 +48,21 @@ describe("prediction", () => {
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 1,
+      sprint: false,
     });
     const secondFrame = prediction.applyInput({
       aim: { x: 1, y: 0 },
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 2,
+      sprint: false,
     });
 
     expect(firstFrame).toEqual({ rotation: 0, x: 1, y: 0 });
     expect(secondFrame).toEqual({ rotation: 0, x: 2, y: 0 });
 
     const reconciled = prediction.reconcile({
+      authoritativeStamina: { current: 10, max: 10 },
       authoritativeTransform: { rotation: 0, x: 0.8, y: 0 },
       lastProcessedSequence: 1,
     });
@@ -70,6 +76,7 @@ describe("prediction", () => {
     const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
 
     prediction.syncAuthoritative({
+      authoritativeStamina: { current: 10, max: 10 },
       authoritativeTransform: { rotation: 0, x: 0, y: 0 },
       entityId: "player_self",
       lastProcessedSequence: 0,
@@ -80,9 +87,11 @@ describe("prediction", () => {
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 1,
+      sprint: false,
     });
 
     const afterReconcile = prediction.reconcile({
+      authoritativeStamina: { current: 10, max: 10 },
       authoritativeTransform: { rotation: 0, x: 0.4, y: 0 },
       lastProcessedSequence: 1,
     });
@@ -104,6 +113,7 @@ describe("prediction", () => {
       deltaSeconds: 0.5,
       movement: { x: 1, y: 1 },
       sequence: 1,
+      sprint: false,
     });
 
     expect(transform.x).toBeCloseTo(Math.SQRT2);
@@ -118,12 +128,14 @@ describe("prediction", () => {
       deltaSeconds: 0.25,
       movement: { x: 0, y: 0 },
       sequence: 1,
+      sprint: false,
     });
     const strafingAim = prediction.applyInput({
       aim: { x: 0, y: 2 },
       deltaSeconds: 0.25,
       movement: { x: -1, y: 0 },
       sequence: 2,
+      sprint: false,
     });
 
     expect(standingAim.rotation).toBeCloseTo(Math.PI / 2);
@@ -132,6 +144,13 @@ describe("prediction", () => {
 
   it("predicts faster local movement while sprinting", () => {
     const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    prediction.syncAuthoritative({
+      authoritativeStamina: { current: 10, max: 10 },
+      authoritativeTransform: { rotation: 0, x: 0, y: 0 },
+      entityId: "player_self",
+      lastProcessedSequence: 0,
+    });
 
     const transform = prediction.applyInput({
       aim: { x: 1, y: 0 },
@@ -144,9 +163,44 @@ describe("prediction", () => {
     expect(transform).toEqual({ rotation: 0, x: 3, y: 0 });
   });
 
+  it("stops predicting sprint once predicted stamina is exhausted while sprint stays held", () => {
+    const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    prediction.syncAuthoritative({
+      authoritativeStamina: { current: 0.5, max: 10 },
+      authoritativeTransform: { rotation: 0, x: 0, y: 0 },
+      entityId: "player_self",
+      lastProcessedSequence: 0,
+    });
+
+    const firstTick = prediction.applyInput({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+      sprint: true,
+    });
+    const secondTick = prediction.applyInput({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 2,
+      sprint: true,
+    });
+
+    expect(firstTick).toEqual({ rotation: 0, x: 3, y: 0 });
+    expect(secondTick).toEqual({ rotation: 0, x: 5, y: 0 });
+  });
+
   it("replays pending sprint inputs at sprint speed during reconciliation", () => {
     const initial = createPredictionState({ rotation: 0, x: 0, y: 0 });
-    const afterFirstInput = applyPredictedInput(initial, {
+    const seeded = reconcilePrediction({
+      authoritativeStamina: { current: 10, max: 10 },
+      authoritativeTransform: { rotation: 0, x: 0, y: 0 },
+      lastProcessedSequence: 0,
+      state: initial,
+    });
+    const afterFirstInput = applyPredictedInput(seeded, {
       aim: { x: 1, y: 0 },
       deltaSeconds: 0.5,
       movement: { x: 1, y: 0 },
@@ -162,6 +216,7 @@ describe("prediction", () => {
     });
 
     const reconciled = reconcilePrediction({
+      authoritativeStamina: { current: 7, max: 10 },
       authoritativeTransform: { rotation: 0, x: 3, y: 0 },
       lastProcessedSequence: 1,
       state: afterSecondInput,
@@ -179,6 +234,7 @@ describe("prediction", () => {
     const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
 
     prediction.syncAuthoritative({
+      authoritativeStamina: { current: 10, max: 10 },
       authoritativeTransform: { rotation: 0, x: 0, y: 0 },
       entityId: "player_self",
       lastProcessedSequence: 3,
@@ -188,9 +244,11 @@ describe("prediction", () => {
       deltaSeconds: 0.25,
       movement: { x: 1, y: 0 },
       sequence: 4,
+      sprint: false,
     });
 
     const snapped = prediction.syncAuthoritative({
+      authoritativeStamina: { current: 10, max: 10 },
       authoritativeTransform: { rotation: 0.3, x: 12, y: -6 },
       entityId: "player_self",
       lastProcessedSequence: 0,
@@ -200,6 +258,7 @@ describe("prediction", () => {
     expect(prediction.getState()).toEqual({
       correctionOffset: { rotation: 0, x: 0, y: 0 },
       pendingInputs: [],
+      stamina: { current: 10, max: 10 },
       transform: { rotation: 0.3, x: 12, y: -6 },
     });
   });

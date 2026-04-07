@@ -1,7 +1,6 @@
-import type { Transform, Vector2 } from "@2dayz/shared";
+import { SPRINT_SPEED_MULTIPLIER, type Stamina, type Transform, type Vector2 } from "@2dayz/shared";
 
 const DEFAULT_MOVE_SPEED = 4;
-const DEFAULT_SPRINT_SPEED_MULTIPLIER = 1.5;
 
 export type PredictedInput = {
   aim: Vector2;
@@ -14,6 +13,7 @@ export type PredictedInput = {
 export type PredictionState = {
   correctionOffset: Transform;
   pendingInputs: PredictedInput[];
+  stamina: Stamina | null;
   transform: Transform;
 };
 
@@ -25,6 +25,7 @@ const normalizeState = (state: PredictionState): PredictionState => {
   return {
     correctionOffset: state.correctionOffset ?? createZeroTransform(),
     pendingInputs: state.pendingInputs,
+    stamina: state.stamina ?? null,
     transform: state.transform,
   };
 };
@@ -61,15 +62,36 @@ const normalizeMovement = (movement: Vector2): Vector2 => {
   };
 };
 
-const applyMovement = (transform: Transform, input: PredictedInput, moveSpeed: number): Transform => {
+const applyMovement = ({
+  input,
+  moveSpeed,
+  stamina,
+  transform,
+}: {
+  input: PredictedInput;
+  moveSpeed: number;
+  stamina: Stamina | null;
+  transform: Transform;
+}): { stamina: Stamina | null; transform: Transform } => {
   const direction = normalizeMovement(input.movement);
   const aimMagnitude = Math.hypot(input.aim.x, input.aim.y);
-  const appliedMoveSpeed = input.sprint ? moveSpeed * DEFAULT_SPRINT_SPEED_MULTIPLIER : moveSpeed;
+  const moving = direction.x !== 0 || direction.y !== 0;
+  const canSprint = input.sprint && moving && (stamina?.current ?? 0) > 0;
+  const appliedMoveSpeed = canSprint ? moveSpeed * SPRINT_SPEED_MULTIPLIER : moveSpeed;
 
   return {
-    rotation: aimMagnitude > 0 ? Math.atan2(input.aim.y, input.aim.x) : transform.rotation,
-    x: transform.x + direction.x * appliedMoveSpeed * input.deltaSeconds,
-    y: transform.y + direction.y * appliedMoveSpeed * input.deltaSeconds,
+    stamina:
+      stamina === null
+        ? null
+        : {
+            current: canSprint ? Math.max(0, stamina.current - input.deltaSeconds) : stamina.current,
+            max: stamina.max,
+          },
+    transform: {
+      rotation: aimMagnitude > 0 ? Math.atan2(input.aim.y, input.aim.x) : transform.rotation,
+      x: transform.x + direction.x * appliedMoveSpeed * input.deltaSeconds,
+      y: transform.y + direction.y * appliedMoveSpeed * input.deltaSeconds,
+    },
   };
 };
 
@@ -77,6 +99,7 @@ export const createPredictionState = (transform: Transform): PredictionState => 
   return {
     correctionOffset: createZeroTransform(),
     pendingInputs: [],
+    stamina: null,
     transform,
   };
 };
@@ -87,20 +110,29 @@ export const applyPredictedInput = (
   moveSpeed = DEFAULT_MOVE_SPEED,
 ): PredictionState => {
   const normalizedState = normalizeState(state);
+  const next = applyMovement({
+    input,
+    moveSpeed,
+    stamina: normalizedState.stamina,
+    transform: normalizedState.transform,
+  });
 
   return {
     correctionOffset: normalizedState.correctionOffset,
     pendingInputs: [...normalizedState.pendingInputs, input],
-    transform: applyMovement(normalizedState.transform, input, moveSpeed),
+    stamina: next.stamina,
+    transform: next.transform,
   };
 };
 
 export const reconcilePrediction = ({
   authoritativeTransform,
+  authoritativeStamina,
   lastProcessedSequence,
   moveSpeed = DEFAULT_MOVE_SPEED,
   state,
 }: {
+  authoritativeStamina: Stamina;
   authoritativeTransform: Transform;
   lastProcessedSequence: number;
   moveSpeed?: number;
@@ -108,15 +140,27 @@ export const reconcilePrediction = ({
 }): PredictionState => {
   const normalizedState = normalizeState(state);
   const pendingInputs = normalizedState.pendingInputs.filter((input) => input.sequence > lastProcessedSequence);
-  const transform = pendingInputs.reduce((current, input) => {
-    return applyMovement(current, input, moveSpeed);
-  }, authoritativeTransform);
+  const replayed = pendingInputs.reduce(
+    (current, input) => {
+      return applyMovement({
+        input,
+        moveSpeed,
+        stamina: current.stamina,
+        transform: current.transform,
+      });
+    },
+    {
+      stamina: authoritativeStamina,
+      transform: authoritativeTransform,
+    },
+  );
   const displayedTransform = addTransforms(normalizedState.transform, normalizedState.correctionOffset);
 
   return {
-    correctionOffset: subtractTransforms(displayedTransform, transform),
+    correctionOffset: subtractTransforms(displayedTransform, replayed.transform),
     pendingInputs,
-    transform,
+    stamina: replayed.stamina,
+    transform: replayed.transform,
   };
 };
 
@@ -134,15 +178,18 @@ export const createPredictionController = (initialTransform: Transform) => {
       return state;
     },
     reconcile({
+      authoritativeStamina,
       authoritativeTransform,
       lastProcessedSequence,
       moveSpeed = DEFAULT_MOVE_SPEED,
     }: {
+      authoritativeStamina: Stamina;
       authoritativeTransform: Transform;
       lastProcessedSequence: number;
       moveSpeed?: number;
     }) {
       state = reconcilePrediction({
+        authoritativeStamina,
         authoritativeTransform,
         lastProcessedSequence,
         moveSpeed,
@@ -151,11 +198,13 @@ export const createPredictionController = (initialTransform: Transform) => {
       return addTransforms(state.transform, state.correctionOffset);
     },
     syncAuthoritative({
+      authoritativeStamina,
       authoritativeTransform,
       entityId,
       lastProcessedSequence: nextProcessedSequence,
       snapDistance = SNAP_DISTANCE,
     }: {
+      authoritativeStamina: Stamina;
       authoritativeTransform: Transform;
       entityId: string;
       lastProcessedSequence: number;
@@ -171,11 +220,15 @@ export const createPredictionController = (initialTransform: Transform) => {
       lastProcessedSequence = nextProcessedSequence;
 
       if (shouldSnap) {
-        state = createPredictionState(authoritativeTransform);
+        state = {
+          ...createPredictionState(authoritativeTransform),
+          stamina: authoritativeStamina,
+        };
         return authoritativeTransform;
       }
 
       state = reconcilePrediction({
+        authoritativeStamina,
         authoritativeTransform,
         lastProcessedSequence: nextProcessedSequence,
         moveSpeed: DEFAULT_MOVE_SPEED,

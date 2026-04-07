@@ -51,6 +51,7 @@ export const renderFrame = ({
 
   if (selfPlayer) {
     predictionController.syncAuthoritative({
+      authoritativeStamina: selfPlayer.stamina,
       authoritativeTransform: selfPlayer.transform,
       entityId: selfPlayer.entityId,
       lastProcessedSequence: selfPlayer.lastProcessedInputSequence ?? -1,

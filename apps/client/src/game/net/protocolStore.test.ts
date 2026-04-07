@@ -64,6 +64,7 @@ describe("protocolStore", () => {
             equippedWeaponSlot: 0,
             slots: [{ itemId: "weapon_pistol", quantity: 1 }, null, null, null, null, null],
           },
+          stamina: { current: 10, max: 10 },
           transform: { rotation: 0, x: 0, y: 0 },
           velocity: { x: 0, y: 0 },
         },

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { entityIdSchema, itemIdSchema, zombieArchetypeIdSchema } from "../ids";
-import { healthSchema, transformSchema, vector2Schema, velocitySchema } from "./components";
+import { healthSchema, staminaSchema, transformSchema, vector2Schema, velocitySchema } from "./components";
 import { inventorySchema } from "./inventory";
 
 export const entityKindSchema = z.enum(["player", "zombie", "loot"]);
@@ -21,6 +21,7 @@ export const entityDeltaSchema = z
     entityId: entityIdSchema,
     lastProcessedInputSequence: z.number().int().nonnegative().optional(),
     inventory: inventorySchema.optional(),
+    stamina: staminaSchema.optional(),
     transform: transformSchema.optional(),
     velocity: velocitySchema.optional(),
     health: healthSchema.optional(),
@@ -34,6 +35,7 @@ export const entityDeltaSchema = z
       value.transform !== undefined ||
       value.velocity !== undefined ||
       value.health !== undefined ||
+      value.stamina !== undefined ||
       value.inventory !== undefined ||
       value.lastProcessedInputSequence !== undefined ||
       value.itemId !== undefined ||

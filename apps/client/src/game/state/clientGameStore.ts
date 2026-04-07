@@ -13,6 +13,7 @@ import type {
   PlayerState,
   ShotEvent,
   SnapshotMessage,
+  Stamina,
   ZombieEntity,
 } from "@2dayz/shared";
 import { INVENTORY_SLOT_COUNT } from "@2dayz/shared";
@@ -55,6 +56,7 @@ type ClientGameState = {
   latestTick: number | null;
   playerEntityId: string | null;
   roomId: string | null;
+  stamina: Stamina | null;
   worldEntities: WorldEntities;
 };
 
@@ -91,16 +93,17 @@ const applyEntityUpdate = (state: ClientGameState, update: DeltaMessage["entityU
       return entity;
     }
 
-    return {
-      ...entity,
-      ...(update.health ? { health: update.health } : {}),
-      ...(update.inventory ? { inventory: update.inventory } : {}),
-      ...(update.lastProcessedInputSequence !== undefined
-        ? { lastProcessedInputSequence: update.lastProcessedInputSequence }
-        : {}),
-      ...(update.transform ? { transform: update.transform } : {}),
-      ...(update.velocity ? { velocity: update.velocity } : {}),
-    };
+      return {
+        ...entity,
+        ...(update.health ? { health: update.health } : {}),
+        ...(update.inventory ? { inventory: update.inventory } : {}),
+        ...(update.lastProcessedInputSequence !== undefined
+          ? { lastProcessedInputSequence: update.lastProcessedInputSequence }
+          : {}),
+        ...(update.stamina ? { stamina: update.stamina } : {}),
+        ...(update.transform ? { transform: update.transform } : {}),
+        ...(update.velocity ? { velocity: update.velocity } : {}),
+      };
   });
 
   const loot = state.worldEntities.loot.map((entity) => {
@@ -131,14 +134,15 @@ const applyEntityUpdate = (state: ClientGameState, update: DeltaMessage["entityU
 
   const selfPlayer = players.find((entity) => entity.entityId === state.playerEntityId) ?? null;
 
-  return {
-    ...state,
-    health: selfPlayer?.health ?? state.health,
-    inventory: selfPlayer?.inventory ?? state.inventory,
-    isDead: selfPlayer?.health?.isDead ?? state.isDead,
-    worldEntities: {
-      loot,
-      players,
+    return {
+      ...state,
+      health: selfPlayer?.health ?? state.health,
+      inventory: selfPlayer?.inventory ?? state.inventory,
+      isDead: selfPlayer?.health?.isDead ?? state.isDead,
+      stamina: selfPlayer?.stamina ?? state.stamina,
+      worldEntities: {
+        loot,
+        players,
       zombies,
     },
   };
@@ -193,6 +197,7 @@ export const createClientGameStore = () => {
     latestTick: null,
     playerEntityId: null,
     roomId: null,
+    stamina: null,
     worldEntities: createEmptyWorldEntities(),
   };
   const listeners = new Set<() => void>();
@@ -257,6 +262,7 @@ export const createClientGameStore = () => {
           latestTick: snapshot.tick,
           playerEntityId: snapshot.playerEntityId,
           roomId: snapshot.roomId,
+          stamina: selfPlayer?.stamina ?? null,
           worldEntities: {
             loot: snapshot.loot.map((entity) => ({ ...entity, kind: "loot" })),
             players,
@@ -303,6 +309,7 @@ export const createClientGameStore = () => {
           latestTick: isSameIdentity ? current.latestTick : null,
           playerEntityId,
           roomId,
+          stamina: isSameIdentity ? current.stamina : null,
           worldEntities: isSameIdentity ? current.worldEntities : createEmptyWorldEntities(),
         };
       });
@@ -332,6 +339,7 @@ export const createClientGameStore = () => {
         latestTick: null,
         playerEntityId: null,
         roomId: null,
+        stamina: null,
         worldEntities: createEmptyWorldEntities(),
       }));
     },

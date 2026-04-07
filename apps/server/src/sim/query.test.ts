@@ -39,6 +39,12 @@ describe("simulation query replication", () => {
     state.dirtyZombieIds.add("zombie_test-1");
 
     expect(createRoomReplicationSnapshot(state, "player_test-1")).toMatchObject({
+      players: [
+        {
+          entityId: "player_test-1",
+          stamina: { current: 10, max: 10 },
+        },
+      ],
       loot: [
         {
           entityId: "loot_test-1",
@@ -67,6 +73,7 @@ describe("simulation query replication", () => {
             slots: [null, null, null, null, null, null],
           },
           lastProcessedInputSequence: 3,
+          stamina: { current: 10, max: 10 },
           transform: { x: 1, y: 1, rotation: 0 },
         },
         {
