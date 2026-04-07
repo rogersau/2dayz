@@ -20,6 +20,13 @@ const normalizeMovement = (intent: PlayerInputIntent["movement"]): { x: number; 
 
 const getInventoryLoad = (state: RoomSimulationState, player: SimPlayer): number => {
   const occupiedSlots = player.inventory.slots.reduce((count, slot) => count + (slot ? 1 : 0), 0);
+  const slotStackLoad = player.inventory.slots.reduce((total, slot) => {
+    if (!slot) {
+      return total;
+    }
+
+    return total + Math.max(0, slot.quantity - 1) / 2;
+  }, 0);
   const ammoLoad = player.inventory.ammoStacks.reduce((total, stack) => {
     const item = state.itemDefinitions.get(stack.ammoItemId);
     if (!item || item.category !== "ammo") {
@@ -29,7 +36,7 @@ const getInventoryLoad = (state: RoomSimulationState, player: SimPlayer): number
     return total + stack.quantity / 30;
   }, 0);
 
-  return occupiedSlots + ammoLoad;
+  return occupiedSlots + slotStackLoad + ammoLoad;
 };
 
 const getStaminaMax = (state: RoomSimulationState, player: SimPlayer): number => {

@@ -5,12 +5,12 @@ import { createRoomSimulationConfig, createRoomState, queueInputIntent, queueSpa
 import { createLifecycleSystem } from "./lifecycleSystem";
 import { createMovementSystem } from "./movementSystem";
 
-const fillInventorySlots = (count: number) => {
+const fillInventorySlots = (count: number, quantity = 1) => {
   return Array.from({ length: 6 }, (_, index) =>
     index < count
       ? {
           itemId: "item_bandage",
-          quantity: 1,
+          quantity,
         }
       : null,
   );
@@ -182,13 +182,13 @@ describe("createMovementSystem", () => {
     expect(player.stamina).toMatchObject({ current: 6, max: 10 });
   });
 
-  it("reduces max stamina for heavier inventories", () => {
+  it("reduces max stamina for heavier inventories including stacked slot quantities", () => {
     const state = createRoomState({
       roomId: "room_test",
       config: createRoomSimulationConfig({
         staminaBaseline: 10,
         staminaFloor: 4,
-        staminaLoadPenalty: 1,
+        staminaLoadPenalty: 0.5,
       }),
     });
 
@@ -204,7 +204,7 @@ describe("createMovementSystem", () => {
       throw new Error("expected player to exist");
     }
 
-    player.inventory.slots = fillInventorySlots(2);
+    player.inventory.slots = fillInventorySlots(1, 3);
     player.inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 30 }];
     queueInputIntent(state, "player_test-heavy-load", {
       ...defaultIntent,
@@ -213,8 +213,8 @@ describe("createMovementSystem", () => {
 
     createMovementSystem().update(state, 0);
 
-    expect(player.stamina.max).toBe(7);
-    expect(player.stamina.current).toBe(7);
+    expect(player.stamina.max).toBe(8.5);
+    expect(player.stamina.current).toBe(8.5);
   });
 
   it("clamps current stamina down when inventory load increases after spawn", () => {
@@ -312,7 +312,7 @@ describe("createMovementSystem", () => {
 
     expect(player.stamina).toMatchObject({ current: 10, max: 10 });
 
-    player.inventory.slots = fillInventorySlots(1);
+    player.inventory.slots = fillInventorySlots(1, 2);
     player.inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 15 }];
     queueInputIntent(state, "player_test-dynamic-load", {
       ...defaultIntent,
@@ -320,8 +320,8 @@ describe("createMovementSystem", () => {
     });
     createMovementSystem().update(state, 0);
 
-    expect(player.stamina.max).toBeCloseTo(8.5);
-    expect(player.stamina.current).toBeCloseTo(8.5);
+    expect(player.stamina.max).toBeCloseTo(8);
+    expect(player.stamina.current).toBeCloseTo(8);
   });
 
   it("blocks movement when the next authoritative position collides", () => {
