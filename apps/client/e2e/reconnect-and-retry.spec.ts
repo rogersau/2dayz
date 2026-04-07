@@ -5,8 +5,13 @@ const serverPort = Number(process.env.PORT ?? 3201);
 const installReconnectSocketMock = async (context: import("@playwright/test").BrowserContext) => {
   await context.addInitScript(() => {
     (window as typeof window & {
-      __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
+      __reconnectMockState?: {
+        lastReconnectToken: string | null;
+        reconnectAttempts: number;
+        lastJoinMessage: string | null;
+      };
     }).__reconnectMockState = {
+      lastReconnectToken: null,
       reconnectAttempts: 0,
       lastJoinMessage: null,
     };
@@ -72,8 +77,22 @@ const installReconnectSocketMock = async (context: import("@playwright/test").Br
 
         MockReconnectSocket.reconnectAttempts += 1;
         (window as typeof window & {
-          __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
-        }).__reconnectMockState!.reconnectAttempts = MockReconnectSocket.reconnectAttempts;
+          __reconnectMockState?: {
+            lastReconnectToken: string | null;
+            reconnectAttempts: number;
+            lastJoinMessage: string | null;
+          };
+        }).__reconnectMockState = {
+          ...(window as typeof window & {
+            __reconnectMockState?: {
+              lastReconnectToken: string | null;
+              reconnectAttempts: number;
+              lastJoinMessage: string | null;
+            };
+          }).__reconnectMockState,
+          lastReconnectToken: payload.sessionToken ?? null,
+          reconnectAttempts: MockReconnectSocket.reconnectAttempts,
+        };
 
         queueMicrotask(() => {
           const message = JSON.stringify(
@@ -173,8 +192,12 @@ const joinIntoGameShell = async (page: import("@playwright/test").Page, displayN
 const readReconnectMockState = async (page: import("@playwright/test").Page) => {
   return await page.evaluate(() => {
     return (window as typeof window & {
-      __reconnectMockState?: { reconnectAttempts: number; lastJoinMessage: string | null };
-    }).__reconnectMockState ?? { reconnectAttempts: 0, lastJoinMessage: null };
+      __reconnectMockState?: {
+        lastReconnectToken: string | null;
+        reconnectAttempts: number;
+        lastJoinMessage: string | null;
+      };
+    }).__reconnectMockState ?? { lastReconnectToken: null, reconnectAttempts: 0, lastJoinMessage: null };
   });
 };
 
@@ -215,11 +238,13 @@ test("reconnects inside the reclaim window using the stored session token", asyn
   await installReconnectSocketMock(context);
   await joinIntoGameShell(page, "Reconnect Scout");
   const sessionBeforeReconnect = await readReconnectMockState(page);
+  const storedSessionToken = await page.evaluate(() => window.sessionStorage.getItem("2dayz:session-token"));
 
   await page.reload();
   await expect(page.getByLabel("game shell")).toBeVisible();
 
   await expect.poll(() => readReconnectMockState(page)).toEqual({
+    lastReconnectToken: storedSessionToken,
     reconnectAttempts: sessionBeforeReconnect.reconnectAttempts + 2,
     lastJoinMessage: sessionBeforeReconnect.lastJoinMessage,
   });

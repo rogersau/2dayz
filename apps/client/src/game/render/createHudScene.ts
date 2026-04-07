@@ -120,16 +120,24 @@ export const createHudScene = () => {
     valueColor: "#fff0c4",
     width: 228,
   });
-  const statusModule = createModule({
+  const inventoryModule = createModule({
+    accentColor: "#b5c777",
+    detailColor: "#cdd8b4",
+    height: 92,
+    title: "INVENTORY",
+    valueColor: "#eef5d6",
+    width: 248,
+  });
+  const metadataModule = createModule({
     accentColor: "#7ab0cf",
     detailColor: "#c2d9e7",
-    height: 104,
-    title: "STATUS",
+    height: 92,
+    title: "SESSION",
     valueColor: "#e4f1f8",
-    width: 316,
+    width: 272,
   });
 
-  scene.add(healthModule.group, ammoModule.group, statusModule.group);
+  scene.add(healthModule.group, ammoModule.group, inventoryModule.group, metadataModule.group);
 
   const resize = (canvas: HTMLCanvasElement) => {
     const width = canvas.clientWidth || canvas.width || 960;
@@ -152,26 +160,32 @@ export const createHudScene = () => {
       camera.right - padding - ammoModule.size.width / 2,
       camera.top - padding - ammoModule.size.height / 2,
     );
-    statusModule.setPosition(
-      camera.left + padding + statusModule.size.width / 2,
-      camera.bottom + padding + statusModule.size.height / 2,
+    inventoryModule.setPosition(
+      camera.left + padding + inventoryModule.size.width / 2,
+      camera.bottom + padding + inventoryModule.size.height / 2,
+    );
+    metadataModule.setPosition(
+      camera.right - padding - metadataModule.size.width / 2,
+      camera.bottom + padding + metadataModule.size.height / 2,
     );
   };
 
   return {
     camera,
     dispose() {
-      scene.remove(healthModule.group, ammoModule.group, statusModule.group);
+      scene.remove(healthModule.group, ammoModule.group, inventoryModule.group, metadataModule.group);
       healthModule.dispose();
       ammoModule.dispose();
-      statusModule.dispose();
+      inventoryModule.dispose();
+      metadataModule.dispose();
     },
     resize,
     scene,
     update(state: HudState) {
       healthModule.setText({ detail: state.healthDetail, value: state.healthValue });
       ammoModule.setText({ detail: state.equippedWeaponDetail, value: state.ammoValue });
-      statusModule.setText({ detail: state.playerLabel, value: `${state.roomLabel} | ${state.inventorySummary}` });
+      inventoryModule.setText({ detail: "Ready slots and field supplies", value: state.inventorySummary });
+      metadataModule.setText({ detail: state.roomLabel, value: state.playerLabel });
     },
   };
 };

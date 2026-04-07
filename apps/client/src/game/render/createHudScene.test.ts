@@ -52,9 +52,9 @@ describe("createHudScene", () => {
 
     hudScene.update(createState());
 
-    expect(fillTextMock).toHaveBeenCalledTimes(6);
-    expect(measureTextMock).toHaveBeenCalledTimes(6);
-    expect(clearRectMock).toHaveBeenCalledTimes(6);
+    expect(fillTextMock).toHaveBeenCalledTimes(8);
+    expect(measureTextMock).toHaveBeenCalledTimes(8);
+    expect(clearRectMock).toHaveBeenCalledTimes(8);
 
     fillTextMock.mockClear();
     measureTextMock.mockClear();
@@ -82,6 +82,14 @@ describe("createHudScene", () => {
     expect(fillTextMock).toHaveBeenCalledTimes(1);
     expect(measureTextMock).toHaveBeenCalledTimes(1);
     expect(clearRectMock).toHaveBeenCalledTimes(1);
+
+    hudScene.dispose();
+  });
+
+  it("keeps inventory summary and metadata in separate hud modules", () => {
+    const hudScene = createHudScene();
+
+    expect(hudScene.scene.children).toHaveLength(4);
 
     hudScene.dispose();
   });
