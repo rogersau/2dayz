@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { App } from "./App";
@@ -45,27 +45,10 @@ vi.mock("./game/net/protocolStore", () => ({
   }),
 }));
 
-const expectPendingSurvivalHud = () => {
-  const hud = screen.getByLabelText(/survival hud/i);
-
-  expect(hud).toBeInTheDocument();
-  expect(within(hud).getByText("pending")).toBeInTheDocument();
-  expect(within(hud).getByText(/weapon: none/i)).toBeInTheDocument();
-  expect(within(hud).getByText(/0\/6 slots filled/i)).toBeInTheDocument();
-
-  return hud;
-};
-
-const expectLoadedSurvivalHud = () => {
-  const hud = screen.getByLabelText(/survival hud/i);
-
-  expect(hud).toBeInTheDocument();
-  expect(within(hud).getByText("86/100")).toBeInTheDocument();
-  expect(within(hud).getByText(/weapon: weapon_pistol/i)).toBeInTheDocument();
-  expect(within(hud).getByText(/^21$/)).toBeInTheDocument();
-  expect(within(hud).getByText(/2\/6 slots filled/i)).toBeInTheDocument();
-
-  return hud;
+const expectJoinedShell = () => {
+  expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /open inventory/i })).toBeInTheDocument();
+  expect(screen.queryByLabelText(/survival hud/i)).not.toBeInTheDocument();
 };
 
 describe("App join and reconnect flow", () => {
@@ -183,10 +166,10 @@ describe("App join and reconnect flow", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
     });
 
-    expectLoadedSurvivalHud();
+    expectJoinedShell();
     expect(window.localStorage.getItem("2dayz:display-name")).toBe("Saved Survivor");
   });
 
@@ -224,7 +207,7 @@ describe("App join and reconnect flow", () => {
       expect(reconnectMock).toHaveBeenCalledTimes(2);
     });
 
-    expectPendingSurvivalHud();
+    expectJoinedShell();
   });
 
   it("keeps the expired banner visible until the user explicitly retries into a fresh run", async () => {
@@ -265,10 +248,10 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
     });
 
-    expectPendingSurvivalHud();
+    expectJoinedShell();
 
     handleConnectionChange?.({ type: "closed", reason: "internal-error" });
 
@@ -346,7 +329,7 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
     });
 
     await act(async () => {
@@ -370,11 +353,10 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
     });
 
-    expectPendingSurvivalHud();
-    expect(screen.getByText((content) => content.includes("Player: player_survivor"))).toBeInTheDocument();
+    expectJoinedShell();
   });
 
   it("bypasses the field briefing on a later same-session join after it was already dismissed", async () => {
@@ -402,10 +384,10 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText(/survival hud/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
     });
 
-    expectPendingSurvivalHud();
+    expectJoinedShell();
 
     firstRender.unmount();
     window.sessionStorage.removeItem("2dayz:session-token");

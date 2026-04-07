@@ -233,12 +233,9 @@ export const App = () => {
           <section className="game-shell" aria-label="game shell">
             <div className="game-hud-layer">
               <Hud
-                health={state.health}
                 inventory={state.inventory}
                 isInventoryOpen={state.isInventoryOpen}
                 onToggleInventory={() => gameStore.toggleInventory()}
-                playerEntityId={state.playerEntityId}
-                roomId={state.roomId}
               />
             </div>
           </section>
