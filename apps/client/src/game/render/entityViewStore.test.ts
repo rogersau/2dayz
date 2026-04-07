@@ -145,4 +145,49 @@ describe("createEntityViewStore", () => {
 
     expect(scene.getObjectByName("entity:player_other")).toBeUndefined();
   });
+
+  it("applies the recent-hit death fallback only once when a zombie disappears without a dead-state frame", () => {
+    const scene = new THREE.Scene();
+    const store = createEntityViewStore(scene);
+
+    store.render({
+      deltaSeconds: 1 / 20,
+      entities: [
+        {
+          archetypeId: "zombie_shambler",
+          entityId: "zombie_1",
+          health: { current: 40, isDead: false, max: 40 },
+          kind: "zombie",
+          state: "chasing",
+          transform: { rotation: 0, x: 15, y: 20 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      latestTick: 1,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    store.markRecentCombatHit("zombie_1");
+
+    store.render({
+      deltaSeconds: 1 / 20,
+      entities: [],
+      latestTick: 2,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    expect(scene.getObjectByName("entity:zombie_1")).toBeTruthy();
+
+    store.render({
+      deltaSeconds: 0.4,
+      entities: [],
+      latestTick: 3,
+      localOverrides: new Map(),
+      playerEntityId: null,
+    });
+
+    expect(scene.getObjectByName("entity:zombie_1")).toBeUndefined();
+  });
 });

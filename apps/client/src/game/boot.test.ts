@@ -39,6 +39,8 @@ const createStoreState = (overrides: Partial<TestStoreState> = {}): TestStoreSta
 });
 
 const {
+  combatEffectsDisposeMock,
+  combatEffectsQueueLocalShotMock,
   createPredictionControllerMock,
   createInputControllerMock,
   createWorldViewMock,
@@ -59,6 +61,8 @@ const {
   rendererMock,
   worldViewDisposeMock,
 } = vi.hoisted(() => ({
+  combatEffectsDisposeMock: vi.fn(),
+  combatEffectsQueueLocalShotMock: vi.fn(),
   createPredictionControllerMock: vi.fn(),
   createInputControllerMock: vi.fn(),
   createWorldViewMock: vi.fn(),
@@ -119,6 +123,13 @@ vi.mock("./input/inputController", () => ({
 vi.mock("./render/entityViewStore", () => ({
   createEntityViewStore: () => ({
     dispose: entityViewDisposeMock,
+  }),
+}));
+
+vi.mock("./render/combatEffectsView", () => ({
+  createCombatEffectsView: () => ({
+    dispose: combatEffectsDisposeMock,
+    queueLocalShot: combatEffectsQueueLocalShotMock,
   }),
 }));
 
@@ -224,6 +235,26 @@ describe("bootGame", () => {
     expect(renderFrameMock).toHaveBeenCalled();
   });
 
+  it("queues a local shot effect when joined fire input is sent", () => {
+    const sendInput = vi.fn();
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(combatEffectsQueueLocalShotMock).toHaveBeenCalledWith({ aim: { x: 12, y: -4 } });
+  });
+
   it("cleans up scene resources and the input send interval on dispose", () => {
     const canvas = document.createElement("canvas");
 
@@ -240,6 +271,7 @@ describe("bootGame", () => {
 
     expect(clearIntervalMock).toHaveBeenCalledWith(11);
     expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
+    expect(combatEffectsDisposeMock).toHaveBeenCalledTimes(1);
     expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
     expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
   });

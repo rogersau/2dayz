@@ -6,6 +6,7 @@ import { createRenderer } from "./createRenderer";
 import { createScene } from "./createScene";
 import { createInputController } from "./input/inputController";
 import { createWorldView } from "./render/createWorldView";
+import { createCombatEffectsView } from "./render/combatEffectsView";
 import { createEntityViewStore } from "./render/entityViewStore";
 import { createPredictionController } from "./render/prediction";
 import { renderFrame } from "./render/renderFrame";
@@ -29,6 +30,7 @@ export const bootGame = ({
     isEnabled: () => store.getState().connectionState.phase === "joined",
     onToggleInventory: () => store.toggleInventory(),
   });
+  const combatEffectsView = createCombatEffectsView(scene);
   const entityViewStore = createEntityViewStore(scene);
   const predictionController = createPredictionController({ rotation: 0, x: 0, y: 0 });
   let animationFrame = 0;
@@ -73,6 +75,10 @@ export const bootGame = ({
       : input;
     socketClient.sendInput(nextInput);
 
+    if (nextInput.actions.fire) {
+      combatEffectsView.queueLocalShot({ aim: nextInput.aim });
+    }
+
     if (
       nextInput.movement.x !== 0 ||
       nextInput.movement.y !== 0 ||
@@ -103,6 +109,7 @@ export const bootGame = ({
 
     renderFrame({
       camera,
+      combatEffectsView,
       deltaSeconds,
       entityViewStore,
       predictionController,
@@ -125,6 +132,7 @@ export const bootGame = ({
     window.removeEventListener("resize", resize);
     unsubscribeFromStore();
     inputController.destroy();
+    combatEffectsView.dispose();
     entityViewStore.dispose();
     worldView.dispose();
     disposeScene();
