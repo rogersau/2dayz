@@ -1,11 +1,32 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { inputMessageSchema, roomJoinedMessageSchema } from "@2dayz/shared";
+import { defaultTownMap, inputMessageSchema, roomJoinedMessageSchema } from "@2dayz/shared";
 
 import { createProtocolStore } from "./protocolStore";
 import { createSocketClient } from "./socketClient";
 
+const requireAnchor = <T>(anchor: T | undefined, description: string): T => {
+  if (!anchor) {
+    throw new Error(`${description} missing from defaultTownMap`);
+  }
+
+  return anchor;
+};
+
 describe("socketClient", () => {
+  const mockSpawn = requireAnchor(
+    defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_main-road")?.position,
+    "node_main-road",
+  );
+  const mockBanditSpawn = requireAnchor(
+    defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_square")?.position,
+    "node_square",
+  );
+  const mockZombieSpawn = requireAnchor(
+    defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === "zone_town-center")?.center,
+    "zone_town-center",
+  );
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -152,8 +173,8 @@ describe("socketClient", () => {
     expect(selfUpdate).toMatchObject({
       transform: {
         rotation: Math.PI / 2,
-        x: 0.1414213562373095,
-        y: 0.1414213562373095,
+        x: mockSpawn.x + 0.1414213562373095,
+        y: mockSpawn.y + 0.1414213562373095,
       },
     });
   });
@@ -191,5 +212,104 @@ describe("socketClient", () => {
         equippedWeaponSlot: 1,
       }),
     });
+  });
+
+  it("places both mock players and the zombie at exact shared default town positions", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({ mode: "mock", protocolStore });
+
+    await socketClient.join({ displayName: "Survivor" });
+
+    const { snapshot } = protocolStore.drainWorldUpdates();
+    const self = snapshot?.players.find((player) => player.entityId === "player_survivor");
+    const bandit = snapshot?.players.find((player) => player.entityId === "player_bandit");
+    const zombie = snapshot?.zombies.find((entity) => entity.entityId === "zombie_1");
+
+    expect(snapshot?.players).toHaveLength(2);
+    expect(snapshot?.zombies).toHaveLength(1);
+    expect(self?.transform).toEqual({ rotation: 0, ...mockSpawn });
+    expect(bandit?.transform).toEqual({ rotation: 0.2, ...mockBanditSpawn });
+    expect(zombie?.transform).toEqual({ rotation: 0.1, ...mockZombieSpawn });
+  });
+
+  it("emits mock combat deltas and eventually removes the mock zombie", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({ mode: "mock", protocolStore });
+
+    await socketClient.join({ displayName: "Survivor" });
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    }));
+
+    const { deltas } = protocolStore.drainWorldUpdates();
+
+    expect(deltas[0]?.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "shot", origin: mockSpawn }),
+        expect.objectContaining({ type: "combat", targetEntityId: "zombie_1" }),
+      ]),
+    );
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    }));
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 3,
+      type: "input",
+    }));
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 4,
+      type: "input",
+    }));
+
+    const removalDelta = protocolStore.drainWorldUpdates().deltas.at(-1);
+
+    expect(removalDelta?.entityUpdates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityId: "zombie_1",
+          health: expect.objectContaining({ isDead: true }),
+        }),
+      ]),
+    );
+    expect(removalDelta?.removedEntityIds).toEqual(expect.arrayContaining(["zombie_1"]));
+  });
+
+  it("does not spend mock ammo or emit a shot event when fire input has zero aim", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({ mode: "mock", protocolStore });
+
+    await socketClient.join({ displayName: "Survivor" });
+    const initialSnapshot = protocolStore.drainWorldUpdates().snapshot;
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 0, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    }));
+
+    const delta = protocolStore.drainWorldUpdates().deltas[0];
+    const selfUpdate = delta?.entityUpdates.find((update) => update.entityId === "player_survivor");
+
+    expect(delta?.events).toEqual([]);
+    expect(selfUpdate?.inventory?.ammoStacks).toEqual(initialSnapshot?.players[0]?.inventory.ammoStacks);
   });
 });

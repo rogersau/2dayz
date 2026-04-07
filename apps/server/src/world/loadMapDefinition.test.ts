@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { defaultTownMap } from "@2dayz/shared";
+
 import { createCollisionIndex, isCirclePositionBlocked } from "./collision";
 import { loadMapDefinition } from "./loadMapDefinition";
 import { hasLineOfSight } from "./lineOfSight";
 
 describe("loadMapDefinition", () => {
   it("loads the default town map with typed world metadata", () => {
-    const map = loadMapDefinition();
+    const map = loadMapDefinition(defaultTownMap);
 
     expect(map.mapId).toBe("map_default-town");
     expect(map.name).toContain("Town");

@@ -39,8 +39,11 @@ const createStoreState = (overrides: Partial<TestStoreState> = {}): TestStoreSta
 });
 
 const {
+  combatEffectsDisposeMock,
+  combatEffectsQueueLocalShotMock,
   createPredictionControllerMock,
   createInputControllerMock,
+  createWorldViewMock,
   clearIntervalMock,
   destroyInputControllerMock,
   resetInputControllerMock,
@@ -56,9 +59,13 @@ const {
   sceneDisposeMock,
   setIntervalMock,
   rendererMock,
+  worldViewDisposeMock,
 } = vi.hoisted(() => ({
+  combatEffectsDisposeMock: vi.fn(),
+  combatEffectsQueueLocalShotMock: vi.fn(),
   createPredictionControllerMock: vi.fn(),
   createInputControllerMock: vi.fn(),
+  createWorldViewMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
   resetInputControllerMock: vi.fn(),
@@ -79,6 +86,7 @@ const {
     dispose: vi.fn(),
     render: vi.fn(),
   },
+  worldViewDisposeMock: vi.fn(),
 }));
 
 import { bootGame } from "./boot";
@@ -118,6 +126,13 @@ vi.mock("./render/entityViewStore", () => ({
   }),
 }));
 
+vi.mock("./render/combatEffectsView", () => ({
+  createCombatEffectsView: () => ({
+    dispose: combatEffectsDisposeMock,
+    queueLocalShot: combatEffectsQueueLocalShotMock,
+  }),
+}));
+
 vi.mock("./render/prediction", () => ({
   createPredictionController: (...args: unknown[]) => {
     createPredictionControllerMock(...args);
@@ -126,6 +141,13 @@ vi.mock("./render/prediction", () => ({
       applyInput: predictionApplyInputMock,
       syncAuthoritative: predictionSyncAuthoritativeMock,
     };
+  },
+}));
+
+vi.mock("./render/createWorldView", () => ({
+  createWorldView: (...args: unknown[]) => {
+    createWorldViewMock(...args);
+    return { dispose: worldViewDisposeMock };
   },
 }));
 
@@ -213,6 +235,70 @@ describe("bootGame", () => {
     expect(renderFrameMock).toHaveBeenCalled();
   });
 
+  it("does not queue a speculative local shot effect when joined fire input is sent", () => {
+    const sendInput = vi.fn();
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledTimes(1);
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
+  });
+
+  it("does not queue a local shot effect when fire input has zero aim", () => {
+    pollInputMock.mockReturnValue({
+      actions: { fire: true },
+      aim: { x: 0, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 0,
+      type: "input",
+    });
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
+  });
+
+  it("does not queue repeated speculative local shot effects on repeated joined fire input ticks", () => {
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+    scheduledInterval?.();
+    scheduledInterval?.();
+
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
+  });
+
   it("cleans up scene resources and the input send interval on dispose", () => {
     const canvas = document.createElement("canvas");
 
@@ -229,8 +315,26 @@ describe("bootGame", () => {
 
     expect(clearIntervalMock).toHaveBeenCalledWith(11);
     expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
+    expect(combatEffectsDisposeMock).toHaveBeenCalledTimes(1);
     expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
     expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates and disposes the shared world view alongside the main scene", () => {
+    const dispose = bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: () => createStoreState(),
+        subscribe: () => () => {},
+      } as never,
+    });
+
+    expect(createWorldViewMock).toHaveBeenCalledTimes(1);
+
+    dispose();
+
+    expect(worldViewDisposeMock).toHaveBeenCalledTimes(1);
   });
 
   it("predicts stationary aim changes during the fixed input loop", () => {

@@ -1,6 +1,7 @@
 import type * as THREE from "three";
 
 import type { PredictionController } from "./prediction";
+import type { createCombatEffectsView } from "./combatEffectsView";
 import type { ClientGameStore, RenderLootEntity, RenderPlayerEntity, RenderZombieEntity } from "../state/clientGameStore";
 import type { createEntityViewStore } from "./entityViewStore";
 
@@ -18,6 +19,7 @@ const toRenderableEntities = ({
 
 export const renderFrame = ({
   camera,
+  combatEffectsView,
   deltaSeconds,
   entityViewStore,
   predictionController,
@@ -26,6 +28,7 @@ export const renderFrame = ({
   store,
 }: {
   camera: THREE.Camera;
+  combatEffectsView: ReturnType<typeof createCombatEffectsView>;
   deltaSeconds: number;
   entityViewStore: ReturnType<typeof createEntityViewStore>;
   predictionController: PredictionController;
@@ -34,10 +37,17 @@ export const renderFrame = ({
   store: ClientGameStore;
 }) => {
   const state = store.getState();
+  const renderEvents = store.drainRenderEvents();
   const latestTick = state.latestTick ?? 0;
   const renderableEntities = toRenderableEntities(state.worldEntities);
   const localOverrides = new Map<string, { rotation: number; x: number; y: number }>();
+  const shooterTransforms = new Map<string, { rotation: number; x: number; y: number }>();
   const selfPlayer = state.worldEntities.players.find((entity) => entity.entityId === state.playerEntityId);
+  let localPlayerTransform: { rotation: number; x: number; y: number } | null = null;
+
+  for (const player of state.worldEntities.players) {
+    shooterTransforms.set(player.entityId, player.transform);
+  }
 
   if (selfPlayer) {
     predictionController.syncAuthoritative({
@@ -55,6 +65,14 @@ export const renderFrame = ({
     }
 
     localOverrides.set(selfPlayer.entityId, localTransform);
+    shooterTransforms.set(selfPlayer.entityId, localTransform);
+    localPlayerTransform = localTransform;
+  }
+
+  for (const event of renderEvents) {
+    if (event.type === "combat") {
+      entityViewStore.markRecentCombatHit(event.targetEntityId);
+    }
   }
 
   entityViewStore.render({
@@ -63,6 +81,13 @@ export const renderFrame = ({
     latestTick,
     localOverrides,
     playerEntityId: state.playerEntityId,
+  });
+
+  combatEffectsView.update({
+    deltaSeconds,
+    entityViewStore,
+    renderEvents,
+    shooterTransforms,
   });
 
   renderer.render(scene, camera);

@@ -1,10 +1,12 @@
 import type { ClientGameStore } from "./state/clientGameStore";
-import { SERVER_TICK_RATE } from "@2dayz/shared";
+import { SERVER_TICK_RATE, defaultTownMap } from "@2dayz/shared";
 
 import { createCamera } from "./createCamera";
 import { createRenderer } from "./createRenderer";
 import { createScene } from "./createScene";
 import { createInputController } from "./input/inputController";
+import { createWorldView } from "./render/createWorldView";
+import { createCombatEffectsView } from "./render/combatEffectsView";
 import { createEntityViewStore } from "./render/entityViewStore";
 import { createPredictionController } from "./render/prediction";
 import { renderFrame } from "./render/renderFrame";
@@ -22,11 +24,13 @@ export const bootGame = ({
   const { renderer, resize: resizeRenderer } = createRenderer(canvas);
   const { camera, resize: resizeCamera } = createCamera(canvas);
   const { dispose: disposeScene, scene } = createScene();
+  const worldView = createWorldView({ map: defaultTownMap, scene });
   const inputController = createInputController({
     element: canvas,
     isEnabled: () => store.getState().connectionState.phase === "joined",
     onToggleInventory: () => store.toggleInventory(),
   });
+  const combatEffectsView = createCombatEffectsView(scene);
   const entityViewStore = createEntityViewStore(scene);
   const predictionController = createPredictionController({ rotation: 0, x: 0, y: 0 });
   let animationFrame = 0;
@@ -101,6 +105,7 @@ export const bootGame = ({
 
     renderFrame({
       camera,
+      combatEffectsView,
       deltaSeconds,
       entityViewStore,
       predictionController,
@@ -123,7 +128,9 @@ export const bootGame = ({
     window.removeEventListener("resize", resize);
     unsubscribeFromStore();
     inputController.destroy();
+    combatEffectsView.dispose();
     entityViewStore.dispose();
+    worldView.dispose();
     disposeScene();
     renderer.dispose();
   };

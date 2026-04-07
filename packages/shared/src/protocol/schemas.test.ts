@@ -7,6 +7,7 @@ import {
   deathEventSchema,
   reconnectRequestSchema,
   roomStatusMessageSchema,
+  shotEventSchema,
   serverMessageSchema,
 } from "./schemas";
 
@@ -158,6 +159,17 @@ describe("protocol schemas", () => {
         },
       }),
     ).toMatchObject({ type: "room-status", room: { roomId: "room_alpha", status: "active" } });
+
+    expect(
+      shotEventSchema.parse({
+        type: "shot",
+        attackerEntityId: "player_1",
+        aim: { x: 1, y: 0 },
+        origin: { x: 10, y: 5 },
+        roomId: "room_alpha",
+        weaponItemId: "m9",
+      }),
+    ).toMatchObject({ type: "shot", attackerEntityId: "player_1", weaponItemId: "m9" });
 
     expect(
       combatEventSchema.parse({
@@ -357,6 +369,17 @@ describe("protocol schemas", () => {
         damage: 0,
         remainingHealth: -1,
         hitPosition: { x: 12 },
+      }),
+    ).toThrow();
+
+    expect(() =>
+      shotEventSchema.parse({
+        type: "shot",
+        attackerEntityId: "player_1",
+        aim: { x: 0 },
+        origin: { x: 10, y: 5 },
+        roomId: "room_alpha",
+        weaponItemId: "m9",
       }),
     ).toThrow();
 

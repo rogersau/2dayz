@@ -1,6 +1,4 @@
-import { mapDefinitionSchema, type MapDefinition } from "@2dayz/shared";
-
-import { defaultTownMap } from "../content/defaultTownMap";
+import { defaultTownMap, mapDefinitionSchema, type MapDefinition } from "@2dayz/shared";
 import { createCollisionIndex, isCirclePositionBlocked } from "./collision";
 import { hasLineOfSight } from "./lineOfSight";
 
