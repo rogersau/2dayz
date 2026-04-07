@@ -216,6 +216,64 @@ describe("clientGameStore", () => {
     });
   });
 
+  it("updates equippedWeaponSlot when selecting an occupied inventory slot", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 90, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              { itemId: "weapon_shotgun", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 30,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    const initialInventory = store.getState().inventory;
+
+    store.selectInventorySlot(1);
+
+    expect(initialInventory.equippedWeaponSlot).toBe(0);
+    expect(initialInventory.slots[1]).toEqual({ itemId: "weapon_shotgun", quantity: 1 });
+    expect(store.getState().inventory).toMatchObject({
+      equippedWeaponSlot: 1,
+      slots: [
+        { itemId: "weapon_pistol", quantity: 1 },
+        { itemId: "weapon_shotgun", quantity: 1 },
+        null,
+        null,
+        null,
+        null,
+      ],
+    });
+  });
+
   it("resets stale HUD state when a completed join resolves to a different player identity", () => {
     const store = createClientGameStore();
 

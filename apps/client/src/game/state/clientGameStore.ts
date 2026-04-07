@@ -318,6 +318,21 @@ export const createClientGameStore = () => {
         worldEntities: createEmptyWorldEntities(),
       }));
     },
+    selectInventorySlot(slotIndex: number) {
+      update((current) => {
+        if (current.inventory.slots[slotIndex] === null) {
+          return current;
+        }
+
+        return {
+          ...current,
+          inventory: {
+            ...current.inventory,
+            equippedWeaponSlot: slotIndex,
+          },
+        };
+      });
+    },
     setInventory(inventory: Inventory) {
       update((current) => ({
         ...current,
