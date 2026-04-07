@@ -147,13 +147,13 @@ describe("bootGame", () => {
     rendererMock.dispose = rendererDisposeMock;
     scheduledInterval = null;
     scheduledFrame = null;
-    pollInputMock.mockReturnValue({
+    pollInputMock.mockImplementation((sequence: number) => ({
       actions: { fire: true },
       aim: { x: 12, y: -4 },
       movement: { x: 1, y: 0 },
-      sequence: 0,
+      sequence,
       type: "input",
-    });
+    }));
     requestAnimationFrameSpy = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       scheduledFrame = callback;
       return 7;
@@ -374,6 +374,51 @@ describe("bootGame", () => {
     scheduledInterval?.();
 
     expect(sendInput).toHaveBeenCalledTimes(2);
+  });
+
+  it("merges queued inventory actions into the next authoritative input packet", () => {
+    const sendInput = vi.fn();
+    const canvas = document.createElement("canvas");
+    const consumeQueuedInventoryAction = vi
+      .fn()
+      .mockReturnValueOnce({ type: "equip", toSlot: 1 })
+      .mockReturnValueOnce(undefined);
+    const store = {
+      consumeQueuedInventoryAction,
+      getState: (): TestStoreState =>
+        createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+      subscribe: () => () => {},
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput },
+      store: store as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenCalledWith({
+      actions: {
+        fire: true,
+        inventory: { type: "equip", toSlot: 1 },
+      },
+      aim: { x: 12, y: -4 },
+      movement: { x: 1, y: 0 },
+      sequence: 0,
+      type: "input",
+    });
+
+    scheduledInterval?.();
+
+    expect(sendInput).toHaveBeenLastCalledWith({
+      actions: { fire: true },
+      aim: { x: 12, y: -4 },
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
   });
 
   it("does not perform a second render pass after the client joins", () => {

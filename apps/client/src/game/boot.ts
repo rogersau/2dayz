@@ -59,19 +59,29 @@ export const bootGame = ({
     }
 
     const input = inputController.pollInput(sequence++);
-    socketClient.sendInput(input);
+    const inventoryAction = store.consumeQueuedInventoryAction?.();
+    const nextInput = inventoryAction
+      ? {
+          ...input,
+          actions: {
+            ...input.actions,
+            inventory: inventoryAction,
+          },
+        }
+      : input;
+    socketClient.sendInput(nextInput);
 
     if (
-      input.movement.x !== 0 ||
-      input.movement.y !== 0 ||
-      input.aim.x !== 0 ||
-      input.aim.y !== 0
+      nextInput.movement.x !== 0 ||
+      nextInput.movement.y !== 0 ||
+      nextInput.aim.x !== 0 ||
+      nextInput.aim.y !== 0
     ) {
       predictionController.applyInput({
-        aim: input.aim,
+        aim: nextInput.aim,
         deltaSeconds: inputDeltaSeconds,
-        movement: input.movement,
-        sequence: input.sequence,
+        movement: nextInput.movement,
+        sequence: nextInput.sequence,
       });
     }
   };

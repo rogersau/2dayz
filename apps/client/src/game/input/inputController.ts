@@ -6,6 +6,14 @@ const isMatchingKey = (eventKey: string, keys: readonly string[]) => {
   return keys.includes(eventKey.toLowerCase());
 };
 
+const isFocusableControl = (eventTarget: EventTarget | null) => {
+  if (!(eventTarget instanceof HTMLElement)) {
+    return false;
+  }
+
+  return eventTarget.matches("button, input, select, textarea, [contenteditable='true'], [tabindex]");
+};
+
 export const createInputController = ({
   element,
   isEnabled,
@@ -62,6 +70,10 @@ export const createInputController = ({
     const key = event.key.toLowerCase();
 
     if (isMatchingKey(key, ACTION_KEYS.inventory)) {
+      if (isFocusableControl(event.target)) {
+        return;
+      }
+
       event.preventDefault();
       if (!event.repeat) {
         onToggleInventory?.();

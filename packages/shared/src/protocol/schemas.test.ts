@@ -34,9 +34,12 @@ describe("protocol schemas", () => {
         aim: { x: 0.25, y: 0.75 },
         actions: {
           fire: true,
-          reload: false,
+          inventory: {
+            type: "equip",
+            toSlot: 1,
+          },
           interact: true,
-          pickupEntityId: "loot_001",
+          reload: false,
         },
       }),
     ).toMatchObject({ type: "input", sequence: 17 });

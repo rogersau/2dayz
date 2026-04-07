@@ -62,7 +62,7 @@ const createMockJoinMessage = (displayName: string, sessionToken = createSession
 const createMockInventory = (worldState: MockWorldState) => {
   return {
     ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: worldState.ammoReserve }],
-    equippedWeaponSlot: 0,
+    equippedWeaponSlot: worldState.equippedWeaponSlot,
     slots: [
       { itemId: "weapon_pistol", quantity: 1 },
       worldState.localInventorySlotOne,
@@ -182,6 +182,7 @@ type PendingRequestKind = "join" | "reconnect";
 
 type MockWorldState = {
   ammoReserve: number;
+  equippedWeaponSlot: number | null;
   lastProcessedInputSequence: number;
   localInventorySlotOne: { itemId: string; quantity: number } | null;
   localTransform: { rotation: number; x: number; y: number };
@@ -201,6 +202,7 @@ export const createSocketClient = ({
   let mockWorldInterval: ReturnType<typeof setInterval> | null = null;
   let mockWorldState: MockWorldState = {
     ammoReserve: 27,
+    equippedWeaponSlot: 0,
     lastProcessedInputSequence: 0,
     localInventorySlotOne: { itemId: "bandage", quantity: 2 },
     localTransform: { rotation: 0, x: 0, y: 0 },
@@ -243,6 +245,7 @@ export const createSocketClient = ({
     mockTick = 1;
     mockWorldState = {
       ammoReserve: 27,
+      equippedWeaponSlot: 0,
       lastProcessedInputSequence: 0,
       localInventorySlotOne: { itemId: "bandage", quantity: 2 },
       localTransform: { rotation: 0, x: 0, y: 0 },
@@ -265,6 +268,10 @@ export const createSocketClient = ({
       mockWorldState = {
         ...mockWorldState,
         ammoReserve: payload.actions.fire ? Math.max(0, mockWorldState.ammoReserve - 1) : mockWorldState.ammoReserve,
+        equippedWeaponSlot:
+          payload.actions.inventory?.type === "equip"
+            ? payload.actions.inventory.toSlot
+            : mockWorldState.equippedWeaponSlot,
         lastProcessedInputSequence: payload.sequence,
         localInventorySlotOne: payload.actions.reload ? { itemId: "bandage", quantity: 1 } : mockWorldState.localInventorySlotOne,
         localTransform: {

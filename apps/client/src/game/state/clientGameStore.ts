@@ -6,6 +6,7 @@ import type {
   ErrorReason,
   Health,
   Inventory,
+  InventoryAction,
   LootEntity,
   PlayerState,
   SnapshotMessage,
@@ -191,6 +192,7 @@ export const createClientGameStore = () => {
     worldEntities: createEmptyWorldEntities(),
   };
   const listeners = new Set<() => void>();
+  let queuedInventoryAction: InventoryAction | undefined;
 
   const emit = () => {
     for (const listener of listeners) {
@@ -276,6 +278,7 @@ export const createClientGameStore = () => {
       playerEntityId: string;
       roomId: string;
     }) {
+      queuedInventoryAction = undefined;
       update((current) => {
         const isSameIdentity = current.playerEntityId === playerEntityId;
 
@@ -295,6 +298,7 @@ export const createClientGameStore = () => {
       });
     },
     failConnection(reason: ErrorReason) {
+      queuedInventoryAction = undefined;
       update((current) => ({
         ...current,
         connectionState: { phase: "failed", reason },
@@ -305,6 +309,7 @@ export const createClientGameStore = () => {
       return state;
     },
     resetToIdle() {
+      queuedInventoryAction = undefined;
       update((current) => ({
         connectionState: { phase: "idle" },
         health: null,
@@ -336,6 +341,14 @@ export const createClientGameStore = () => {
           },
         };
       });
+    },
+    queueInventoryAction(action: InventoryAction) {
+      queuedInventoryAction = action;
+    },
+    consumeQueuedInventoryAction() {
+      const nextAction = queuedInventoryAction;
+      queuedInventoryAction = undefined;
+      return nextAction;
     },
     setInventory(inventory: Inventory) {
       update((current) => ({

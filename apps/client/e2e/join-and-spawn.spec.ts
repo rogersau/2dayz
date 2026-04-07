@@ -4,6 +4,8 @@ const quickbar = (page: import("@playwright/test").Page) => page.getByLabel("qui
 
 const installQuickbarSelectionSocketMock = async (page: import("@playwright/test").Page) => {
   await page.addInitScript(() => {
+    let equippedWeaponSlot = 0;
+
     class MockQuickbarSocket extends EventTarget {
       static CONNECTING = 0;
       static OPEN = 1;
@@ -35,7 +37,58 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
       }
 
       send(data: string) {
-        const payload = JSON.parse(data) as { displayName?: string; type: string };
+        const payload = JSON.parse(data) as {
+          actions?: {
+            inventory?: { toSlot: number; type: string };
+          };
+          displayName?: string;
+          type: string;
+        };
+
+        if (payload.type === "input") {
+          if (payload.actions?.inventory?.type !== "equip") {
+            return;
+          }
+
+          equippedWeaponSlot = payload.actions.inventory.toSlot;
+          queueMicrotask(() => {
+            const delta = new MessageEvent("message", {
+              data: JSON.stringify({
+                enteredEntities: [],
+                entityUpdates: [
+                  {
+                    entityId: "player_quickbar-scout",
+                  health: { current: 100, isDead: false, max: 100 },
+                  inventory: {
+                    ammoStacks: [],
+                    equippedWeaponSlot,
+                    slots: [
+                      { itemId: "weapon_pistol", quantity: 1 },
+                      { itemId: "bandage", quantity: 2 },
+                      null,
+                      null,
+                      null,
+                      null,
+                    ],
+                  },
+                    lastProcessedInputSequence: 0,
+                    transform: { rotation: 0, x: 0, y: 0 },
+                    velocity: { x: 0, y: 0 },
+                  },
+                ],
+                events: [],
+                removedEntityIds: [],
+                roomId: "room_quickbar",
+                tick: 2,
+                type: "delta",
+              }),
+            });
+            this.onmessage?.(delta);
+            this.dispatchEvent(delta);
+          });
+          return;
+        }
+
         if (payload.type !== "join") {
           return;
         }
@@ -63,10 +116,10 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                   displayName: payload.displayName ?? "Quickbar Scout",
                   entityId: "player_quickbar-scout",
                   health: { current: 100, isDead: false, max: 100 },
-                  inventory: {
-                    ammoStacks: [],
-                    equippedWeaponSlot: 0,
-                    slots: [
+                   inventory: {
+                     ammoStacks: [],
+                     equippedWeaponSlot,
+                     slots: [
                       { itemId: "weapon_pistol", quantity: 1 },
                       { itemId: "bandage", quantity: 2 },
                       null,

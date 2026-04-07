@@ -157,4 +157,39 @@ describe("socketClient", () => {
       },
     });
   });
+
+  it("applies mock authoritative equip actions through replicated inventory state", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({
+      mode: "mock",
+      protocolStore,
+    });
+
+    await socketClient.join({ displayName: "Survivor" });
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(
+      inputMessageSchema.parse({
+        actions: {
+          inventory: {
+            type: "equip",
+            toSlot: 1,
+          },
+        },
+        aim: { x: 0, y: 0 },
+        movement: { x: 0, y: 0 },
+        sequence: 2,
+        type: "input",
+      }),
+    );
+
+    const { deltas } = protocolStore.drainWorldUpdates();
+    const selfUpdate = deltas[0]?.entityUpdates.find((update) => update.entityId === "player_survivor");
+
+    expect(selfUpdate).toMatchObject({
+      inventory: expect.objectContaining({
+        equippedWeaponSlot: 1,
+      }),
+    });
+  });
 });

@@ -90,6 +90,20 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
   state.dirtyPlayerIds.add(player.entityId);
 };
 
+const handleEquipAction = (state: RoomSimulationState, player: SimPlayer): void => {
+  const action = state.inputIntents.get(player.entityId)?.actions.inventory;
+  if (!action || action.type !== "equip") {
+    return;
+  }
+
+  if (player.inventory.slots[action.toSlot] === null) {
+    return;
+  }
+
+  player.inventory.equippedWeaponSlot = action.toSlot;
+  state.dirtyPlayerIds.add(player.entityId);
+};
+
 const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void => {
   if (!player.health.isDead || state.handledDeathEntityIds.has(player.entityId)) {
     return;
@@ -181,6 +195,7 @@ export const createInventorySystem = () => {
 
         if (!player.health.isDead) {
           handlePickupAction(state, player);
+          handleEquipAction(state, player);
         }
 
         const intent = state.inputIntents.get(player.entityId);
