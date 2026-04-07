@@ -12,9 +12,9 @@ type HudProps = {
 
 export const Hud = ({ inventory, isInventoryOpen, onSelectSlot, onToggleInventory }: HudProps) => {
   return (
-    <section className="hud-card survival-hud">
-      <QuickbarHud inventory={inventory} onSelectSlot={onSelectSlot} />
+    <div className="hud-bottom">
       <InventoryPanel inventory={inventory} isOpen={isInventoryOpen} onToggle={onToggleInventory} />
-    </section>
+      <QuickbarHud inventory={inventory} onSelectSlot={onSelectSlot} />
+    </div>
   );
 };

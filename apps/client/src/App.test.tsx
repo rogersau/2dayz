@@ -47,7 +47,7 @@ vi.mock("./game/net/protocolStore", () => ({
 
 const expectJoinedShell = () => {
   expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /open inventory/i })).toBeInTheDocument();
   expect(screen.queryByLabelText(/survival hud/i)).not.toBeInTheDocument();
 };
@@ -403,20 +403,30 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
     });
 
     expect(screen.queryByText(/slot 1/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1, weapon_pistol x1, equipped/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.getByRole("button", { name: /quickbar slot 2, bandage x2, not equipped/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: /open inventory/i }).closest("section")).toHaveClass("inventory-card");
+    expect(screen.getByRole("button", { name: /quickbar slot 1/i }).closest("section")).toHaveClass("quickbar-hud");
 
     fireEvent.click(screen.getByRole("button", { name: /open inventory/i }));
 
     expect(screen.getByTestId("inventory-panel-content")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /collapse inventory/i }));
 
     expect(screen.queryByTestId("inventory-panel-content")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
   });
 
   it("does not steal Tab from focused joined-state controls", async () => {
@@ -514,16 +524,16 @@ describe("App join and reconnect flow", () => {
     fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
     fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
 
-    const slotOne = await screen.findByRole("button", { name: "Quickbar slot 1" });
-    const slotTwo = screen.getByRole("button", { name: "Quickbar slot 2" });
+    const slotOne = await screen.findByRole("button", { name: /quickbar slot 1, weapon_pistol x1, equipped/i });
+    const slotTwo = screen.getByRole("button", { name: /quickbar slot 2, bandage x2, not equipped/i });
 
-    expect(slotOne).toHaveAttribute("data-equipped", "true");
-    expect(slotTwo).not.toHaveAttribute("data-equipped", "true");
+    expect(slotOne).toHaveAttribute("aria-pressed", "true");
+    expect(slotTwo).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(slotTwo);
 
-    expect(slotOne).toHaveAttribute("data-equipped", "true");
-    expect(slotTwo).not.toHaveAttribute("data-equipped", "true");
+    expect(slotOne).toHaveAttribute("aria-pressed", "true");
+    expect(slotTwo).toHaveAttribute("aria-pressed", "false");
   });
 
   it("bypasses the field briefing on a later same-session join after it was already dismissed", async () => {

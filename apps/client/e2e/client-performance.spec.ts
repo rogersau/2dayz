@@ -11,7 +11,7 @@ test("reports when average frame time misses the 60 fps local target", async ({ 
   await page.getByRole("button", { name: "Enter session" }).click();
   await expect(quickbar(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Quickbar slot 1" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Quickbar slot 1,/i })).toBeVisible();
   await page.waitForTimeout(250);
 
   const averageFrameTimeMs = await page.evaluate(async () => {

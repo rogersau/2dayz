@@ -20,23 +20,24 @@ const inventory: Inventory = {
 };
 
 describe("QuickbarHud", () => {
-  it("renders six quickbar slots and selects a slot when clicked", () => {
+  it("renders six quickbar slots with semantic names and selects a slot when clicked", () => {
     const onSelectSlot = vi.fn();
 
     render(<QuickbarHud inventory={inventory} onSelectSlot={onSelectSlot} />);
 
-    const slotOne = screen.getByRole("button", { name: "Quickbar slot 1" });
-    const slotTwo = screen.getByRole("button", { name: "Quickbar slot 2" });
-    const slotThree = screen.getByRole("button", { name: "Quickbar slot 3" });
-    const slotFour = screen.getByRole("button", { name: "Quickbar slot 4" });
-    const slotFive = screen.getByRole("button", { name: "Quickbar slot 5" });
-    const slotSix = screen.getByRole("button", { name: "Quickbar slot 6" });
+    const slotOne = screen.getByRole("button", { name: /quickbar slot 1, weapon_rifle x1, not equipped/i });
+    const slotTwo = screen.getByRole("button", { name: /quickbar slot 2, bandage x2, equipped/i });
+    const slotThree = screen.getByRole("button", { name: /quickbar slot 3, empty, not equipped/i });
+    const slotFour = screen.getByRole("button", { name: /quickbar slot 4, water x1, not equipped/i });
+    const slotFive = screen.getByRole("button", { name: /quickbar slot 5, empty, not equipped/i });
+    const slotSix = screen.getByRole("button", { name: /quickbar slot 6, empty, not equipped/i });
 
     expect(slotOne).toHaveTextContent("1");
     expect(slotOne).toHaveTextContent("weapon_rifle");
     expect(slotTwo).toHaveTextContent("2");
     expect(slotTwo).toHaveTextContent("bandage x2");
-    expect(slotTwo).toHaveAttribute("data-equipped", "true");
+    expect(slotOne).toHaveAttribute("aria-pressed", "false");
+    expect(slotTwo).toHaveAttribute("aria-pressed", "true");
     expect(slotThree).toHaveTextContent("3");
     expect(slotThree).toHaveTextContent("Empty");
     expect(slotFour).toHaveTextContent("water");

@@ -165,7 +165,7 @@ test("joins from landing page and reaches the game shell", async ({ page }) => {
   await expect(quickbar(page)).toBeVisible();
   await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
 
-  const secondSlot = page.getByRole("button", { name: "Quickbar slot 2" });
+  const secondSlot = page.getByRole("button", { name: /^Quickbar slot 2,/i });
   await expect(secondSlot).not.toHaveAttribute("data-equipped", "true");
   await secondSlot.click();
   await expect(secondSlot).toHaveAttribute("data-equipped", "true");
