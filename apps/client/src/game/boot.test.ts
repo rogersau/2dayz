@@ -50,16 +50,11 @@ const {
   predictionSyncAuthoritativeMock,
   pollInputMock,
   renderFrameMock,
-  renderMock,
   rendererDisposeMock,
-  rendererClearDepthMock,
   resizeCameraMock,
-  resizeHudSceneMock,
   resizeRendererMock,
   sceneDisposeMock,
   setIntervalMock,
-  updateHudSceneMock,
-  disposeHudSceneMock,
   rendererMock,
 } = vi.hoisted(() => ({
   createPredictionControllerMock: vi.fn(),
@@ -73,16 +68,11 @@ const {
   predictionSyncAuthoritativeMock: vi.fn(),
   pollInputMock: vi.fn(),
   renderFrameMock: vi.fn(),
-  renderMock: vi.fn(),
   rendererDisposeMock: vi.fn(),
-  rendererClearDepthMock: vi.fn(),
   resizeCameraMock: vi.fn(),
-  resizeHudSceneMock: vi.fn(),
   resizeRendererMock: vi.fn(),
   sceneDisposeMock: vi.fn(),
   setIntervalMock: vi.fn(),
-  updateHudSceneMock: vi.fn(),
-  disposeHudSceneMock: vi.fn(),
   rendererMock: {
     autoClear: true,
     clearDepth: vi.fn(),
@@ -109,16 +99,6 @@ vi.mock("./createCamera", () => ({
 
 vi.mock("./createScene", () => ({
   createScene: () => ({ dispose: sceneDisposeMock, scene: { kind: "scene" } }),
-}));
-
-vi.mock("./render/createHudScene", () => ({
-  createHudScene: () => ({
-    camera: { kind: "hud-camera" },
-    dispose: disposeHudSceneMock,
-    resize: resizeHudSceneMock,
-    scene: { kind: "hud-scene" },
-    update: updateHudSceneMock,
-  }),
 }));
 
 vi.mock("./input/inputController", () => ({
@@ -160,18 +140,11 @@ describe("bootGame", () => {
   let clearIntervalSpy: { mockRestore: () => void };
   let scheduledInterval: (() => void) | null;
   let scheduledFrame: FrameRequestCallback | null;
-  let autoClearDuringRender: boolean[];
 
   beforeEach(() => {
     vi.clearAllMocks();
     rendererMock.autoClear = true;
-    rendererMock.clearDepth = rendererClearDepthMock;
     rendererMock.dispose = rendererDisposeMock;
-    autoClearDuringRender = [];
-    rendererMock.render.mockImplementation((...args: Parameters<typeof renderMock>) => {
-      autoClearDuringRender.push(rendererMock.autoClear);
-      return renderMock(...args);
-    });
     scheduledInterval = null;
     scheduledFrame = null;
     pollInputMock.mockReturnValue({
@@ -256,7 +229,6 @@ describe("bootGame", () => {
 
     expect(clearIntervalMock).toHaveBeenCalledWith(11);
     expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
-    expect(disposeHudSceneMock).toHaveBeenCalledTimes(1);
     expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
     expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
   });
@@ -404,7 +376,7 @@ describe("bootGame", () => {
     expect(sendInput).toHaveBeenCalledTimes(2);
   });
 
-  it("renders the hud as a second pass only while joined", () => {
+  it("does not perform a second render pass after the client joins", () => {
     const state = createStoreState({
       health: { current: 86, isDead: false, max: 100 },
       inventory: createInventory({
@@ -430,92 +402,13 @@ describe("bootGame", () => {
 
     scheduledFrame?.(16);
 
-    expect(updateHudSceneMock).not.toHaveBeenCalled();
-    expect(rendererClearDepthMock).not.toHaveBeenCalled();
-    expect(renderMock).not.toHaveBeenCalled();
-
     state.connectionState = { phase: "joined" };
 
     scheduledFrame?.(32);
 
-    expect(updateHudSceneMock).toHaveBeenCalledWith({
-      ammoValue: "21",
-      equippedWeaponDetail: "Weapon: weapon_pistol",
-      healthDetail: "Stable for now",
-      healthValue: "86/100",
-      inventorySummary: "1/6 slots filled",
-      playerLabel: "Player: player_survivor",
-      roomLabel: "Room: room_browser-v1",
-    });
     expect(rendererMock.autoClear).toBe(true);
-    expect(renderMock).toHaveBeenNthCalledWith(1, { kind: "hud-scene" }, { kind: "hud-camera" });
-    expect(autoClearDuringRender).toEqual([false]);
-    expect(rendererClearDepthMock).toHaveBeenCalledTimes(1);
+    expect(rendererMock.render).not.toHaveBeenCalled();
+    expect(rendererMock.clearDepth).not.toHaveBeenCalled();
     expect(renderFrameMock).toHaveBeenCalledTimes(2);
-  });
-
-  it("disables renderer autoClear only for the joined hud pass", () => {
-    const state = createStoreState({ connectionState: { phase: "joined" } });
-
-    bootGame({
-      canvas: document.createElement("canvas"),
-      socketClient: { sendInput: vi.fn() },
-      store: {
-        getState: () => state,
-        subscribe: () => () => {},
-        toggleInventory: vi.fn(),
-      } as never,
-    });
-
-    scheduledFrame?.(16);
-
-    expect(rendererClearDepthMock).toHaveBeenCalledOnce();
-    expect(renderMock).toHaveBeenCalledOnce();
-    expect(autoClearDuringRender).toEqual([false]);
-    expect(rendererMock.autoClear).toBe(true);
-    expect(renderMock.mock.calls[0]?.[0]).toEqual({ kind: "hud-scene" });
-  });
-
-  it("resizes the hud camera with the canvas", () => {
-    bootGame({
-      canvas: document.createElement("canvas"),
-      socketClient: { sendInput: vi.fn() },
-      store: {
-        getState: () => createStoreState(),
-        subscribe: () => () => {},
-        toggleInventory: vi.fn(),
-      } as never,
-    });
-
-    expect(resizeHudSceneMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("skips redundant hud updates when joined state has not changed between frames", () => {
-    const state = createStoreState({
-      connectionState: { phase: "joined" },
-      health: { current: 86, isDead: false, max: 100 },
-      inventory: createInventory({
-        ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
-        equippedWeaponSlot: 0,
-        slots: [{ itemId: "weapon_pistol", quantity: 1 }, null, null, null, null, null],
-      }),
-      playerEntityId: "player_survivor",
-      roomId: "room_browser-v1",
-    });
-
-    bootGame({
-      canvas: document.createElement("canvas"),
-      socketClient: { sendInput: vi.fn() },
-      store: {
-        getState: () => state,
-        subscribe: () => () => {},
-        toggleInventory: vi.fn(),
-      } as never,
-    });
-
-    scheduledFrame?.(16);
-    scheduledFrame?.(32);
-
-    expect(updateHudSceneMock).toHaveBeenCalledTimes(1);
   });
 });
