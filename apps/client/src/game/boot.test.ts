@@ -26,6 +26,15 @@ const createInventory = (overrides: Partial<Inventory> = {}): Inventory => ({
   ...overrides,
 });
 
+const createEquippedFirearmInventory = (overrides: Partial<Inventory> = {}): Inventory => ({
+  ...createInventory({
+    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
+    equippedWeaponSlot: 0,
+    slots: [{ itemId: "weapon_pistol", quantity: 1 }, null, null, null, null, null],
+  }),
+  ...overrides,
+});
+
 const createStoreState = (overrides: Partial<TestStoreState> = {}): TestStoreState => ({
   connectionState: { phase: "idle" },
   health: null,
@@ -243,7 +252,11 @@ describe("bootGame", () => {
       socketClient: { sendInput },
       store: {
         getState: (): TestStoreState =>
-          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+          createStoreState({
+            connectionState: { phase: "joined" },
+            inventory: createEquippedFirearmInventory(),
+            playerEntityId: "player_survivor",
+          }),
         subscribe: () => () => {},
         toggleInventory: vi.fn(),
       } as never,
@@ -253,6 +266,102 @@ describe("bootGame", () => {
 
     expect(sendInput).toHaveBeenCalledTimes(1);
     expect(combatEffectsQueueLocalShotMock).toHaveBeenCalledWith({ aim: { x: 12, y: -4 } });
+  });
+
+  it("does not queue a local shot effect when fire input has zero aim", () => {
+    pollInputMock.mockReturnValue({
+      actions: { fire: true },
+      aim: { x: 0, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 0,
+      type: "input",
+    });
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({
+            connectionState: { phase: "joined" },
+            inventory: createEquippedFirearmInventory(),
+            playerEntityId: "player_survivor",
+          }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
+  });
+
+  it("does not queue a local shot effect without an equipped firearm", () => {
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({
+            connectionState: { phase: "joined" },
+            inventory: createInventory({
+              ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
+            }),
+            playerEntityId: "player_survivor",
+          }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
+  });
+
+  it("does not queue a local shot effect without matching ammo", () => {
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({
+            connectionState: { phase: "joined" },
+            inventory: createEquippedFirearmInventory({ ammoStacks: [] }),
+            playerEntityId: "player_survivor",
+          }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
+  });
+
+  it("suppresses repeated local shot effects until the local firearm cooldown elapses", () => {
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({
+            connectionState: { phase: "joined" },
+            inventory: createEquippedFirearmInventory(),
+            playerEntityId: "player_survivor",
+          }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledInterval?.();
+    scheduledInterval?.();
+    scheduledInterval?.();
+
+    expect(combatEffectsQueueLocalShotMock).toHaveBeenCalledTimes(1);
   });
 
   it("cleans up scene resources and the input send interval on dispose", () => {
