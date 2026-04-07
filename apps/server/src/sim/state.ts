@@ -184,24 +184,40 @@ export const createDefaultWeaponState = (): WeaponState => {
 };
 
 const assertInRange = (value: number, min: number, max: number, label: string): void => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
+  }
+
   if (value < min || value > max) {
     throw new Error(`${label} must be between ${min} and ${max}`);
   }
 };
 
 const assertPositive = (value: number, label: string): void => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
+  }
+
   if (value <= 0) {
     throw new Error(`${label} must be greater than 0`);
   }
 };
 
 const assertGreaterThan = (value: number, minimum: number, label: string): void => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
+  }
+
   if (value <= minimum) {
     throw new Error(`${label} must be greater than ${minimum}`);
   }
 };
 
 const assertNotGreaterThan = (value: number, maximum: number, label: string): void => {
+  if (!Number.isFinite(value)) {
+    throw new Error(`${label} must be finite`);
+  }
+
   if (value > maximum) {
     throw new Error(`${label} must be less than or equal to ${maximum}`);
   }

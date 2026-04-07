@@ -362,6 +362,36 @@ describe("bootGame", () => {
       deltaSeconds: 0.05,
       movement: { x: 0, y: 0 },
       sequence: 3,
+      sprint: false,
+    });
+  });
+
+  it("passes sprint state through to local prediction inputs", () => {
+    pollInputMock.mockReturnValue({
+      actions: { sprint: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 1, y: 0 },
+      sequence: 4,
+      type: "input",
+    });
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: () => createStoreState({ connectionState: { phase: "joined" } }),
+        subscribe: () => () => {},
+      } as never,
+    });
+
+    scheduledInterval?.();
+
+    expect(predictionApplyInputMock).toHaveBeenCalledWith({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.05,
+      movement: { x: 1, y: 0 },
+      sequence: 4,
+      sprint: true,
     });
   });
 

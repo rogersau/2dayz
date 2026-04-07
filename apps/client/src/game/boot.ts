@@ -86,6 +86,7 @@ export const bootGame = ({
         deltaSeconds: inputDeltaSeconds,
         movement: nextInput.movement,
         sequence: nextInput.sequence,
+        sprint: Boolean(nextInput.actions.sprint),
       });
     }
   };

@@ -1,12 +1,14 @@
 import type { Transform, Vector2 } from "@2dayz/shared";
 
 const DEFAULT_MOVE_SPEED = 4;
+const DEFAULT_SPRINT_SPEED_MULTIPLIER = 1.5;
 
 export type PredictedInput = {
   aim: Vector2;
   deltaSeconds: number;
   movement: Vector2;
   sequence: number;
+  sprint: boolean;
 };
 
 export type PredictionState = {
@@ -62,11 +64,12 @@ const normalizeMovement = (movement: Vector2): Vector2 => {
 const applyMovement = (transform: Transform, input: PredictedInput, moveSpeed: number): Transform => {
   const direction = normalizeMovement(input.movement);
   const aimMagnitude = Math.hypot(input.aim.x, input.aim.y);
+  const appliedMoveSpeed = input.sprint ? moveSpeed * DEFAULT_SPRINT_SPEED_MULTIPLIER : moveSpeed;
 
   return {
     rotation: aimMagnitude > 0 ? Math.atan2(input.aim.y, input.aim.x) : transform.rotation,
-    x: transform.x + direction.x * moveSpeed * input.deltaSeconds,
-    y: transform.y + direction.y * moveSpeed * input.deltaSeconds,
+    x: transform.x + direction.x * appliedMoveSpeed * input.deltaSeconds,
+    y: transform.y + direction.y * appliedMoveSpeed * input.deltaSeconds,
   };
 };
 

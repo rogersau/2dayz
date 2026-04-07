@@ -130,6 +130,51 @@ describe("prediction", () => {
     expect(strafingAim.rotation).toBeCloseTo(Math.PI / 2);
   });
 
+  it("predicts faster local movement while sprinting", () => {
+    const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    const transform = prediction.applyInput({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+      sprint: true,
+    });
+
+    expect(transform).toEqual({ rotation: 0, x: 3, y: 0 });
+  });
+
+  it("replays pending sprint inputs at sprint speed during reconciliation", () => {
+    const initial = createPredictionState({ rotation: 0, x: 0, y: 0 });
+    const afterFirstInput = applyPredictedInput(initial, {
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+      sprint: true,
+    });
+    const afterSecondInput = applyPredictedInput(afterFirstInput, {
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 2,
+      sprint: true,
+    });
+
+    const reconciled = reconcilePrediction({
+      authoritativeTransform: { rotation: 0, x: 3, y: 0 },
+      lastProcessedSequence: 1,
+      state: afterSecondInput,
+    });
+
+    expect(reconciled.transform).toEqual({
+      rotation: 0,
+      x: 6,
+      y: 0,
+    });
+    expect(reconciled.pendingInputs.map((input) => input.sequence)).toEqual([2]);
+  });
+
   it("snaps immediately to the authoritative transform when identity or sequence resets", () => {
     const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
 
