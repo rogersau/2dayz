@@ -4,6 +4,11 @@ import type { RoomSimulationState, SimZombie } from "../state";
 
 const targetLossMs = 1_500;
 const attackCooldownMs = 500;
+const soundReachByType = {
+  shot: 14,
+  sprint: 8,
+} as const;
+const searchArrivalDistance = 0.25;
 
 const getAliveZombieCount = (state: RoomSimulationState): number => {
   return [...state.zombies.values()].filter((zombie) => !zombie.health.isDead).length;
@@ -158,6 +163,8 @@ const createZombieEntity = (state: RoomSimulationState, sourceZoneId: string, ar
     },
     state: "idle",
     aggroTargetEntityId: null,
+    heardTargetEntityId: null,
+    heardPosition: null,
     attackCooldownRemainingMs: 0,
     lostTargetMs: 0,
     sourceZoneId,
@@ -211,6 +218,67 @@ const canSeeTarget = (state: RoomSimulationState, zombie: SimZombie, targetPosit
   return hasLineOfSight(state.world.collision, zombie.transform, targetPosition, 0.1);
 };
 
+type HeardStimulus = {
+  sourceEntityId: string | null;
+  position: { x: number; y: number };
+};
+
+const findNearestHeardStimulus = (state: RoomSimulationState, zombie: SimZombie): HeardStimulus | null => {
+  let nearestStimulus: HeardStimulus | null = null;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  for (const event of state.events) {
+    if (event.type !== "shot") {
+      continue;
+    }
+
+    const distance = Math.hypot(event.origin.x - zombie.transform.x, event.origin.y - zombie.transform.y);
+    if (distance > soundReachByType.shot || distance >= nearestDistance) {
+      continue;
+    }
+
+    nearestStimulus = {
+      sourceEntityId: event.attackerEntityId,
+      position: event.origin,
+    };
+    nearestDistance = distance;
+  }
+
+  for (const sprintNoise of state.sprintNoiseEvents) {
+    const distance = Math.hypot(sprintNoise.position.x - zombie.transform.x, sprintNoise.position.y - zombie.transform.y);
+    if (distance > soundReachByType.sprint || distance >= nearestDistance) {
+      continue;
+    }
+
+    nearestStimulus = {
+      sourceEntityId: sprintNoise.playerEntityId,
+      position: sprintNoise.position,
+    };
+    nearestDistance = distance;
+  }
+
+  return nearestStimulus;
+};
+
+const clearSearchState = (zombie: SimZombie): void => {
+  zombie.heardTargetEntityId = null;
+  zombie.heardPosition = null;
+};
+
+const beginSearching = (zombie: SimZombie, sourceEntityId: string | null, position: { x: number; y: number }): void => {
+  zombie.aggroTargetEntityId = null;
+  zombie.lostTargetMs = 0;
+  zombie.heardTargetEntityId = sourceEntityId;
+  zombie.heardPosition = { x: position.x, y: position.y };
+  zombie.state = "searching";
+};
+
+const lockAggroToTarget = (zombie: SimZombie, targetEntityId: string): void => {
+  zombie.aggroTargetEntityId = targetEntityId;
+  zombie.lostTargetMs = 0;
+  clearSearchState(zombie);
+};
+
 export const createZombieSystem = () => {
   return {
     name: "zombie" as const,
@@ -230,6 +298,16 @@ export const createZombieSystem = () => {
 
         zombie.attackCooldownRemainingMs = Math.max(0, zombie.attackCooldownRemainingMs - deltaSeconds * 1000);
 
+        const heardStimulus = findNearestHeardStimulus(state, zombie);
+        if (heardStimulus) {
+          const heardPlayer = heardStimulus.sourceEntityId ? state.players.get(heardStimulus.sourceEntityId) : undefined;
+          if (heardPlayer && !heardPlayer.health.isDead && canSeeTarget(state, zombie, heardPlayer.transform)) {
+            lockAggroToTarget(zombie, heardPlayer.entityId);
+          } else {
+            beginSearching(zombie, heardStimulus.sourceEntityId, heardStimulus.position);
+          }
+        }
+
         let target = zombie.aggroTargetEntityId ? state.players.get(zombie.aggroTargetEntityId) : undefined;
         if (!target || target.health.isDead) {
           target = [...state.players.values()].find((player) => {
@@ -238,9 +316,46 @@ export const createZombieSystem = () => {
           });
         }
 
+        if (target && !target.health.isDead) {
+          lockAggroToTarget(zombie, target.entityId);
+        } else if (zombie.heardTargetEntityId) {
+          const heardTarget = state.players.get(zombie.heardTargetEntityId);
+          if (heardTarget && !heardTarget.health.isDead) {
+            zombie.heardPosition = {
+              x: heardTarget.transform.x,
+              y: heardTarget.transform.y,
+            };
+
+            if (canSeeTarget(state, zombie, heardTarget.transform)) {
+              lockAggroToTarget(zombie, heardTarget.entityId);
+              target = heardTarget;
+            }
+          }
+        }
+
+        if (!target && zombie.heardPosition) {
+          const distanceToHeardPosition = Math.hypot(
+            zombie.heardPosition.x - zombie.transform.x,
+            zombie.heardPosition.y - zombie.transform.y,
+          );
+
+          if (distanceToHeardPosition <= searchArrivalDistance) {
+            clearSearchState(zombie);
+            roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
+            state.dirtyZombieIds.add(zombie.entityId);
+            continue;
+          }
+
+          zombie.state = "searching";
+          moveZombieTowardTarget(state, zombie, zombie.heardPosition, archetype.moveSpeed, deltaSeconds);
+          state.dirtyZombieIds.add(zombie.entityId);
+          continue;
+        }
+
         if (!target) {
           zombie.aggroTargetEntityId = null;
           zombie.lostTargetMs = 0;
+          clearSearchState(zombie);
           roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
           state.dirtyZombieIds.add(zombie.entityId);
           continue;
@@ -254,13 +369,13 @@ export const createZombieSystem = () => {
           if (zombie.lostTargetMs >= targetLossMs) {
             zombie.aggroTargetEntityId = null;
             zombie.lostTargetMs = 0;
+            clearSearchState(zombie);
             roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
             state.dirtyZombieIds.add(zombie.entityId);
             continue;
           }
         } else {
-          zombie.aggroTargetEntityId = target.entityId;
-          zombie.lostTargetMs = 0;
+          lockAggroToTarget(zombie, target.entityId);
         }
 
         if (distance <= archetype.attackRange) {

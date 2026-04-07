@@ -112,6 +112,12 @@ export const createMovementSystem = (): MovementSystem => {
         const sprintRequested = Boolean(intent.actions.sprint) && moving;
         const consumedSprintMovement = sprinting && !blocked;
         if (consumedSprintMovement) {
+          state.sprintNoiseEvents.push({
+            playerEntityId: player.entityId,
+            position: { x: player.transform.x, y: player.transform.y },
+          });
+        }
+        if (consumedSprintMovement) {
           player.stamina.current = Math.max(0, player.stamina.current - state.config.staminaDrainPerSecond * deltaSeconds);
         } else if (!sprintRequested) {
           player.stamina.current = Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);

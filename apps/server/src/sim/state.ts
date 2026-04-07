@@ -95,6 +95,8 @@ export type SimZombie = {
   health: Health;
   state: "idle" | "roaming" | "chasing" | "attacking" | "searching";
   aggroTargetEntityId: string | null;
+  heardTargetEntityId?: string | null;
+  heardPosition?: Vector2 | null;
   attackCooldownRemainingMs: number;
   lostTargetMs: number;
   sourceZoneId?: string;
@@ -141,6 +143,7 @@ export type RoomSimulationState = {
   weaponDefinitions: Map<string, WeaponDefinition>;
   zombieArchetypes: Map<string, ZombieArchetype>;
   events: ServerEvent[];
+  sprintNoiseEvents: Array<{ playerEntityId: string; position: Vector2 }>;
 };
 
 const defaultWeaponDefinitions: WeaponDefinition[] = [
@@ -310,6 +313,7 @@ export const createRoomState = ({
     weaponDefinitions: new Map(defaultWeaponDefinitions.map((weapon) => [weapon.itemId, { ...weapon }])),
     zombieArchetypes: new Map(defaultZombieArchetypes.map((zombie) => [zombie.archetypeId, zombie])),
     events: [],
+    sprintNoiseEvents: [],
   };
 };
 
@@ -342,6 +346,7 @@ export const clearTransientSimulationState = (state: RoomSimulationState): void 
   state.dirtyZombieIds.clear();
   state.removedEntityIds.clear();
   state.events.length = 0;
+  state.sprintNoiseEvents.length = 0;
 };
 
 export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerRequest): void => {
