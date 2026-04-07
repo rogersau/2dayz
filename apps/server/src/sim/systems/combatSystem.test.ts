@@ -69,6 +69,44 @@ describe("createCombatSystem", () => {
     );
   });
 
+  it("emits the current authoritative aim vector on shot events", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-aim-1", "Avery", 0, 0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 12, y: -4 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "shot",
+        aim: { x: 12, y: -4 },
+      }),
+    );
+  });
+
+  it("does not emit a shot event or consume ammo when fire input has zero aim", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-aim-2", "Blair", 0, 0);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 0, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(attacker.weaponState.magazineAmmo).toBe(6);
+    expect(state.events).toEqual([]);
+  });
+
   it("rejects blocked or otherwise invalid fire requests without consuming ammo", () => {
     const state = createRoomState({ roomId: "room_test" });
     const attacker = spawnPlayer(state, "player_test-3", "Casey", 0, 0);
