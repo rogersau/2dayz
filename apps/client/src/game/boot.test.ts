@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ErrorReason } from "@2dayz/shared";
+import type { ErrorReason, Inventory } from "@2dayz/shared";
+import { INVENTORY_SLOT_COUNT } from "@2dayz/shared";
 
 type TestConnectionState =
   | { phase: "idle" }
@@ -9,10 +10,33 @@ type TestConnectionState =
 
 type TestStoreState = {
   connectionState: TestConnectionState;
+  health: { current: number; isDead: boolean; max: number } | null;
+  inventory: Inventory;
+  isDead: boolean;
   latestTick: number;
   playerEntityId: string | null;
+  roomId: string | null;
   worldEntities: { loot: []; players: []; zombies: [] };
 };
+
+const createInventory = (overrides: Partial<Inventory> = {}): Inventory => ({
+  ammoStacks: [],
+  equippedWeaponSlot: null,
+  slots: Array.from({ length: INVENTORY_SLOT_COUNT }, () => null),
+  ...overrides,
+});
+
+const createStoreState = (overrides: Partial<TestStoreState> = {}): TestStoreState => ({
+  connectionState: { phase: "idle" },
+  health: null,
+  inventory: createInventory(),
+  isDead: false,
+  latestTick: 0,
+  playerEntityId: null,
+  roomId: null,
+  worldEntities: { loot: [], players: [], zombies: [] },
+  ...overrides,
+});
 
 const {
   createPredictionControllerMock,
@@ -28,10 +52,14 @@ const {
   renderFrameMock,
   renderMock,
   rendererDisposeMock,
+  rendererClearDepthMock,
   resizeCameraMock,
+  resizeHudSceneMock,
   resizeRendererMock,
   sceneDisposeMock,
   setIntervalMock,
+  updateHudSceneMock,
+  disposeHudSceneMock,
 } = vi.hoisted(() => ({
   createPredictionControllerMock: vi.fn(),
   createInputControllerMock: vi.fn(),
@@ -46,17 +74,21 @@ const {
   renderFrameMock: vi.fn(),
   renderMock: vi.fn(),
   rendererDisposeMock: vi.fn(),
+  rendererClearDepthMock: vi.fn(),
   resizeCameraMock: vi.fn(),
+  resizeHudSceneMock: vi.fn(),
   resizeRendererMock: vi.fn(),
   sceneDisposeMock: vi.fn(),
   setIntervalMock: vi.fn(),
+  updateHudSceneMock: vi.fn(),
+  disposeHudSceneMock: vi.fn(),
 }));
 
 import { bootGame } from "./boot";
 
 vi.mock("./createRenderer", () => ({
   createRenderer: () => ({
-    renderer: { dispose: rendererDisposeMock, render: renderMock },
+    renderer: { clearDepth: rendererClearDepthMock, dispose: rendererDisposeMock, render: renderMock },
     resize: resizeRendererMock,
   }),
 }));
@@ -70,6 +102,16 @@ vi.mock("./createCamera", () => ({
 
 vi.mock("./createScene", () => ({
   createScene: () => ({ dispose: sceneDisposeMock, scene: { kind: "scene" } }),
+}));
+
+vi.mock("./render/createHudScene", () => ({
+  createHudScene: () => ({
+    camera: { kind: "hud-camera" },
+    dispose: disposeHudSceneMock,
+    resize: resizeHudSceneMock,
+    scene: { kind: "hud-scene" },
+    update: updateHudSceneMock,
+  }),
 }));
 
 vi.mock("./input/inputController", () => ({
@@ -149,12 +191,7 @@ describe("bootGame", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
     const store = {
-      getState: (): TestStoreState => ({
-        connectionState: { phase: "idle" },
-        latestTick: 0,
-        playerEntityId: null,
-        worldEntities: { loot: [], players: [], zombies: [] },
-      }),
+      getState: (): TestStoreState => createStoreState(),
       subscribe: () => () => {},
       toggleInventory: vi.fn(),
     };
@@ -172,12 +209,8 @@ describe("bootGame", () => {
 
     expect(sendInput).not.toHaveBeenCalled();
 
-    store.getState = (): TestStoreState => ({
-      connectionState: { phase: "joined" },
-      latestTick: 0,
-      playerEntityId: "player_survivor",
-      worldEntities: { loot: [], players: [], zombies: [] },
-    });
+    store.getState = (): TestStoreState =>
+      createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" });
 
     scheduledInterval?.();
 
@@ -198,12 +231,7 @@ describe("bootGame", () => {
       canvas,
       socketClient: { sendInput: vi.fn() },
       store: {
-        getState: () => ({
-          connectionState: { phase: "idle" },
-          latestTick: 0,
-          playerEntityId: null,
-          worldEntities: { loot: [], players: [], zombies: [] },
-        }),
+        getState: () => createStoreState(),
         subscribe: () => () => {},
       } as never,
     });
@@ -212,6 +240,7 @@ describe("bootGame", () => {
 
     expect(clearIntervalMock).toHaveBeenCalledWith(11);
     expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
+    expect(disposeHudSceneMock).toHaveBeenCalledTimes(1);
     expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
     expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
   });
@@ -229,12 +258,7 @@ describe("bootGame", () => {
       canvas: document.createElement("canvas"),
       socketClient: { sendInput: vi.fn() },
       store: {
-        getState: () => ({
-          connectionState: { phase: "joined" },
-          latestTick: 0,
-          playerEntityId: null,
-          worldEntities: { loot: [], players: [], zombies: [] },
-        }),
+        getState: () => createStoreState({ connectionState: { phase: "joined" } }),
         subscribe: () => () => {},
       } as never,
     });
@@ -252,12 +276,7 @@ describe("bootGame", () => {
   it("keeps gameplay input disabled until the player is joined", () => {
     const canvas = document.createElement("canvas");
     const store = {
-      getState: (): TestStoreState => ({
-        connectionState: { phase: "idle" },
-        latestTick: 0,
-        playerEntityId: null,
-        worldEntities: { loot: [], players: [], zombies: [] },
-      }),
+      getState: (): TestStoreState => createStoreState(),
       subscribe: () => () => {},
       toggleInventory: vi.fn(),
     };
@@ -281,12 +300,8 @@ describe("bootGame", () => {
 
     expect(isEnabled()).toBe(false);
 
-    store.getState = (): TestStoreState => ({
-      connectionState: { phase: "joined" },
-      latestTick: 0,
-      playerEntityId: "player_survivor",
-      worldEntities: { loot: [], players: [], zombies: [] },
-    });
+    store.getState = (): TestStoreState =>
+      createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" });
 
     expect(isEnabled()).toBe(true);
   });
@@ -294,12 +309,10 @@ describe("bootGame", () => {
   it("resets held input when the connection leaves joined so reconnect cannot replay stale input", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
-    const state = {
+    const state = createStoreState({
       connectionState: { phase: "joined" } as TestConnectionState,
-      latestTick: 0,
       playerEntityId: "player_survivor",
-      worldEntities: { loot: [], players: [], zombies: [] },
-    };
+    });
     let storeListener: (() => void) | undefined;
     const store = {
       getState: () => state,
@@ -338,12 +351,10 @@ describe("bootGame", () => {
   it("resets held input on a joined-to-non-joined transition even if the client rejoins before the next send tick", () => {
     const sendInput = vi.fn();
     const canvas = document.createElement("canvas");
-    const state = {
+    const state = createStoreState({
       connectionState: { phase: "joined" } as TestConnectionState,
-      latestTick: 0,
       playerEntityId: "player_survivor",
-      worldEntities: { loot: [], players: [], zombies: [] },
-    };
+    });
     const store = {
       getState: () => state,
       subscribe: (listener: () => void) => {
@@ -375,5 +386,67 @@ describe("bootGame", () => {
     scheduledInterval?.();
 
     expect(sendInput).toHaveBeenCalledTimes(2);
+  });
+
+  it("renders the hud as a second pass only while joined", () => {
+    const state = createStoreState({
+      health: { current: 86, isDead: false, max: 100 },
+      inventory: createInventory({
+        ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
+        equippedWeaponSlot: 0,
+        slots: [{ itemId: "weapon_pistol", quantity: 1 }, null, null, null, null, null],
+      }),
+      playerEntityId: "player_survivor",
+      roomId: "room_browser-v1",
+    });
+
+    const store = {
+      getState: () => state,
+      subscribe: () => () => {},
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: store as never,
+    });
+
+    scheduledFrame?.(16);
+
+    expect(updateHudSceneMock).not.toHaveBeenCalled();
+    expect(rendererClearDepthMock).not.toHaveBeenCalled();
+    expect(renderMock).not.toHaveBeenCalled();
+
+    state.connectionState = { phase: "joined" };
+
+    scheduledFrame?.(32);
+
+    expect(updateHudSceneMock).toHaveBeenCalledWith({
+      ammoValue: "21",
+      equippedWeaponDetail: "Weapon: weapon_pistol",
+      healthDetail: "Stable for now",
+      healthValue: "86/100",
+      inventorySummary: "1/6 slots filled",
+      playerLabel: "Player: player_survivor",
+      roomLabel: "Room: room_browser-v1",
+    });
+    expect(renderMock).toHaveBeenNthCalledWith(1, { kind: "hud-scene" }, { kind: "hud-camera" });
+    expect(rendererClearDepthMock).toHaveBeenCalledTimes(1);
+    expect(renderFrameMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("resizes the hud camera with the canvas", () => {
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: () => createStoreState(),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    expect(resizeHudSceneMock).toHaveBeenCalledTimes(1);
   });
 });

@@ -5,6 +5,8 @@ import { createCamera } from "./createCamera";
 import { createRenderer } from "./createRenderer";
 import { createScene } from "./createScene";
 import { createInputController } from "./input/inputController";
+import { createHudScene } from "./render/createHudScene";
+import { deriveHudState } from "./render/hudState";
 import { createEntityViewStore } from "./render/entityViewStore";
 import { createPredictionController } from "./render/prediction";
 import { renderFrame } from "./render/renderFrame";
@@ -22,6 +24,13 @@ export const bootGame = ({
   const { renderer, resize: resizeRenderer } = createRenderer(canvas);
   const { camera, resize: resizeCamera } = createCamera(canvas);
   const { dispose: disposeScene, scene } = createScene();
+  const {
+    camera: hudCamera,
+    dispose: disposeHudScene,
+    resize: resizeHudScene,
+    scene: hudScene,
+    update: updateHudScene,
+  } = createHudScene();
   const inputController = createInputController({
     element: canvas,
     isEnabled: () => store.getState().connectionState.phase === "joined",
@@ -79,6 +88,7 @@ export const bootGame = ({
   const resize = () => {
     resizeRenderer();
     resizeCamera();
+    resizeHudScene(canvas);
   };
 
   const tick = (frameTime: number) => {
@@ -99,6 +109,21 @@ export const bootGame = ({
       store,
     });
 
+    const state = store.getState();
+
+    if (state.connectionState.phase === "joined") {
+      updateHudScene(
+        deriveHudState({
+          health: state.health,
+          inventory: state.inventory,
+          playerEntityId: state.playerEntityId,
+          roomId: state.roomId,
+        }),
+      );
+      renderer.clearDepth();
+      renderer.render(hudScene, hudCamera);
+    }
+
     animationFrame = window.requestAnimationFrame(tick);
   };
 
@@ -115,6 +140,7 @@ export const bootGame = ({
     unsubscribeFromStore();
     inputController.destroy();
     entityViewStore.dispose();
+    disposeHudScene();
     disposeScene();
     renderer.dispose();
   };
