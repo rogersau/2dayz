@@ -260,9 +260,53 @@ describe("clientGameStore", () => {
 
     expect(store.getState().isDead).toBe(true);
     expect(store.drainRenderEvents()).toEqual([
-      expect.objectContaining({ type: "combat" }),
-      expect.objectContaining({ type: "death" }),
+      expect.objectContaining({
+        attackerEntityId: "player_self",
+        damage: 12,
+        targetEntityId: "zombie_1",
+        type: "combat",
+      }),
+      expect.objectContaining({
+        killerEntityId: "zombie_1",
+        respawnAt: { x: 7, y: 14 },
+        type: "death",
+        victimEntityId: "player_self",
+      }),
     ]);
+    expect(store.drainRenderEvents()).toEqual([]);
+  });
+
+  it("clears queued render events when the store resets session lifecycle state", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+    store.applyDelta({
+      enteredEntities: [],
+      entityUpdates: [],
+      events: [
+        {
+          attackerEntityId: "player_self",
+          damage: 12,
+          hitPosition: { x: 18, y: 20 },
+          remainingHealth: 28,
+          roomId: "room_browser-v1",
+          targetEntityId: "zombie_1",
+          type: "combat",
+          weaponItemId: "weapon_pistol",
+        },
+      ],
+      removedEntityIds: [],
+      roomId: "room_browser-v1",
+      tick: 2,
+      type: "delta",
+    });
+
+    store.failConnection("internal-error");
+
     expect(store.drainRenderEvents()).toEqual([]);
   });
 
