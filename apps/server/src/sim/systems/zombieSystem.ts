@@ -221,6 +221,7 @@ const canSeeTarget = (state: RoomSimulationState, zombie: SimZombie, targetPosit
 type HeardStimulus = {
   sourceEntityId: string | null;
   position: { x: number; y: number };
+  grantsImmediateAggroFromPosition: boolean;
 };
 
 const findNearestHeardStimulus = (state: RoomSimulationState, zombie: SimZombie): HeardStimulus | null => {
@@ -240,6 +241,7 @@ const findNearestHeardStimulus = (state: RoomSimulationState, zombie: SimZombie)
     nearestStimulus = {
       sourceEntityId: event.attackerEntityId,
       position: event.origin,
+      grantsImmediateAggroFromPosition: true,
     };
     nearestDistance = distance;
   }
@@ -253,6 +255,7 @@ const findNearestHeardStimulus = (state: RoomSimulationState, zombie: SimZombie)
     nearestStimulus = {
       sourceEntityId: sprintNoise.playerEntityId,
       position: sprintNoise.position,
+      grantsImmediateAggroFromPosition: false,
     };
     nearestDistance = distance;
   }
@@ -298,17 +301,22 @@ export const createZombieSystem = () => {
 
         zombie.attackCooldownRemainingMs = Math.max(0, zombie.attackCooldownRemainingMs - deltaSeconds * 1000);
 
+        let target = zombie.aggroTargetEntityId ? state.players.get(zombie.aggroTargetEntityId) : undefined;
+        const hasCurrentTarget = Boolean(target && !target.health.isDead);
+
         const heardStimulus = findNearestHeardStimulus(state, zombie);
         if (heardStimulus) {
           const heardPlayer = heardStimulus.sourceEntityId ? state.players.get(heardStimulus.sourceEntityId) : undefined;
-          if (heardPlayer && !heardPlayer.health.isDead && canSeeTarget(state, zombie, heardPlayer.transform)) {
+          const canSeeStimulus = canSeeTarget(state, zombie, heardStimulus.position);
+
+          if (heardPlayer && !heardPlayer.health.isDead && heardStimulus.grantsImmediateAggroFromPosition && canSeeStimulus) {
             lockAggroToTarget(zombie, heardPlayer.entityId);
-          } else {
+            target = heardPlayer;
+          } else if (!hasCurrentTarget) {
             beginSearching(zombie, heardStimulus.sourceEntityId, heardStimulus.position);
           }
         }
 
-        let target = zombie.aggroTargetEntityId ? state.players.get(zombie.aggroTargetEntityId) : undefined;
         if (!target || target.health.isDead) {
           target = [...state.players.values()].find((player) => {
             const distance = Math.hypot(player.transform.x - zombie.transform.x, player.transform.y - zombie.transform.y);

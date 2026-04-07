@@ -243,6 +243,46 @@ describe("createZombieSystem", () => {
     expect(zombie?.transform.x).toBeGreaterThan(0);
   });
 
+  it("keeps chasing a visible shot origin even if the shooter moves behind cover before the zombie tick", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        isMovementBlocked: ({ from, to }) => from.x < 5 && to.x > 5 && from.y <= 3 && to.y <= 3,
+      }),
+      world: createBlockedHearingWorld(),
+    });
+
+    const player = spawnPlayer(state, "player_test-shot-origin", "Avery", { x: 4, y: 2 });
+    state.zombies.set("zombie_test-shot-origin", {
+      entityId: "zombie_test-shot-origin",
+      archetypeId: "zombie_shambler",
+      transform: { x: 2, y: 2, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    state.events.push({
+      type: "shot",
+      roomId: state.roomId,
+      attackerEntityId: player.entityId,
+      weaponItemId: "item_revolver",
+      origin: { x: 4, y: 2 },
+      aim: { x: 1, y: 0 },
+    });
+
+    player.transform = { x: 8, y: 2, rotation: 0 };
+
+    createZombieSystem().update(state, 0.5);
+
+    const zombie = state.zombies.get("zombie_test-shot-origin");
+    expect(zombie?.aggroTargetEntityId).toBe(player.entityId);
+    expect(zombie?.state).toBe("chasing");
+    expect(asHearingZombie(zombie)?.heardPosition).toBeNull();
+  });
+
   it("hears sprint noise without line of sight and investigates the player's last heard position", () => {
     const state = createRoomState({
       roomId: "room_test",
@@ -328,6 +368,42 @@ describe("createZombieSystem", () => {
 
     expect(asHearingZombie(zombie)?.heardPosition).toEqual(firstHeardPosition);
     expect(asHearingZombie(zombie)?.heardPosition).not.toEqual({ x: player.transform.x, y: player.transform.y });
+  });
+
+  it("does not abandon an existing chase when a different hidden target makes noise", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        isMovementBlocked: ({ from, to }) => from.x < 5 && to.x > 5 && from.y <= 3 && to.y <= 3,
+      }),
+      world: createBlockedHearingWorld(),
+    });
+
+    const chasingTarget = spawnPlayer(state, "player_test-chase-a", "Avery", { x: 8, y: 2 });
+    const hiddenNoisemaker = spawnPlayer(state, "player_test-chase-b", "Blair", { x: 8, y: 3.5 });
+    state.zombies.set("zombie_test-preserve-chase", {
+      entityId: "zombie_test-preserve-chase",
+      archetypeId: "zombie_shambler",
+      transform: { x: 2, y: 2, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "chasing",
+      aggroTargetEntityId: chasingTarget.entityId,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 250,
+    });
+    state.sprintNoiseEvents.push({
+      playerEntityId: hiddenNoisemaker.entityId,
+      position: { x: hiddenNoisemaker.transform.x, y: hiddenNoisemaker.transform.y },
+    });
+
+    createZombieSystem().update(state, 0.1);
+
+    const zombie = state.zombies.get("zombie_test-preserve-chase");
+    expect(zombie?.aggroTargetEntityId).toBe(chasingTarget.entityId);
+    expect(zombie?.state).toBe("chasing");
+    expect(asHearingZombie(zombie)?.heardTargetEntityId).toBeNull();
+    expect(asHearingZombie(zombie)?.heardPosition).toBeNull();
   });
 
   it("returns to roaming or idle after reaching a heard position without reacquiring a target", () => {
