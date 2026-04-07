@@ -29,31 +29,6 @@ describe("socketClient", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
-    vi.doUnmock("@2dayz/shared");
-    vi.resetModules();
-  });
-
-  it("fails fast when a required shared town anchor is missing", async () => {
-    vi.doMock("@2dayz/shared", async () => {
-      const actual = await vi.importActual<typeof import("@2dayz/shared")>("@2dayz/shared");
-
-      return {
-        ...actual,
-        defaultTownMap: {
-          ...actual.defaultTownMap,
-          navigation: {
-            ...actual.defaultTownMap.navigation,
-            nodes: actual.defaultTownMap.navigation.nodes.filter((node) => node.nodeId !== "node_main-road"),
-          },
-        },
-      };
-    });
-
-    await vi.resetModules();
-
-    const importPath = `./socketClient.ts?missing-anchor=${Date.now()}`;
-
-    await expect(import(importPath)).rejects.toThrow(/node_main-road/);
   });
 
   it("rejects a second in-flight request while a join is already pending", async () => {

@@ -50,10 +50,21 @@ const getLootPointPosition = (pointId: string) => {
   );
 };
 
-const MOCK_PLAYER_SPAWN = getNodePosition("node_main-road");
-const MOCK_BANDIT_SPAWN = getNodePosition("node_square");
-const MOCK_ZOMBIE_SPAWN = getZombieZoneCenter("zone_town-center");
-const MOCK_LOOT_SPAWN = getLootPointPosition("point_loot-market-shelves");
+type MockMapAnchors = {
+  banditSpawn: { x: number; y: number };
+  lootSpawn: { x: number; y: number };
+  playerSpawn: { x: number; y: number };
+  zombieSpawn: { x: number; y: number };
+};
+
+const getMockMapAnchors = (): MockMapAnchors => {
+  return {
+    banditSpawn: getNodePosition("node_square"),
+    lootSpawn: getLootPointPosition("point_loot-market-shelves"),
+    playerSpawn: getNodePosition("node_main-road"),
+    zombieSpawn: getZombieZoneCenter("zone_town-center"),
+  };
+};
 
 const wait = (durationMs: number) => new Promise<void>((resolve) => {
   setTimeout(resolve, durationMs);
@@ -111,13 +122,13 @@ const createMockInventory = (worldState: MockWorldState) => {
   };
 };
 
-const createMockSnapshot = (joined: JoinResult, tick: number, worldState: MockWorldState) => {
+const createMockSnapshot = (joined: JoinResult, tick: number, worldState: MockWorldState, anchors: MockMapAnchors) => {
   return snapshotMessageSchema.parse({
     loot: [
       {
         entityId: "loot_shells",
         itemId: "ammo_9mm",
-        position: MOCK_LOOT_SPAWN,
+        position: anchors.lootSpawn,
         quantity: 15,
       },
     ],
@@ -140,7 +151,7 @@ const createMockSnapshot = (joined: JoinResult, tick: number, worldState: MockWo
           equippedWeaponSlot: null,
           slots: [null, null, null, null, null, null],
         },
-        transform: { rotation: 0.2, ...MOCK_BANDIT_SPAWN },
+        transform: { rotation: 0.2, ...anchors.banditSpawn },
         velocity: { x: -0.3, y: 0 },
       },
     ],
@@ -162,6 +173,7 @@ const createMockDelta = (
   joined: JoinResult,
   tick: number,
   worldState: MockWorldState,
+  anchors: MockMapAnchors,
   options?: { includeZombieRemoval?: boolean; zombieDiedThisTick?: boolean },
 ) => {
   const phase = tick * 0.45;
@@ -195,8 +207,8 @@ const createMockDelta = (
         entityId: "player_bandit",
         transform: {
           rotation: 0.2,
-          x: MOCK_BANDIT_SPAWN.x - Math.sin(phase) * 2.5,
-          y: MOCK_BANDIT_SPAWN.y + Math.cos(phase) * 1.2,
+          x: anchors.banditSpawn.x - Math.sin(phase) * 2.5,
+          y: anchors.banditSpawn.y + Math.cos(phase) * 1.2,
         },
         velocity: { x: -0.3, y: 0.2 },
       },
@@ -273,6 +285,7 @@ export const createSocketClient = ({
   let socket: WebSocket | null = null;
   let activeRequestKind: PendingRequestKind | null = null;
   let activeMockSession: JoinResult | null = null;
+  let activeMockMapAnchors: MockMapAnchors | null = null;
   let mockTick = 1;
   let mockWorldInterval: ReturnType<typeof setInterval> | null = null;
   let mockWorldState: MockWorldState = {
@@ -280,10 +293,10 @@ export const createSocketClient = ({
     equippedWeaponSlot: 0,
     lastProcessedInputSequence: 0,
     localInventorySlotOne: { itemId: "bandage", quantity: 2 },
-    localTransform: { rotation: 0, ...MOCK_PLAYER_SPAWN },
+    localTransform: { rotation: 0, x: 0, y: 0 },
     zombieHealth: MOCK_ZOMBIE_MAX_HEALTH,
     zombieIsAlive: true,
-    zombieTransform: { rotation: 0.1, ...MOCK_ZOMBIE_SPAWN },
+    zombieTransform: { rotation: 0.1, x: 0, y: 0 },
   };
   let pendingRequest: PendingRequest | null = null;
   const mockSessions = new Map<string, JoinResult>();
@@ -309,6 +322,7 @@ export const createSocketClient = ({
     socket?.close();
     socket = null;
     activeMockSession = null;
+    activeMockMapAnchors = null;
     if (pendingRequest) {
       pendingRequest.reject(new SocketClientError("internal-error"));
       pendingRequest = null;
@@ -320,22 +334,29 @@ export const createSocketClient = ({
       clearInterval(mockWorldInterval);
     }
 
+    const anchors = getMockMapAnchors();
+    activeMockMapAnchors = anchors;
+
     mockTick = 1;
     mockWorldState = {
       ammoReserve: 27,
       equippedWeaponSlot: 0,
       lastProcessedInputSequence: 0,
       localInventorySlotOne: { itemId: "bandage", quantity: 2 },
-      localTransform: { rotation: 0, ...MOCK_PLAYER_SPAWN },
+      localTransform: { rotation: 0, ...anchors.playerSpawn },
       zombieHealth: MOCK_ZOMBIE_MAX_HEALTH,
       zombieIsAlive: true,
-      zombieTransform: { rotation: 0.1, ...MOCK_ZOMBIE_SPAWN },
+      zombieTransform: { rotation: 0.1, ...anchors.zombieSpawn },
     };
-    protocolStore.ingest(createMockSnapshot(joined, mockTick, mockWorldState));
+    protocolStore.ingest(createMockSnapshot(joined, mockTick, mockWorldState, anchors));
 
     mockWorldInterval = setInterval(() => {
+      if (!activeMockMapAnchors) {
+        return;
+      }
+
       mockTick += 1;
-      protocolStore.ingest(createMockDelta(joined, mockTick, mockWorldState));
+      protocolStore.ingest(createMockDelta(joined, mockTick, mockWorldState, activeMockMapAnchors));
     }, 300);
   };
 
@@ -397,9 +418,9 @@ export const createSocketClient = ({
 
       mockWorldState = nextWorldState;
 
-      if (activeMockSession) {
+      if (activeMockSession && activeMockMapAnchors) {
         mockTick += 1;
-        const delta = createMockDelta(activeMockSession, mockTick, mockWorldState, {
+        const delta = createMockDelta(activeMockSession, mockTick, mockWorldState, activeMockMapAnchors, {
           includeZombieRemoval,
           zombieDiedThisTick,
         });
