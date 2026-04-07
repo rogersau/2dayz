@@ -2,13 +2,16 @@ import { expect, test } from "@playwright/test";
 
 const TARGET_FRAME_TIME_MS = 1000 / 60;
 const FRAME_TIME_JITTER_TOLERANCE_MS = 0.05;
+const quickbar = (page: import("@playwright/test").Page) => page.getByLabel("quickbar").first();
 
 test("reports when average frame time misses the 60 fps local target", async ({ page }) => {
   await page.goto("/");
   await page.getByLabel("Display name").fill("Perf Scout");
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(page.getByLabel("game shell")).toBeVisible();
+  await expect(quickbar(page)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Quickbar slot 1" })).toBeVisible();
   await page.waitForTimeout(250);
 
   const averageFrameTimeMs = await page.evaluate(async () => {
