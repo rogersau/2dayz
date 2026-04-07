@@ -176,10 +176,12 @@ export const createInputController = ({
         y: (MOVEMENT_KEYS.down.some((key) => pressedKeys.has(key)) ? 1 : 0)
           - (MOVEMENT_KEYS.up.some((key) => pressedKeys.has(key)) ? 1 : 0),
       };
+      const isSprinting = ACTION_KEYS.sprint.some((key) => pressedKeys.has(key));
 
       const nextInput = inputMessageSchema.parse({
         actions: {
           ...(isFiring ? { fire: true } : {}),
+          ...(isSprinting ? { sprint: true } : {}),
           ...(queuedActions.interact ? { interact: true } : {}),
           ...(queuedActions.reload ? { reload: true } : {}),
         },

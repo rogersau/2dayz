@@ -9,4 +9,5 @@ export const ACTION_KEYS = {
   interact: ["e"],
   inventory: ["tab"],
   reload: ["r"],
+  sprint: ["shift"],
 } as const;

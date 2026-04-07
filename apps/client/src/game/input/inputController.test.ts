@@ -7,7 +7,7 @@ describe("inputController", () => {
     document.body.innerHTML = "";
   });
 
-  it("collects WASD movement, mouse aim, fire, reload, and interact input", () => {
+  it("collects WASD movement, mouse aim, sprint, fire, reload, and interact input", () => {
     const element = document.createElement("div");
     document.body.append(element);
     element.getBoundingClientRect = () => ({
@@ -26,6 +26,7 @@ describe("inputController", () => {
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "w" }));
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
     element.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 170, clientY: 160 }));
     element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "r" }));
@@ -36,6 +37,7 @@ describe("inputController", () => {
         fire: true,
         interact: true,
         reload: true,
+        sprint: true,
       },
       aim: {
         x: 60,
@@ -52,6 +54,7 @@ describe("inputController", () => {
     expect(controller.pollInput(5)).toEqual({
       actions: {
         fire: true,
+        sprint: true,
       },
       aim: {
         x: 60,
@@ -66,6 +69,7 @@ describe("inputController", () => {
     });
 
     element.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 0, clientX: 170, clientY: 160 }));
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
     window.dispatchEvent(new KeyboardEvent("keyup", { key: "w" }));
     window.dispatchEvent(new KeyboardEvent("keyup", { key: "d" }));
 
@@ -82,6 +86,31 @@ describe("inputController", () => {
       sequence: 6,
       type: "input",
     });
+
+    controller.destroy();
+  });
+
+  it("emits sprint while shift is held and clears it on release", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const controller = createInputController({ element });
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Shift" }));
+
+    expect(controller.pollInput(1)).toEqual(
+      expect.objectContaining({
+        actions: { sprint: true },
+        movement: { x: 0, y: 0 },
+      }),
+    );
+
+    window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
+
+    expect(controller.pollInput(2)).toEqual(
+      expect.objectContaining({
+        actions: {},
+      }),
+    );
 
     controller.destroy();
   });

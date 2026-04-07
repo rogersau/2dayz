@@ -37,6 +37,7 @@ export const inputMessageSchema = z
     actions: z
       .object({
         fire: z.boolean().optional(),
+        sprint: z.boolean().optional(),
         reload: z.boolean().optional(),
         interact: z.boolean().optional(),
         pickupEntityId: entityIdSchema.optional(),
