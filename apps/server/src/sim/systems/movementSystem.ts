@@ -55,6 +55,7 @@ export const createMovementSystem = (): MovementSystem => {
 
         const intent = state.inputIntents.get(player.entityId);
         if (!intent) {
+          player.stamina.current = Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
           continue;
         }
 

@@ -220,6 +220,38 @@ describe("createMovementSystem", () => {
     expect(player.stamina).toMatchObject({ current: 6, max: 10 });
   });
 
+  it("regenerates stamina on ticks with no queued input", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        staminaBaseline: 10,
+        staminaFloor: 4,
+        staminaDrainPerSecond: 2,
+        staminaRegenPerSecond: 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-passive-regen",
+      displayName: "Kendall",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    const player = state.players.get("player_test-passive-regen");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.stamina.current = 5;
+
+    createMovementSystem().update(state, 1);
+
+    expect(player.transform).toMatchObject({ x: 0, y: 0, rotation: 0 });
+    expect(player.velocity).toEqual({ x: 0, y: 0 });
+    expect(player.stamina).toMatchObject({ current: 6, max: 10 });
+  });
+
   it("reduces max stamina for heavier inventories including stacked slot quantities", () => {
     const state = createRoomState({
       roomId: "room_test",
