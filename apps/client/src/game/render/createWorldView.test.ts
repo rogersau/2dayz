@@ -12,6 +12,7 @@ describe("createWorldView", () => {
 
     expect(scene.getObjectByName("world:static")).toBeInstanceOf(THREE.Group);
     expect(ground).toBeInstanceOf(THREE.Mesh);
+    expect((ground as THREE.Mesh).position.x).toBe(defaultTownMap.bounds.width / 2);
     expect((ground as THREE.Mesh).position).toMatchObject({
       x: defaultTownMap.bounds.width / 2,
       y: -0.25,

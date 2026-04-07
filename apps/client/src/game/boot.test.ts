@@ -41,6 +41,7 @@ const createStoreState = (overrides: Partial<TestStoreState> = {}): TestStoreSta
 const {
   createPredictionControllerMock,
   createInputControllerMock,
+  createWorldViewMock,
   clearIntervalMock,
   destroyInputControllerMock,
   resetInputControllerMock,
@@ -56,9 +57,11 @@ const {
   sceneDisposeMock,
   setIntervalMock,
   rendererMock,
+  worldViewDisposeMock,
 } = vi.hoisted(() => ({
   createPredictionControllerMock: vi.fn(),
   createInputControllerMock: vi.fn(),
+  createWorldViewMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
   resetInputControllerMock: vi.fn(),
@@ -79,6 +82,7 @@ const {
     dispose: vi.fn(),
     render: vi.fn(),
   },
+  worldViewDisposeMock: vi.fn(),
 }));
 
 import { bootGame } from "./boot";
@@ -126,6 +130,13 @@ vi.mock("./render/prediction", () => ({
       applyInput: predictionApplyInputMock,
       syncAuthoritative: predictionSyncAuthoritativeMock,
     };
+  },
+}));
+
+vi.mock("./render/createWorldView", () => ({
+  createWorldView: (...args: unknown[]) => {
+    createWorldViewMock(...args);
+    return { dispose: worldViewDisposeMock };
   },
 }));
 
@@ -231,6 +242,23 @@ describe("bootGame", () => {
     expect(sceneDisposeMock).toHaveBeenCalledTimes(1);
     expect(entityViewDisposeMock).toHaveBeenCalledTimes(1);
     expect(rendererDisposeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates and disposes the shared world view alongside the main scene", () => {
+    const dispose = bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: () => createStoreState(),
+        subscribe: () => () => {},
+      } as never,
+    });
+
+    expect(createWorldViewMock).toHaveBeenCalledTimes(1);
+
+    dispose();
+
+    expect(worldViewDisposeMock).toHaveBeenCalledTimes(1);
   });
 
   it("predicts stationary aim changes during the fixed input loop", () => {

@@ -1,10 +1,10 @@
 import * as THREE from "three";
 
-const VIEW_SIZE = 18;
+const VIEW_SIZE = 22;
 
 export const createCamera = (canvas: HTMLCanvasElement) => {
   const camera = new THREE.OrthographicCamera(-VIEW_SIZE, VIEW_SIZE, VIEW_SIZE, -VIEW_SIZE, 0.1, 100);
-  camera.position.set(18, 22, 18);
+  camera.position.set(22, 28, 22);
   camera.lookAt(0, 0, 0);
 
   const resize = () => {
