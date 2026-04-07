@@ -1,6 +1,11 @@
-import { SPRINT_SPEED_MULTIPLIER, type Stamina, type Transform, type Vector2 } from "@2dayz/shared";
+import { SPRINT_SPEED_MULTIPLIER, STAMINA_DRAIN_PER_SECOND, type Stamina, type Transform, type Vector2 } from "@2dayz/shared";
 
 const DEFAULT_MOVE_SPEED = 4;
+
+type ReplayState = {
+  stamina: Stamina | null;
+  transform: Transform;
+};
 
 export type PredictedInput = {
   aim: Vector2;
@@ -84,7 +89,9 @@ const applyMovement = ({
       stamina === null
         ? null
         : {
-            current: canSprint ? Math.max(0, stamina.current - input.deltaSeconds) : stamina.current,
+            current: canSprint
+              ? Math.max(0, stamina.current - STAMINA_DRAIN_PER_SECOND * input.deltaSeconds)
+              : stamina.current,
             max: stamina.max,
           },
     transform: {
@@ -140,7 +147,7 @@ export const reconcilePrediction = ({
 }): PredictionState => {
   const normalizedState = normalizeState(state);
   const pendingInputs = normalizedState.pendingInputs.filter((input) => input.sequence > lastProcessedSequence);
-  const replayed = pendingInputs.reduce(
+  const replayed = pendingInputs.reduce<ReplayState>(
     (current, input) => {
       return applyMovement({
         input,

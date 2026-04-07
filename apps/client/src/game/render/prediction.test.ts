@@ -192,6 +192,36 @@ describe("prediction", () => {
     expect(secondTick).toEqual({ rotation: 0, x: 5, y: 0 });
   });
 
+  it("drains predicted sprint stamina at the authoritative server rate", () => {
+    const prediction = createPredictionController({ rotation: 0, x: 0, y: 0 });
+
+    prediction.syncAuthoritative({
+      authoritativeStamina: { current: 0.75, max: 10 },
+      authoritativeTransform: { rotation: 0, x: 0, y: 0 },
+      entityId: "player_self",
+      lastProcessedSequence: 0,
+    });
+
+    const firstTick = prediction.applyInput({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+      sprint: true,
+    });
+    const secondTick = prediction.applyInput({
+      aim: { x: 1, y: 0 },
+      deltaSeconds: 0.5,
+      movement: { x: 1, y: 0 },
+      sequence: 2,
+      sprint: true,
+    });
+
+    expect(firstTick).toEqual({ rotation: 0, x: 3, y: 0 });
+    expect(secondTick).toEqual({ rotation: 0, x: 5, y: 0 });
+    expect(prediction.getState().stamina).toEqual({ current: 0, max: 10 });
+  });
+
   it("replays pending sprint inputs at sprint speed during reconciliation", () => {
     const initial = createPredictionState({ rotation: 0, x: 0, y: 0 });
     const seeded = reconcilePrediction({

@@ -274,6 +274,7 @@ describe("createReplicationSystem", () => {
         kind: "player",
         entityId: "player_test-2",
         displayName: "Blair",
+        stamina: { current: 10, max: 10 },
         transform: { x: 2, y: 0, rotation: 0 },
       }),
     ]);
