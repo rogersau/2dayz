@@ -216,7 +216,7 @@ describe("clientGameStore", () => {
     });
   });
 
-  it("queues combat and death render events while preserving existing state updates", () => {
+  it("queues shot, combat, and death render events while preserving existing state updates", () => {
     const store = createClientGameStore();
 
     store.completeJoin({
@@ -229,6 +229,14 @@ describe("clientGameStore", () => {
       enteredEntities: [],
       entityUpdates: [],
       events: [
+        {
+          attackerEntityId: "player_self",
+          aim: { x: 1, y: 0 },
+          origin: { x: 4, y: 6 },
+          roomId: "room_browser-v1",
+          type: "shot",
+          weaponItemId: "weapon_pistol",
+        },
         {
           attackerEntityId: "player_self",
           damage: 12,
@@ -261,6 +269,12 @@ describe("clientGameStore", () => {
     expect(store.getState().isDead).toBe(true);
     expect(store.drainRenderEvents()).toEqual([
       expect.objectContaining({
+        aim: { x: 1, y: 0 },
+        attackerEntityId: "player_self",
+        origin: { x: 4, y: 6 },
+        type: "shot",
+      }),
+      expect.objectContaining({
         attackerEntityId: "player_self",
         damage: 12,
         targetEntityId: "zombie_1",
@@ -288,6 +302,14 @@ describe("clientGameStore", () => {
       enteredEntities: [],
       entityUpdates: [],
       events: [
+        {
+          attackerEntityId: "player_self",
+          aim: { x: 1, y: 0 },
+          origin: { x: 4, y: 6 },
+          roomId: "room_browser-v1",
+          type: "shot",
+          weaponItemId: "weapon_pistol",
+        },
         {
           attackerEntityId: "player_self",
           damage: 12,

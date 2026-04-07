@@ -75,10 +75,6 @@ export const bootGame = ({
       : input;
     socketClient.sendInput(nextInput);
 
-    if (nextInput.actions.fire && Math.hypot(nextInput.aim.x, nextInput.aim.y) > 0) {
-      combatEffectsView.queueLocalShot({ aim: nextInput.aim });
-    }
-
     if (
       nextInput.movement.x !== 0 ||
       nextInput.movement.y !== 0 ||

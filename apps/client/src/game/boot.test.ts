@@ -235,7 +235,7 @@ describe("bootGame", () => {
     expect(renderFrameMock).toHaveBeenCalled();
   });
 
-  it("queues a local shot effect when joined fire input is sent", () => {
+  it("does not queue a speculative local shot effect when joined fire input is sent", () => {
     const sendInput = vi.fn();
 
     bootGame({
@@ -252,7 +252,7 @@ describe("bootGame", () => {
     scheduledInterval?.();
 
     expect(sendInput).toHaveBeenCalledTimes(1);
-    expect(combatEffectsQueueLocalShotMock).toHaveBeenCalledWith({ aim: { x: 12, y: -4 } });
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
   });
 
   it("does not queue a local shot effect when fire input has zero aim", () => {
@@ -280,24 +280,7 @@ describe("bootGame", () => {
     expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
   });
 
-  it("still queues a local shot effect without local weapon inventory details", () => {
-    bootGame({
-      canvas: document.createElement("canvas"),
-      socketClient: { sendInput: vi.fn() },
-      store: {
-        getState: (): TestStoreState =>
-          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
-        subscribe: () => () => {},
-        toggleInventory: vi.fn(),
-      } as never,
-    });
-
-    scheduledInterval?.();
-
-    expect(combatEffectsQueueLocalShotMock).toHaveBeenCalledWith({ aim: { x: 12, y: -4 } });
-  });
-
-  it("queues repeated local shot effects on repeated joined fire input ticks", () => {
+  it("does not queue repeated speculative local shot effects on repeated joined fire input ticks", () => {
     bootGame({
       canvas: document.createElement("canvas"),
       socketClient: { sendInput: vi.fn() },
@@ -313,7 +296,7 @@ describe("bootGame", () => {
     scheduledInterval?.();
     scheduledInterval?.();
 
-    expect(combatEffectsQueueLocalShotMock).toHaveBeenCalledTimes(3);
+    expect(combatEffectsQueueLocalShotMock).not.toHaveBeenCalled();
   });
 
   it("cleans up scene resources and the input send interval on dispose", () => {

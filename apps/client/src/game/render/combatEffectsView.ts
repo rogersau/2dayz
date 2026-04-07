@@ -1,4 +1,4 @@
-import type { CombatEvent, DeathEvent, Transform } from "@2dayz/shared";
+import type { CombatEvent, DeathEvent, ShotEvent, Transform } from "@2dayz/shared";
 import * as THREE from "three";
 
 import type { createEntityViewStore } from "./entityViewStore";
@@ -130,7 +130,6 @@ const createImpactFlash = (hitPosition: { x: number; y: number }) => {
 export const createCombatEffectsView = (scene: THREE.Scene) => {
   const root = new THREE.Group();
   const activeEffects: ActiveEffect[] = [];
-  const queuedLocalShots: Array<{ aim: { x: number; y: number } }> = [];
 
   root.name = "effects:combat";
   scene.add(root);
@@ -144,43 +143,46 @@ export const createCombatEffectsView = (scene: THREE.Scene) => {
 
       scene.remove(root);
     },
-    queueLocalShot(shot: { aim: { x: number; y: number } }) {
-      queuedLocalShots.push(shot);
-    },
     update({
       deltaSeconds,
       entityViewStore,
-      localPlayerTransform,
       renderEvents,
+      shooterTransforms,
     }: {
       deltaSeconds: number;
       entityViewStore: Pick<ReturnType<typeof createEntityViewStore>, "flashEntity">;
-      localPlayerTransform: Transform | null;
-      renderEvents: Array<CombatEvent | DeathEvent>;
+      renderEvents: Array<ShotEvent | CombatEvent | DeathEvent>;
+      shooterTransforms: Map<string, Transform>;
     }) {
-      if (localPlayerTransform) {
-        while (queuedLocalShots.length > 0) {
-          const shot = queuedLocalShots.shift();
-          if (!shot) {
-            continue;
-          }
+      for (const event of renderEvents) {
+        if (event.type === "shot") {
+          const shooterTransform = shooterTransforms.get(event.attackerEntityId);
+
+          const shotTransform = {
+            rotation: Math.atan2(event.aim.y, event.aim.x),
+            x: event.origin.x,
+            y: event.origin.y,
+          };
 
           addEffect({
             effects: activeEffects,
-            object: createMuzzleFlash(localPlayerTransform),
+            object: createMuzzleFlash(shotTransform),
             root,
             seconds: MUZZLE_FLASH_DURATION_SECONDS,
           });
           addEffect({
             effects: activeEffects,
-            object: createTracer({ aim: shot.aim, transform: localPlayerTransform }),
+            object: createTracer({ aim: event.aim, transform: shotTransform }),
             root,
             seconds: TRACER_DURATION_SECONDS,
           });
-        }
-      }
 
-      for (const event of renderEvents) {
+          if (shooterTransform) {
+            shooterTransform.rotation = shotTransform.rotation;
+          }
+          continue;
+        }
+
         if (event.type !== "combat") {
           continue;
         }

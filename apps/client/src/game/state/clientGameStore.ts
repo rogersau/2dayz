@@ -11,6 +11,7 @@ import type {
   InventoryAction,
   LootEntity,
   PlayerState,
+  ShotEvent,
   SnapshotMessage,
   ZombieEntity,
 } from "@2dayz/shared";
@@ -36,7 +37,7 @@ export type RenderZombieEntity = ZombieEntity & {
   kind: "zombie";
   velocity?: { x: number; y: number };
 };
-export type ClientRenderEvent = CombatEvent | DeathEvent;
+export type ClientRenderEvent = ShotEvent | CombatEvent | DeathEvent;
 
 type WorldEntities = {
   loot: RenderLootEntity[];
@@ -228,7 +229,7 @@ export const createClientGameStore = () => {
         }
 
         for (const event of delta.events) {
-          if (event.type === "combat" || event.type === "death") {
+          if (event.type === "shot" || event.type === "combat" || event.type === "death") {
             queuedRenderEvents.push(event);
           }
 

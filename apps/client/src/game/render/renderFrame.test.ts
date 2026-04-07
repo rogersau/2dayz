@@ -80,6 +80,14 @@ describe("renderFrame", () => {
     const drainedEvents = [
       {
         attackerEntityId: "player_self",
+        aim: { x: 1, y: 0 },
+        origin: { x: 3, y: 4 },
+        roomId: "room_browser-v1",
+        type: "shot",
+        weaponItemId: "weapon_pistol",
+      },
+      {
+        attackerEntityId: "player_self",
         damage: 12,
         hitPosition: { x: 18, y: 20 },
         remainingHealth: 28,
@@ -135,8 +143,8 @@ describe("renderFrame", () => {
     expect(combatEffectsView.update).toHaveBeenCalledWith({
       deltaSeconds: 1 / 20,
       entityViewStore,
-      localPlayerTransform: { rotation: 0.3, x: 12, y: -6 },
       renderEvents: drainedEvents,
+      shooterTransforms: new Map([["player_self", { rotation: 0.3, x: 12, y: -6 }]]),
     });
   });
 });

@@ -4,6 +4,17 @@ import { entityIdSchema, itemIdSchema, roomIdSchema } from "../ids";
 import { inventorySchema } from "../world/inventory";
 import { vector2Schema } from "../world/components";
 
+export const shotEventSchema = z
+  .object({
+    type: z.literal("shot"),
+    roomId: roomIdSchema,
+    attackerEntityId: entityIdSchema,
+    weaponItemId: itemIdSchema,
+    origin: vector2Schema,
+    aim: vector2Schema,
+  })
+  .strict();
+
 export const lootPickedUpEventSchema = z
   .object({
     type: z.literal("loot-picked-up"),
@@ -40,11 +51,13 @@ export const deathEventSchema = z
 
 export const serverEventSchema = z.discriminatedUnion("type", [
   lootPickedUpEventSchema,
+  shotEventSchema,
   combatEventSchema,
   deathEventSchema,
 ]);
 
 export type LootPickedUpEvent = z.infer<typeof lootPickedUpEventSchema>;
+export type ShotEvent = z.infer<typeof shotEventSchema>;
 export type CombatEvent = z.infer<typeof combatEventSchema>;
 export type DeathEvent = z.infer<typeof deathEventSchema>;
 export type ServerEvent = z.infer<typeof serverEventSchema>;

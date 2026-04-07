@@ -206,8 +206,18 @@ export const createCombatSystem = ({ random = Math.random }: { random?: () => nu
           player.weaponState.magazineAmmo -= 1;
           player.weaponState.fireCooldownRemainingMs = 1000 / weapon.weaponDefinition.fireRate;
           state.dirtyPlayerIds.add(player.entityId);
-
           const spreadAim = applySpreadToAim(intent.aim, weapon.weaponDefinition.spread, random);
+          state.events.push({
+            type: "shot",
+            roomId: state.roomId,
+            attackerEntityId: player.entityId,
+            weaponItemId: weapon.itemId,
+            origin: {
+              x: player.transform.x,
+              y: player.transform.y,
+            },
+            aim: spreadAim,
+          });
           const hitTarget = findHitTarget(state, player, spreadAim, weapon.weaponDefinition.range);
           if (hitTarget) {
             hitTarget.apply(weapon.weaponDefinition.damage);

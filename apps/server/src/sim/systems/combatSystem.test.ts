@@ -51,6 +51,15 @@ describe("createCombatSystem", () => {
     expect(target.health.current).toBe(65);
     expect(state.events).toContainEqual(
       expect.objectContaining({
+        type: "shot",
+        attackerEntityId: attacker.entityId,
+        aim: { x: 1, y: 0 },
+        origin: { x: attacker.transform.x, y: attacker.transform.y },
+        weaponItemId: "item_revolver",
+      }),
+    );
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
         type: "combat",
         attackerEntityId: attacker.entityId,
         targetEntityId: target.entityId,
@@ -139,7 +148,15 @@ describe("createCombatSystem", () => {
 
     expect(attacker.weaponState.magazineAmmo).toBe(5);
     expect(attacker.weaponState.fireCooldownRemainingMs).toBeGreaterThan(0);
-    expect(state.events).toHaveLength(0);
+    expect(state.events).toEqual([
+      expect.objectContaining({
+        type: "shot",
+        attackerEntityId: attacker.entityId,
+        aim: { x: 1, y: 0 },
+        origin: { x: attacker.transform.x, y: attacker.transform.y },
+        weaponItemId: "item_revolver",
+      }),
+    ]);
 
     queueInputIntent(state, attacker.entityId, {
       sequence: 2,
@@ -211,6 +228,16 @@ describe("createCombatSystem", () => {
     expect(target.health.current).toBe(65);
     expect(state.events).toContainEqual(
       expect.objectContaining({
+        type: "shot",
+        attackerEntityId: attacker.entityId,
+        aim: expect.objectContaining({
+          x: expect.closeTo(Math.cos(0.2), 5),
+          y: expect.closeTo(Math.sin(0.2), 5),
+        }),
+      }),
+    );
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
         type: "combat",
         attackerEntityId: attacker.entityId,
         targetEntityId: target.entityId,
@@ -232,13 +259,37 @@ describe("createCombatSystem", () => {
     });
 
     createCombatSystem().update(state, 0.1);
-    createInventorySystem().update(state, 0);
+    createInventorySystem().update(state);
 
     expect(state.events).toContainEqual(
       expect.objectContaining({
         type: "death",
         victimEntityId: target.entityId,
         killerEntityId: attacker.entityId,
+      }),
+    );
+  });
+
+  it("emits shot origin from the fire tick even if the attacker moves before render", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-origin-1", "Avery", 2, 3);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 0, y: 1 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+    attacker.transform.x = 9;
+    attacker.transform.y = 11;
+
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "shot",
+        attackerEntityId: attacker.entityId,
+        origin: { x: 2, y: 3 },
       }),
     );
   });

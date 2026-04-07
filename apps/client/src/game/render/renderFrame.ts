@@ -41,8 +41,13 @@ export const renderFrame = ({
   const latestTick = state.latestTick ?? 0;
   const renderableEntities = toRenderableEntities(state.worldEntities);
   const localOverrides = new Map<string, { rotation: number; x: number; y: number }>();
+  const shooterTransforms = new Map<string, { rotation: number; x: number; y: number }>();
   const selfPlayer = state.worldEntities.players.find((entity) => entity.entityId === state.playerEntityId);
   let localPlayerTransform: { rotation: number; x: number; y: number } | null = null;
+
+  for (const player of state.worldEntities.players) {
+    shooterTransforms.set(player.entityId, player.transform);
+  }
 
   if (selfPlayer) {
     predictionController.syncAuthoritative({
@@ -60,6 +65,7 @@ export const renderFrame = ({
     }
 
     localOverrides.set(selfPlayer.entityId, localTransform);
+    shooterTransforms.set(selfPlayer.entityId, localTransform);
     localPlayerTransform = localTransform;
   }
 
@@ -80,8 +86,8 @@ export const renderFrame = ({
   combatEffectsView.update({
     deltaSeconds,
     entityViewStore,
-    localPlayerTransform,
     renderEvents,
+    shooterTransforms,
   });
 
   renderer.render(scene, camera);

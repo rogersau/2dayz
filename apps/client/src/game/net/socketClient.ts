@@ -376,7 +376,7 @@ export const createSocketClient = ({
 
       let nextWorldState: MockWorldState = {
         ...mockWorldState,
-        ammoReserve: payload.actions.fire ? Math.max(0, mockWorldState.ammoReserve - 1) : mockWorldState.ammoReserve,
+        ammoReserve: mockWorldState.ammoReserve,
         equippedWeaponSlot:
           payload.actions.inventory?.type === "equip"
             ? payload.actions.inventory.toSlot
@@ -385,10 +385,29 @@ export const createSocketClient = ({
         localInventorySlotOne: payload.actions.reload ? { itemId: "bandage", quantity: 1 } : mockWorldState.localInventorySlotOne,
         localTransform: nextLocalTransform,
       };
-      const shouldHitZombie = payload.actions.fire && isZombieInFrontOfPlayer(nextWorldState);
+      const firedShot = payload.actions.fire && aimMagnitude > 0 && nextWorldState.equippedWeaponSlot !== null;
+      const shouldHitZombie = firedShot && isZombieInFrontOfPlayer(nextWorldState);
       const combatEvents = [];
       let includeZombieRemoval = false;
       let zombieDiedThisTick = false;
+
+      if (firedShot) {
+        nextWorldState = {
+          ...nextWorldState,
+          ammoReserve: Math.max(0, nextWorldState.ammoReserve - 1),
+        };
+        combatEvents.push({
+          attackerEntityId: activeMockSession?.playerEntityId ?? "player_mock",
+          aim: payload.aim,
+          origin: {
+            x: nextWorldState.localTransform.x,
+            y: nextWorldState.localTransform.y,
+          },
+          roomId: activeMockSession?.roomId ?? MOCK_ROOM_ID,
+          type: "shot" as const,
+          weaponItemId: "weapon_pistol",
+        });
+      }
 
       if (shouldHitZombie) {
         const zombieHealth = Math.max(0, nextWorldState.zombieHealth - MOCK_ZOMBIE_DAMAGE);
