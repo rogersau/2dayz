@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { defaultTownMap } from "../index";
 import { mapDefinitionSchema } from "./maps";
-import { defaultTownMap } from "./defaultTownMap";
 
 describe("defaultTownMap", () => {
   it("exports the shared default town map with the expected landmark volumes", () => {
