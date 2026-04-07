@@ -49,13 +49,22 @@ export const createMovementSystem = (): MovementSystem => {
     name: "movement",
     update(state, deltaSeconds) {
       for (const player of getPlayers(state)) {
+        const previousStamina = {
+          current: player.stamina.current,
+          max: player.stamina.max,
+        };
         const staminaMax = getStaminaMax(state, player);
         player.stamina.max = staminaMax;
         player.stamina.current = Math.min(player.stamina.current, staminaMax);
+        const staminaChanged =
+          player.stamina.current !== previousStamina.current || player.stamina.max !== previousStamina.max;
 
         const intent = state.inputIntents.get(player.entityId);
         if (!intent) {
           player.stamina.current = Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
+          if (staminaChanged || player.stamina.current !== previousStamina.current) {
+            state.dirtyPlayerIds.add(player.entityId);
+          }
           continue;
         }
 
@@ -63,6 +72,9 @@ export const createMovementSystem = (): MovementSystem => {
           player.velocity = { x: 0, y: 0 };
           state.inputIntents.delete(player.entityId);
           state.lastProcessedInputSequence.set(player.entityId, intent.sequence);
+          if (staminaChanged) {
+            state.dirtyPlayerIds.add(player.entityId);
+          }
           continue;
         }
 
