@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { inputMessageSchema, roomJoinedMessageSchema } from "@2dayz/shared";
+import { defaultTownMap, inputMessageSchema, roomJoinedMessageSchema } from "@2dayz/shared";
 
 import { createProtocolStore } from "./protocolStore";
 import { createSocketClient } from "./socketClient";
 
 describe("socketClient", () => {
+  const mockSpawn = defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_main-road")?.position ?? { x: 12, y: 20 };
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -152,8 +154,8 @@ describe("socketClient", () => {
     expect(selfUpdate).toMatchObject({
       transform: {
         rotation: Math.PI / 2,
-        x: 0.1414213562373095,
-        y: 0.1414213562373095,
+        x: mockSpawn.x + 0.1414213562373095,
+        y: mockSpawn.y + 0.1414213562373095,
       },
     });
   });
@@ -191,5 +193,76 @@ describe("socketClient", () => {
         equippedWeaponSlot: 1,
       }),
     });
+  });
+
+  it("places the mock world inside the shared default town coordinates", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({ mode: "mock", protocolStore });
+
+    await socketClient.join({ displayName: "Survivor" });
+
+    const { snapshot } = protocolStore.drainWorldUpdates();
+    const self = snapshot?.players.find((player) => player.entityId === "player_survivor");
+    const zombie = snapshot?.zombies.find((entity) => entity.entityId === "zombie_1");
+
+    expect(self?.transform.x).toBeGreaterThan(5);
+    expect(self?.transform.y).toBeGreaterThan(5);
+    expect(zombie?.transform.x).toBeGreaterThan(self?.transform.x ?? 0);
+  });
+
+  it("emits mock combat deltas and eventually removes the mock zombie", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({ mode: "mock", protocolStore });
+
+    await socketClient.join({ displayName: "Survivor" });
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    }));
+
+    const { deltas } = protocolStore.drainWorldUpdates();
+
+    expect(deltas[0]?.events).toEqual(
+      expect.arrayContaining([expect.objectContaining({ type: "combat", targetEntityId: "zombie_1" })]),
+    );
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    }));
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 3,
+      type: "input",
+    }));
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 4,
+      type: "input",
+    }));
+
+    const removalDelta = protocolStore.drainWorldUpdates().deltas.at(-1);
+
+    expect(removalDelta?.entityUpdates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityId: "zombie_1",
+          health: expect.objectContaining({ isDead: true }),
+        }),
+      ]),
+    );
+    expect(removalDelta?.removedEntityIds).toEqual(expect.arrayContaining(["zombie_1"]));
   });
 });
