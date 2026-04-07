@@ -30,7 +30,7 @@ export const InventoryPanel = ({ inventory, isOpen, onToggle }: InventoryPanelPr
       </div>
 
       {isOpen ? (
-        <div data-testid={panelContentId} id={panelContentId}>
+        <div className="inventory-panel-content" data-testid={panelContentId} id={panelContentId}>
           <div className="inventory-grid">
             {inventory.slots.map((slot, index) => (
               <article className="inventory-slot" key={index}>

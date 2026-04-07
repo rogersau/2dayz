@@ -47,6 +47,7 @@ vi.mock("./game/net/protocolStore", () => ({
 
 const expectJoinedShell = () => {
   expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
   expect(screen.getByRole("button", { name: /open inventory/i })).toBeInTheDocument();
   expect(screen.queryByLabelText(/survival hud/i)).not.toBeInTheDocument();
 };
@@ -357,6 +358,71 @@ describe("App join and reconnect flow", () => {
     });
 
     expectJoinedShell();
+  });
+
+  it("keeps the quickbar visible and toggles the inventory panel with Tab while joined", async () => {
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Quickbar Survivor",
+            entityId: "player_survivor",
+            health: { current: 100, isDead: false, max: 100 },
+            inventory: {
+              ammoStacks: [],
+              equippedWeaponSlot: 0,
+              slots: [
+                { itemId: "weapon_pistol", quantity: 1 },
+                { itemId: "bandage", quantity: 2 },
+                null,
+                null,
+                null,
+                null,
+              ],
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/slot 1/i)).not.toBeInTheDocument();
+
+    fireEvent.keyDown(window, {
+      code: "Tab",
+      key: "Tab",
+    });
+
+    expect(screen.getByTestId("inventory-panel-content")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
+
+    fireEvent.keyDown(window, {
+      code: "Tab",
+      key: "Tab",
+    });
+
+    expect(screen.queryByTestId("inventory-panel-content")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quickbar slot 1" })).toBeInTheDocument();
   });
 
   it("bypasses the field briefing on a later same-session join after it was already dismissed", async () => {

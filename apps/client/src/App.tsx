@@ -200,6 +200,26 @@ export const App = () => {
     handleControlsContinue();
   }, [showControlsStep]);
 
+  useEffect(() => {
+    if (!isConnected) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") {
+        return;
+      }
+
+      event.preventDefault();
+      gameStore.toggleInventory();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [gameStore, isConnected]);
+
   return (
     <main className="app-shell">
       <div className="scene-layer">
@@ -235,6 +255,7 @@ export const App = () => {
               <Hud
                 inventory={state.inventory}
                 isInventoryOpen={state.isInventoryOpen}
+                onSelectSlot={(slotIndex) => gameStore.selectInventorySlot(slotIndex)}
                 onToggleInventory={() => gameStore.toggleInventory()}
               />
             </div>

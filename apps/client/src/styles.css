@@ -267,6 +267,42 @@ button {
   backdrop-filter: none;
 }
 
+.quickbar-hud {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickbar-slot {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid rgba(216, 185, 128, 0.16);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  color: inherit;
+  text-align: left;
+}
+
+.quickbar-slot[data-equipped="true"] {
+  border-color: rgba(216, 185, 128, 0.75);
+  background: rgba(216, 185, 128, 0.14);
+}
+
+.quickbar-slot-number {
+  font-size: 0.72rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #d8b980;
+}
+
+.quickbar-slot-item {
+  font-size: 0.82rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .hud-primary-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -359,6 +395,11 @@ button {
   align-items: flex-start;
 }
 
+.inventory-panel-content {
+  display: grid;
+  gap: 8px;
+}
+
 .inventory-slot {
   border-radius: 14px;
   min-height: 84px;
@@ -417,6 +458,10 @@ button {
     overflow-y: auto;
     overscroll-behavior: contain;
     background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
+  }
+
+  .quickbar-hud {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .hud-module {
