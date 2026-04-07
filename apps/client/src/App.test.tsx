@@ -343,7 +343,7 @@ describe("App join and reconnect flow", () => {
     expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
   });
 
-  it("stores the joined player entity id for later self-identity use", async () => {
+  it("renders the joined shell without the removed html survival hud", async () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/display name/i), {
