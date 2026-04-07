@@ -332,7 +332,12 @@ export const createZombieSystem = () => {
           });
         }
 
-        if (target && !target.health.isDead) {
+        const reacquiredVisibleTarget =
+          target &&
+          !target.health.isDead &&
+          (!zombie.aggroTargetEntityId || zombie.aggroTargetEntityId !== target.entityId);
+
+        if (reacquiredVisibleTarget && target) {
           lockAggroToTarget(zombie, target.entityId);
         } else if (zombie.heardTargetEntityId) {
           const heardTarget = state.players.get(zombie.heardTargetEntityId);

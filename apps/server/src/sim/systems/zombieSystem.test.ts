@@ -139,6 +139,63 @@ describe("createZombieSystem", () => {
     expect(zombie.state).toBe("idle");
   });
 
+  it("drops aggro after repeated fixed ticks once sight or range is lost", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [
+            {
+              zoneId: "zone_test",
+              center: { x: 1, y: 1 },
+              radius: 2,
+              maxAlive: 1,
+              archetypeIds: ["zombie_shambler"],
+            },
+          ],
+          lootPoints: [],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 1, y: 1 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: { nodes: new Map(), neighbors: new Map() },
+        respawnPoints: [],
+      },
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-fixed-tick-loss",
+      displayName: "Avery",
+      position: { x: 3, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const zombieSystem = createZombieSystem();
+    zombieSystem.update(state, 0.1);
+
+    const zombie = [...state.zombies.values()][0];
+    if (!zombie) {
+      throw new Error("expected zombie to spawn");
+    }
+
+    state.players.get("player_test-fixed-tick-loss")!.transform = { x: 19, y: 19, rotation: 0 };
+
+    for (let index = 0; index < 16; index += 1) {
+      zombieSystem.update(state, 0.1);
+    }
+
+    expect(zombie.aggroTargetEntityId).toBeNull();
+    expect(["idle", "roaming"]).toContain(zombie.state);
+  });
+
   it("applies zombie attack damage on a cooldown instead of every tick", () => {
     const state = createRoomState({ roomId: "room_test" });
 
