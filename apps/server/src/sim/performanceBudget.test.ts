@@ -30,6 +30,7 @@ describe("createRoomSimulationConfig", () => {
     expect(() => createRoomSimulationConfig({ sprintSpeedMultiplier: 1 })).toThrow(/sprint speed multiplier/i);
     expect(() => createRoomSimulationConfig({ staminaBaseline: 0 })).toThrow(/stamina baseline/i);
     expect(() => createRoomSimulationConfig({ staminaFloor: 0 })).toThrow(/stamina floor/i);
+    expect(() => createRoomSimulationConfig({ staminaBaseline: 4, staminaFloor: 5 })).toThrow(/stamina floor/i);
     expect(() => createRoomSimulationConfig({ staminaDrainPerSecond: 0 })).toThrow(/stamina drain/i);
     expect(() => createRoomSimulationConfig({ staminaRegenPerSecond: 0 })).toThrow(/stamina regen/i);
     expect(() => createRoomSimulationConfig({ staminaLoadPenalty: 0 })).toThrow(/stamina load penalty/i);

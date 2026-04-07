@@ -201,6 +201,12 @@ const assertGreaterThan = (value: number, minimum: number, label: string): void 
   }
 };
 
+const assertNotGreaterThan = (value: number, maximum: number, label: string): void => {
+  if (value > maximum) {
+    throw new Error(`${label} must be less than or equal to ${maximum}`);
+  }
+};
+
 const assertFixedTickRate = (value: number): void => {
   if (value !== SERVER_TICK_RATE) {
     throw new Error(`fixed tick rate must be ${SERVER_TICK_RATE}`);
@@ -242,6 +248,7 @@ export const createRoomSimulationConfig = (
   assertGreaterThan(config.sprintSpeedMultiplier, 1, "sprint speed multiplier");
   assertPositive(config.staminaBaseline, "stamina baseline");
   assertPositive(config.staminaFloor, "stamina floor");
+  assertNotGreaterThan(config.staminaFloor, config.staminaBaseline, "stamina floor");
   assertPositive(config.staminaDrainPerSecond, "stamina drain");
   assertPositive(config.staminaRegenPerSecond, "stamina regen");
   assertPositive(config.staminaLoadPenalty, "stamina load penalty");
