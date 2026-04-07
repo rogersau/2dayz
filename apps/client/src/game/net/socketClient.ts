@@ -21,22 +21,39 @@ const MOCK_ROOM_NAME = "Browser Room 1";
 const MOCK_ZOMBIE_DAMAGE = 12;
 const MOCK_ZOMBIE_MAX_HEALTH = 40;
 
-const getNodePosition = (nodeId: string, fallback: { x: number; y: number }) => {
-  return defaultTownMap.navigation.nodes.find((node) => node.nodeId === nodeId)?.position ?? fallback;
+const requireMapAnchor = <T>(anchor: T | undefined, description: string): T => {
+  if (!anchor) {
+    throw new Error(`Missing required defaultTownMap anchor: ${description}`);
+  }
+
+  return anchor;
 };
 
-const getZombieZoneCenter = (zoneId: string, fallback: { x: number; y: number }) => {
-  return defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === zoneId)?.center ?? fallback;
+const getNodePosition = (nodeId: string) => {
+  return requireMapAnchor(
+    defaultTownMap.navigation.nodes.find((node) => node.nodeId === nodeId)?.position,
+    `navigation node ${nodeId}`,
+  );
 };
 
-const getLootPointPosition = (pointId: string, fallback: { x: number; y: number }) => {
-  return defaultTownMap.lootPoints.find((point) => point.pointId === pointId)?.position ?? fallback;
+const getZombieZoneCenter = (zoneId: string) => {
+  return requireMapAnchor(
+    defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === zoneId)?.center,
+    `zombie spawn zone ${zoneId}`,
+  );
 };
 
-const MOCK_PLAYER_SPAWN = getNodePosition("node_main-road", { x: 12, y: 20 });
-const MOCK_BANDIT_SPAWN = getNodePosition("node_square", { x: 15, y: 16 });
-const MOCK_ZOMBIE_SPAWN = getZombieZoneCenter("zone_town-center", { x: 26, y: 20 });
-const MOCK_LOOT_SPAWN = getLootPointPosition("point_loot-market-shelves", { x: 15, y: 20 });
+const getLootPointPosition = (pointId: string) => {
+  return requireMapAnchor(
+    defaultTownMap.lootPoints.find((point) => point.pointId === pointId)?.position,
+    `loot point ${pointId}`,
+  );
+};
+
+const MOCK_PLAYER_SPAWN = getNodePosition("node_main-road");
+const MOCK_BANDIT_SPAWN = getNodePosition("node_square");
+const MOCK_ZOMBIE_SPAWN = getZombieZoneCenter("zone_town-center");
+const MOCK_LOOT_SPAWN = getLootPointPosition("point_loot-market-shelves");
 
 const wait = (durationMs: number) => new Promise<void>((resolve) => {
   setTimeout(resolve, durationMs);

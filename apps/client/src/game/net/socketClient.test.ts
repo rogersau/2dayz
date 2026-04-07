@@ -5,13 +5,55 @@ import { defaultTownMap, inputMessageSchema, roomJoinedMessageSchema } from "@2d
 import { createProtocolStore } from "./protocolStore";
 import { createSocketClient } from "./socketClient";
 
+const requireAnchor = <T>(anchor: T | undefined, description: string): T => {
+  if (!anchor) {
+    throw new Error(`${description} missing from defaultTownMap`);
+  }
+
+  return anchor;
+};
+
 describe("socketClient", () => {
-  const mockSpawn = defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_main-road")?.position ?? { x: 12, y: 20 };
-  const mockBanditSpawn = defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_square")?.position ?? { x: 15, y: 16 };
-  const mockZombieSpawn = defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === "zone_town-center")?.center ?? { x: 26, y: 20 };
+  const mockSpawn = requireAnchor(
+    defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_main-road")?.position,
+    "node_main-road",
+  );
+  const mockBanditSpawn = requireAnchor(
+    defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_square")?.position,
+    "node_square",
+  );
+  const mockZombieSpawn = requireAnchor(
+    defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === "zone_town-center")?.center,
+    "zone_town-center",
+  );
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.doUnmock("@2dayz/shared");
+    vi.resetModules();
+  });
+
+  it("fails fast when a required shared town anchor is missing", async () => {
+    vi.doMock("@2dayz/shared", async () => {
+      const actual = await vi.importActual<typeof import("@2dayz/shared")>("@2dayz/shared");
+
+      return {
+        ...actual,
+        defaultTownMap: {
+          ...actual.defaultTownMap,
+          navigation: {
+            ...actual.defaultTownMap.navigation,
+            nodes: actual.defaultTownMap.navigation.nodes.filter((node) => node.nodeId !== "node_main-road"),
+          },
+        },
+      };
+    });
+
+    await vi.resetModules();
+
+    const importPath = `./socketClient.ts?missing-anchor=${Date.now()}`;
+
+    await expect(import(importPath)).rejects.toThrow(/node_main-road/);
   });
 
   it("rejects a second in-flight request while a join is already pending", async () => {
