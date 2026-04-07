@@ -323,7 +323,58 @@ describe("createMovementSystem", () => {
 
     expect(player.transform.x).toBeCloseTo(4);
     expect(player.velocity).toEqual({ x: 4, y: 0 });
-    expect(player.stamina.current).toBeGreaterThan(0);
+    expect(player.stamina).toMatchObject({ current: 0, max: 10 });
+  });
+
+  it("does not stutter-sprint across consecutive ticks while sprint is held from zero stamina", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        maxPlayerSpeed: 4,
+        sprintSpeedMultiplier: 1.5,
+        staminaBaseline: 10,
+        staminaFloor: 4,
+        staminaDrainPerSecond: 2,
+        staminaRegenPerSecond: 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-stutter-sprint",
+      displayName: "Parker",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    const player = state.players.get("player_test-stutter-sprint");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.stamina.current = 0;
+    queueInputIntent(state, "player_test-stutter-sprint", {
+      ...defaultIntent,
+      sequence: 1,
+      movement: { x: 1, y: 0 },
+      actions: { sprint: true },
+    });
+    createMovementSystem().update(state, 1);
+
+    expect(player.transform.x).toBeCloseTo(4);
+    expect(player.velocity).toEqual({ x: 4, y: 0 });
+    expect(player.stamina).toMatchObject({ current: 0, max: 10 });
+
+    queueInputIntent(state, "player_test-stutter-sprint", {
+      ...defaultIntent,
+      sequence: 2,
+      movement: { x: 1, y: 0 },
+      actions: { sprint: true },
+    });
+    createMovementSystem().update(state, 1);
+
+    expect(player.transform.x).toBeCloseTo(8);
+    expect(player.velocity).toEqual({ x: 4, y: 0 });
+    expect(player.stamina).toMatchObject({ current: 0, max: 10 });
   });
 
   it("recomputes stamina max from current carried items after inventory changes", () => {
@@ -391,6 +442,45 @@ describe("createMovementSystem", () => {
     createMovementSystem().update(state, 0);
 
     expect(player.stamina).toMatchObject({ current: 6, max: 6 });
+  });
+
+  it("does not change stamina during blocked sprint with partial stamina", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        staminaBaseline: 10,
+        staminaFloor: 4,
+        staminaDrainPerSecond: 2,
+        staminaRegenPerSecond: 1,
+        isPositionBlocked: (position) => position.x >= 1,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-blocked-partial-stamina",
+      displayName: "Quinn",
+      position: { x: 0.5, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    const player = state.players.get("player_test-blocked-partial-stamina");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.stamina.current = 5;
+    queueInputIntent(state, "player_test-blocked-partial-stamina", {
+      ...defaultIntent,
+      sequence: 1,
+      movement: { x: 1, y: 0 },
+      actions: { sprint: true },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    expect(player.transform).toMatchObject({ x: 0.5, y: 0, rotation: 0 });
+    expect(player.velocity).toEqual({ x: 0, y: 0 });
+    expect(player.stamina).toMatchObject({ current: 5, max: 10 });
   });
 
   it("blocks movement when the next authoritative position collides", () => {

@@ -96,10 +96,13 @@ export const createMovementSystem = (): MovementSystem => {
           rotation,
         };
         player.velocity = blocked ? { x: 0, y: 0 } : velocity;
+        const sprintRequested = Boolean(intent.actions.sprint) && moving;
         const consumedSprintMovement = sprinting && !blocked;
-        player.stamina.current = consumedSprintMovement
-          ? Math.max(0, player.stamina.current - state.config.staminaDrainPerSecond * deltaSeconds)
-          : Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
+        if (consumedSprintMovement) {
+          player.stamina.current = Math.max(0, player.stamina.current - state.config.staminaDrainPerSecond * deltaSeconds);
+        } else if (!sprintRequested) {
+          player.stamina.current = Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
+        }
         state.inputIntents.delete(player.entityId);
         state.lastProcessedInputSequence.set(player.entityId, intent.sequence);
         state.dirtyPlayerIds.add(player.entityId);
