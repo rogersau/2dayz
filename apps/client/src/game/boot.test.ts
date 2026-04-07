@@ -489,4 +489,33 @@ describe("bootGame", () => {
 
     expect(resizeHudSceneMock).toHaveBeenCalledTimes(1);
   });
+
+  it("skips redundant hud updates when joined state has not changed between frames", () => {
+    const state = createStoreState({
+      connectionState: { phase: "joined" },
+      health: { current: 86, isDead: false, max: 100 },
+      inventory: createInventory({
+        ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 21 }],
+        equippedWeaponSlot: 0,
+        slots: [{ itemId: "weapon_pistol", quantity: 1 }, null, null, null, null, null],
+      }),
+      playerEntityId: "player_survivor",
+      roomId: "room_browser-v1",
+    });
+
+    bootGame({
+      canvas: document.createElement("canvas"),
+      socketClient: { sendInput: vi.fn() },
+      store: {
+        getState: () => state,
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledFrame?.(16);
+    scheduledFrame?.(32);
+
+    expect(updateHudSceneMock).toHaveBeenCalledTimes(1);
+  });
 });

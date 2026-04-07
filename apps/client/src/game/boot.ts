@@ -44,6 +44,7 @@ export const bootGame = ({
   let wasJoined = store.getState().connectionState.phase === "joined";
   let sequence = 0;
   let previousFrameTime = performance.now();
+  let previousHudState: ReturnType<typeof deriveHudState> | null = null;
   const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
 
   const unsubscribeFromStore = store.subscribe(() => {
@@ -51,6 +52,7 @@ export const bootGame = ({
 
     if (wasJoined && !isJoined) {
       inputController.reset();
+      previousHudState = null;
     }
 
     wasJoined = isJoined;
@@ -112,19 +114,34 @@ export const bootGame = ({
     const state = store.getState();
 
     if (state.connectionState.phase === "joined") {
-      updateHudScene(
-        deriveHudState({
-          health: state.health,
-          inventory: state.inventory,
-          playerEntityId: state.playerEntityId,
-          roomId: state.roomId,
-        }),
-      );
+      const nextHudState = deriveHudState({
+        health: state.health,
+        inventory: state.inventory,
+        playerEntityId: state.playerEntityId,
+        roomId: state.roomId,
+      });
+
+      if (
+        previousHudState === null
+        || previousHudState.ammoValue !== nextHudState.ammoValue
+        || previousHudState.equippedWeaponDetail !== nextHudState.equippedWeaponDetail
+        || previousHudState.healthDetail !== nextHudState.healthDetail
+        || previousHudState.healthValue !== nextHudState.healthValue
+        || previousHudState.inventorySummary !== nextHudState.inventorySummary
+        || previousHudState.playerLabel !== nextHudState.playerLabel
+        || previousHudState.roomLabel !== nextHudState.roomLabel
+      ) {
+        updateHudScene(nextHudState);
+        previousHudState = nextHudState;
+      }
+
       const previousAutoClear = renderer.autoClear;
       renderer.clearDepth();
       renderer.autoClear = false;
       renderer.render(hudScene, hudCamera);
       renderer.autoClear = previousAutoClear;
+    } else {
+      previousHudState = null;
     }
 
     animationFrame = window.requestAnimationFrame(tick);
