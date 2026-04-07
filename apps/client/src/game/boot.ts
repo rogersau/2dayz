@@ -1,5 +1,5 @@
 import type { ClientGameStore } from "./state/clientGameStore";
-import { SERVER_TICK_RATE, defaultTownMap, sharedWeaponDefinitionsById } from "@2dayz/shared";
+import { SERVER_TICK_RATE, defaultTownMap } from "@2dayz/shared";
 
 import { createCamera } from "./createCamera";
 import { createRenderer } from "./createRenderer";
@@ -11,53 +11,6 @@ import { createEntityViewStore } from "./render/entityViewStore";
 import { createPredictionController } from "./render/prediction";
 import { renderFrame } from "./render/renderFrame";
 import type { SocketClient } from "./net/socketClient";
-
-const canQueueLocalShot = ({
-  cooldownsByWeaponId,
-  now,
-  store,
-  aim,
-}: {
-  cooldownsByWeaponId: Map<string, number>;
-  now: number;
-  store: ClientGameStore;
-  aim: { x: number; y: number };
-}): boolean => {
-  const state = store.getState();
-  if (state.connectionState.phase !== "joined" || Math.hypot(aim.x, aim.y) === 0) {
-    return false;
-  }
-
-  const equippedSlot = state.inventory.equippedWeaponSlot;
-  if (equippedSlot === null) {
-    return false;
-  }
-
-  const equippedItem = state.inventory.slots[equippedSlot];
-  if (!equippedItem) {
-    return false;
-  }
-
-  const weaponDefinition = sharedWeaponDefinitionsById.get(equippedItem.itemId);
-  if (!weaponDefinition) {
-    return false;
-  }
-
-  const hasAmmo = state.inventory.ammoStacks.some(
-    (ammoStack) => ammoStack.ammoItemId === weaponDefinition.ammoItemId && ammoStack.quantity > 0,
-  );
-  if (!hasAmmo) {
-    return false;
-  }
-
-  const nextAllowedShotTime = cooldownsByWeaponId.get(weaponDefinition.itemId) ?? 0;
-  if (now < nextAllowedShotTime) {
-    return false;
-  }
-
-  cooldownsByWeaponId.set(weaponDefinition.itemId, now + 1000 / weaponDefinition.fireRate);
-  return true;
-};
 
 export const bootGame = ({
   canvas,
@@ -86,7 +39,6 @@ export const bootGame = ({
   let wasJoined = store.getState().connectionState.phase === "joined";
   let sequence = 0;
   let previousFrameTime = performance.now();
-  const localShotCooldownsByWeaponId = new Map<string, number>();
   const inputDeltaSeconds = 1 / SERVER_TICK_RATE;
 
   const unsubscribeFromStore = store.subscribe(() => {
@@ -94,7 +46,6 @@ export const bootGame = ({
 
     if (wasJoined && !isJoined) {
       inputController.reset();
-      localShotCooldownsByWeaponId.clear();
     }
 
     wasJoined = isJoined;
@@ -124,15 +75,7 @@ export const bootGame = ({
       : input;
     socketClient.sendInput(nextInput);
 
-    if (
-      nextInput.actions.fire &&
-      canQueueLocalShot({
-        aim: nextInput.aim,
-        cooldownsByWeaponId: localShotCooldownsByWeaponId,
-        now: performance.now(),
-        store,
-      })
-    ) {
+    if (nextInput.actions.fire && Math.hypot(nextInput.aim.x, nextInput.aim.y) > 0) {
       combatEffectsView.queueLocalShot({ aim: nextInput.aim });
     }
 
