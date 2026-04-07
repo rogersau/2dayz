@@ -127,6 +127,7 @@ const applyEntityUpdate = (state: ClientGameState, update: DeltaMessage["entityU
     return {
       ...entity,
       ...(update.health ? { health: update.health } : {}),
+      ...(update.state ? { state: update.state } : {}),
       ...(update.transform ? { transform: update.transform } : {}),
       ...(update.velocity ? { velocity: update.velocity } : {}),
     };

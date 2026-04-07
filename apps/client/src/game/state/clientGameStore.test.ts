@@ -223,6 +223,65 @@ describe("clientGameStore", () => {
     });
   });
 
+  it("applies zombie state transitions from deltas after the initial snapshot", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          inventory: {
+            ammoStacks: [],
+            equippedWeaponSlot: null,
+            slots: [null, null, null, null, null, null],
+          },
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 40,
+      type: "snapshot",
+      zombies: [
+        {
+          archetypeId: "zombie_walker",
+          entityId: "zombie_1",
+          state: "roaming",
+          transform: { rotation: 0, x: 6, y: 3 },
+        },
+      ],
+    });
+
+    store.applyDelta({
+      enteredEntities: [],
+      entityUpdates: [
+        {
+          entityId: "zombie_1",
+          state: "searching",
+        },
+      ],
+      events: [],
+      removedEntityIds: [],
+      roomId: "room_browser-v1",
+      tick: 41,
+      type: "delta",
+    });
+
+    expect(store.getState().worldEntities.zombies.find((entity) => entity.entityId === "zombie_1")).toMatchObject({
+      state: "searching",
+    });
+  });
+
   it("queues shot, combat, and death render events while preserving existing state updates", () => {
     const store = createClientGameStore();
 
