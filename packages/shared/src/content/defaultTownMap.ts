@@ -1,4 +1,4 @@
-import type { MapDefinition } from "@2dayz/shared";
+import type { MapDefinition } from "./maps";
 
 export const defaultTownMap: MapDefinition = {
   mapId: "map_default-town",
