@@ -302,7 +302,14 @@ export const createZombieSystem = () => {
         zombie.attackCooldownRemainingMs = Math.max(0, zombie.attackCooldownRemainingMs - deltaSeconds * 1000);
 
         let target = zombie.aggroTargetEntityId ? state.players.get(zombie.aggroTargetEntityId) : undefined;
-        const hasCurrentTarget = Boolean(target && !target.health.isDead);
+        const currentTargetHasAggro = Boolean(
+          target &&
+            !target.health.isDead &&
+            Math.hypot(target.transform.x - zombie.transform.x, target.transform.y - zombie.transform.y) <=
+              archetype.aggroRadius * 1.5 &&
+            canSeeTarget(state, zombie, target.transform),
+        );
+        let pendingHiddenStimulus: HeardStimulus | null = null;
 
         const heardStimulus = findNearestHeardStimulus(state, zombie);
         if (heardStimulus) {
@@ -312,8 +319,9 @@ export const createZombieSystem = () => {
           if (heardPlayer && !heardPlayer.health.isDead && heardStimulus.grantsImmediateAggroFromPosition && canSeeStimulus) {
             lockAggroToTarget(zombie, heardPlayer.entityId);
             target = heardPlayer;
-          } else if (!hasCurrentTarget) {
+          } else if (!currentTargetHasAggro) {
             beginSearching(zombie, heardStimulus.sourceEntityId, heardStimulus.position);
+            pendingHiddenStimulus = heardStimulus;
           }
         }
 
@@ -370,6 +378,12 @@ export const createZombieSystem = () => {
           if (zombie.lostTargetMs >= targetLossMs) {
             zombie.aggroTargetEntityId = null;
             zombie.lostTargetMs = 0;
+            if (pendingHiddenStimulus) {
+              beginSearching(zombie, pendingHiddenStimulus.sourceEntityId, pendingHiddenStimulus.position);
+              moveZombieTowardTarget(state, zombie, pendingHiddenStimulus.position, archetype.moveSpeed, deltaSeconds);
+              state.dirtyZombieIds.add(zombie.entityId);
+              continue;
+            }
             clearSearchState(zombie);
             roamWhileIdle(state, zombie, deltaSeconds, archetype.moveSpeed);
             state.dirtyZombieIds.add(zombie.entityId);

@@ -136,6 +136,10 @@ describe("protocol schemas", () => {
             transform: { x: 11, y: 5, rotation: 1.2 },
             velocity: { x: 1, y: 0 },
           },
+          {
+            entityId: "zombie_1",
+            state: "searching",
+          },
         ],
         removedEntityIds: ["loot_001"],
         events: [

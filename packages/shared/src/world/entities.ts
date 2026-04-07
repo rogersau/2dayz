@@ -28,6 +28,7 @@ export const entityDeltaSchema = z
     itemId: itemIdSchema.optional(),
     quantity: z.number().int().positive().optional(),
     position: vector2Schema.optional(),
+    state: z.enum(["idle", "roaming", "chasing", "attacking", "searching"]).optional(),
   })
   .strict()
   .refine((value) => {
@@ -40,7 +41,8 @@ export const entityDeltaSchema = z
       value.lastProcessedInputSequence !== undefined ||
       value.itemId !== undefined ||
       value.quantity !== undefined ||
-      value.position !== undefined
+      value.position !== undefined ||
+      value.state !== undefined
     );
   }, {
     message: "entity delta requires at least one update",

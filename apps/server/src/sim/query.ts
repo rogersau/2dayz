@@ -67,6 +67,7 @@ const createZombieDelta = (zombie: SimZombie): DeltaMessage["entityUpdates"][num
     transform: zombie.transform,
     velocity: zombie.velocity,
     health: zombie.health,
+    state: zombie.state,
   };
 };
 

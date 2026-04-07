@@ -126,4 +126,28 @@ describe("simulation query replication", () => {
       }),
     );
   });
+
+  it("includes dirty zombie state transitions in replication deltas", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    state.zombies.set("zombie_test-searching", {
+      entityId: "zombie_test-searching",
+      archetypeId: "zombie_shambler",
+      transform: { x: 3, y: 4, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "searching",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    state.dirtyZombieIds.add("zombie_test-searching");
+
+    expect(createRoomReplicationDelta(state).entityUpdates).toContainEqual(
+      expect.objectContaining({
+        entityId: "zombie_test-searching",
+        state: "searching",
+      }),
+    );
+  });
 });
