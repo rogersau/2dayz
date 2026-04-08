@@ -22,6 +22,14 @@ const isFocusableControl = (eventTarget: EventTarget | null) => {
   return eventTarget.matches("button, input, select, textarea, [contenteditable='true'], [tabindex]");
 };
 
+const isTextEntryControl = (eventTarget: EventTarget | null) => {
+  if (!(eventTarget instanceof HTMLElement)) {
+    return false;
+  }
+
+  return eventTarget.matches("input, select, textarea, [contenteditable='true']");
+};
+
 export const createInputController = ({
   element,
   isEnabled,
@@ -43,17 +51,23 @@ export const createInputController = ({
 
   const clearLatchedState = () => {
     pressedKeys.clear();
-    isFiring = false;
     queuedActions.interact = false;
     queuedActions.reload = false;
   };
 
+  const clearPointerCaptureState = () => {
+    isAiming = false;
+    isFiring = false;
+  };
+
   const clearDisabledState = () => {
     clearLatchedState();
-    isAiming = false;
     if (document.pointerLockElement === element) {
       document.exitPointerLock?.();
+      return;
     }
+
+    clearPointerCaptureState();
   };
 
   const canCaptureInput = () => {
@@ -63,6 +77,12 @@ export const createInputController = ({
     }
 
     return true;
+  };
+
+  const requestPointerCapture = () => {
+    if (document.pointerLockElement !== element) {
+      element.requestPointerLock?.();
+    }
   };
 
   const handleKeyDown = (event: KeyboardEvent) => {
@@ -85,7 +105,7 @@ export const createInputController = ({
       return;
     }
 
-    if (isFocusableTarget) {
+    if (isTextEntryControl(event.target)) {
       return;
     }
 
@@ -115,12 +135,13 @@ export const createInputController = ({
 
     if (event.button === 0) {
       isFiring = true;
+      requestPointerCapture();
     }
 
     if (event.button === 2) {
       event.preventDefault();
       isAiming = true;
-      element.requestPointerLock?.();
+      requestPointerCapture();
     }
   };
 
@@ -135,9 +156,6 @@ export const createInputController = ({
 
     if (event.button === 2) {
       isAiming = false;
-      if (document.pointerLockElement === element) {
-        document.exitPointerLock?.();
-      }
     }
   };
 
@@ -170,7 +188,7 @@ export const createInputController = ({
 
   const handlePointerLockChange = () => {
     if (document.pointerLockElement !== element) {
-      isAiming = false;
+      clearPointerCaptureState();
     }
   };
 
@@ -179,7 +197,7 @@ export const createInputController = ({
   window.addEventListener("blur", handleBlur);
   document.addEventListener("visibilitychange", handleVisibilityChange);
   document.addEventListener("pointerlockchange", handlePointerLockChange);
-  element.addEventListener("mousemove", handleMouseMove);
+  document.addEventListener("mousemove", handleMouseMove);
   element.addEventListener("mousedown", handleMouseDown);
   element.addEventListener("contextmenu", handleContextMenu);
   window.addEventListener("mouseup", handleMouseUp);
@@ -191,7 +209,7 @@ export const createInputController = ({
       window.removeEventListener("blur", handleBlur);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       document.removeEventListener("pointerlockchange", handlePointerLockChange);
-      element.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mousemove", handleMouseMove);
       element.removeEventListener("mousedown", handleMouseDown);
       element.removeEventListener("contextmenu", handleContextMenu);
       window.removeEventListener("mouseup", handleMouseUp);

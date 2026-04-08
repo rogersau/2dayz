@@ -48,8 +48,8 @@ const resolveExpectedMovement = ({ x, y }: { x: number; y: number }, yaw: number
   const rightAmount = normalized.x;
 
   return {
-    x: forwardAmount * Math.cos(yaw) + rightAmount * Math.sin(yaw),
-    y: forwardAmount * Math.sin(yaw) - rightAmount * Math.cos(yaw),
+    x: forwardAmount * Math.cos(yaw) - rightAmount * Math.sin(yaw),
+    y: forwardAmount * Math.sin(yaw) + rightAmount * Math.cos(yaw),
   };
 };
 
@@ -119,7 +119,7 @@ describe("inputController", () => {
     window.dispatchEvent(new KeyboardEvent("keyup", { key: "Shift" }));
     window.dispatchEvent(new KeyboardEvent("keyup", { key: "w" }));
 
-    expect(exitPointerLock).toHaveBeenCalledTimes(1);
+    expect(exitPointerLock).not.toHaveBeenCalled();
     expect(controller.getViewState()).toEqual({
       isAiming: false,
       pitch: viewState.pitch,
@@ -136,6 +136,55 @@ describe("inputController", () => {
         y: 0,
       },
       sequence: 6,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
+  it("updates view yaw and pitch from document mousemove while pointer locked", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    installPointerLockMocks(element);
+
+    const controller = createInputController({ element });
+
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2 }));
+    document.dispatchEvent(createPointerLockMouseMoveEvent({ movementX: 40, movementY: 20 }));
+
+    expect(controller.getViewState()).toEqual({
+      isAiming: true,
+      pitch: -0.2,
+      yaw: 0.4,
+    });
+
+    controller.destroy();
+  });
+
+  it("captures pointer lock on left click and uses mousemove for look without right-click aim", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const { requestPointerLock } = installPointerLockMocks(element);
+
+    const controller = createInputController({ element });
+
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+    document.dispatchEvent(createPointerLockMouseMoveEvent({ movementX: 30, movementY: -10 }));
+
+    expect(requestPointerLock).toHaveBeenCalledTimes(1);
+    expect(controller.getViewState()).toEqual({
+      isAiming: false,
+      pitch: 0.1,
+      yaw: 0.3,
+    });
+    expect(controller.pollInput(1)).toEqual({
+      actions: { fire: true },
+      aim: {
+        x: Math.cos(0.3),
+        y: Math.sin(0.3),
+      },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
       type: "input",
     });
 
@@ -193,6 +242,118 @@ describe("inputController", () => {
     controller.destroy();
   });
 
+  it("keeps pointer lock after right mouse is released so mouse look can continue", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const { exitPointerLock } = installPointerLockMocks(element);
+
+    const controller = createInputController({ element });
+
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2 }));
+    window.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 2 }));
+    document.dispatchEvent(createPointerLockMouseMoveEvent({ movementX: 25, movementY: 0 }));
+
+    expect(exitPointerLock).not.toHaveBeenCalled();
+    expect(controller.getViewState()).toEqual({
+      isAiming: false,
+      pitch: 0,
+      yaw: 0.25,
+    });
+
+    controller.destroy();
+  });
+
+  it("clears aiming and held fire when pointer lock is lost", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    installPointerLockMocks(element);
+
+    const controller = createInputController({ element });
+
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2 }));
+
+    setPointerLockElement(null);
+
+    expect(controller.getViewState()).toEqual({
+      isAiming: false,
+      pitch: 0,
+      yaw: 0,
+    });
+    expect(controller.pollInput(2)).toEqual({
+      actions: {},
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
+  it("waits for pointer-lock change to clear aim and fire when reset exits capture", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const requestPointerLock = vi.fn(() => {
+      Object.defineProperty(document, "pointerLockElement", {
+        configurable: true,
+        value: element,
+      });
+      document.dispatchEvent(new Event("pointerlockchange"));
+    });
+    const exitPointerLock = vi.fn();
+
+    Object.defineProperty(element, "requestPointerLock", {
+      configurable: true,
+      value: requestPointerLock,
+    });
+    Object.defineProperty(document, "exitPointerLock", {
+      configurable: true,
+      value: exitPointerLock,
+    });
+
+    const controller = createInputController({ element });
+
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 0 }));
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2 }));
+
+    controller.reset();
+
+    expect(exitPointerLock).toHaveBeenCalledTimes(1);
+    expect(controller.getViewState()).toEqual({
+      isAiming: true,
+      pitch: 0,
+      yaw: 0,
+    });
+    expect(controller.pollInput(1)).toEqual({
+      actions: {
+        aiming: true,
+        fire: true,
+      },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
+
+    setPointerLockElement(null);
+
+    expect(controller.getViewState()).toEqual({
+      isAiming: false,
+      pitch: 0,
+      yaw: 0,
+    });
+    expect(controller.pollInput(2)).toEqual({
+      actions: {},
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
   it("emits sprint while shift is held and clears it on release", () => {
     const element = document.createElement("div");
     document.body.append(element);
@@ -214,6 +375,24 @@ describe("inputController", () => {
         actions: {},
       }),
     );
+
+    controller.destroy();
+  });
+
+  it("maps right strafe to positive world-right at zero yaw", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const controller = createInputController({ element });
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "d" }));
+
+    expect(controller.pollInput(1)).toEqual({
+      actions: {},
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 1 },
+      sequence: 1,
+      type: "input",
+    });
 
     controller.destroy();
   });
@@ -256,6 +435,32 @@ describe("inputController", () => {
 
     expect(onToggleInventory).not.toHaveBeenCalled();
     expect(keydownEvent.defaultPrevented).toBe(false);
+
+    controller.destroy();
+  });
+
+  it("captures gameplay keys when a non-text control keeps focus", () => {
+    const element = document.createElement("div");
+    const button = document.createElement("button");
+    document.body.append(element, button);
+    const controller = createInputController({ element });
+
+    button.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "w" }));
+    button.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Shift" }));
+    button.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "r" }));
+    button.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "e" }));
+
+    expect(controller.pollInput(1)).toEqual({
+      actions: {
+        interact: true,
+        reload: true,
+        sprint: true,
+      },
+      aim: { x: 1, y: 0 },
+      movement: { x: 1, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
 
     controller.destroy();
   });

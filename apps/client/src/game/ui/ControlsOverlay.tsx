@@ -26,10 +26,14 @@ export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
       <p className="join-kicker">Field briefing</p>
       <h2>Field briefing</h2>
       <p>Stay light, move fast, and make your first contact count.</p>
+      <p>Your first left click captures the mouse and fires.</p>
       <ul>
-        <li>WASD move</li>
+        <li>Click to capture mouse</li>
         <li>Mouse aim</li>
-        <li>Click shoot</li>
+        <li>Left click fire</li>
+        <li>Right click aim</li>
+        <li>Esc release mouse</li>
+        <li>WASD move</li>
         <li>E interact</li>
         <li>R reload</li>
         <li>Tab inventory</li>

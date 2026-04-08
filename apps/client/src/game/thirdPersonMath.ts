@@ -23,8 +23,8 @@ export const resolveCameraRelativeMovement = (input: Vector2, yaw: number): Vect
   const rightAmount = normalized.x;
 
   return {
-    x: normalizeZero(forwardAmount * Math.cos(yaw) + rightAmount * Math.sin(yaw)),
-    y: normalizeZero(forwardAmount * Math.sin(yaw) - rightAmount * Math.cos(yaw)),
+    x: normalizeZero(forwardAmount * Math.cos(yaw) - rightAmount * Math.sin(yaw)),
+    y: normalizeZero(forwardAmount * Math.sin(yaw) + rightAmount * Math.cos(yaw)),
   };
 };
 

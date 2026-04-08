@@ -9,7 +9,7 @@ import {
 describe("thirdPersonMath", () => {
   it("resolves camera-relative movement on the gameplay plane", () => {
     expect(resolveCameraRelativeMovement({ x: 0, y: -1 }, Math.PI / 2)).toEqual({ x: 0, y: 1 });
-    expect(resolveCameraRelativeMovement({ x: 1, y: 0 }, 0)).toEqual({ x: 0, y: -1 });
+    expect(resolveCameraRelativeMovement({ x: 1, y: 0 }, 0)).toEqual({ x: 0, y: 1 });
   });
 
   it("projects view yaw into the 2D aim contract", () => {
