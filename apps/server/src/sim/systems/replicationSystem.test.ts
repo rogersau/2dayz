@@ -274,8 +274,26 @@ describe("createReplicationSystem", () => {
         kind: "player",
         entityId: "player_test-2",
         displayName: "Blair",
+        inventory: {
+          ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+          equippedWeaponSlot: 0,
+          slots: [
+            { itemId: "item_revolver", quantity: 1 },
+            { itemId: "item_bandage", quantity: 1 },
+            null,
+            null,
+            null,
+            null,
+          ],
+        },
         stamina: { current: 10, max: 10 },
         transform: { x: 2, y: 0, rotation: 0 },
+        weaponState: {
+          magazineAmmo: 6,
+          isReloading: false,
+          reloadRemainingMs: 0,
+          fireCooldownRemainingMs: 0,
+        },
       }),
     ]);
   });

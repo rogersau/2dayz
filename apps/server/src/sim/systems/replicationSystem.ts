@@ -32,6 +32,7 @@ const createEnteredEntityFromState = (state: RoomSimulationState, entityId: stri
       transform: player.transform,
       velocity: player.velocity,
       inventory: player.inventory,
+      weaponState: player.weaponState,
       health: player.health,
       stamina: player.stamina,
     };
