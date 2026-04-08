@@ -4,8 +4,8 @@ export const weaponStateSchema = z
   .object({
     magazineAmmo: z.number().int().nonnegative(),
     isReloading: z.boolean(),
-    reloadRemainingMs: z.number().int().nonnegative(),
-    fireCooldownRemainingMs: z.number().int().nonnegative(),
+    reloadRemainingMs: z.number().finite().nonnegative(),
+    fireCooldownRemainingMs: z.number().finite().nonnegative(),
   })
   .strict();
 

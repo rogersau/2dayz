@@ -227,6 +227,40 @@ describe("protocol schemas", () => {
     ).toMatchObject({ type: "death", victimEntityId: "player_1" });
   });
 
+  it("parses weapon state timers with fractional millisecond values", () => {
+    expect(
+      serverMessageSchema.parse({
+        type: "delta",
+        tick: 27,
+        roomId: "room_alpha",
+        enteredEntities: [],
+        entityUpdates: [
+          {
+            entityId: "player_1",
+            weaponState: {
+              magazineAmmo: 11,
+              isReloading: true,
+              reloadRemainingMs: 999.5,
+              fireCooldownRemainingMs: 83.33333333333333,
+            },
+          },
+        ],
+        removedEntityIds: [],
+        events: [],
+      }),
+    ).toMatchObject({
+      type: "delta",
+      entityUpdates: [
+        {
+          weaponState: {
+            reloadRemainingMs: 999.5,
+            fireCooldownRemainingMs: 83.33333333333333,
+          },
+        },
+      ],
+    });
+  });
+
   it("rejects invalid payloads", () => {
     expect(() =>
       clientMessageSchema.parse({
