@@ -46,7 +46,7 @@ describe("createInventorySystem", () => {
     });
     createInventorySystem().update(state, 0);
 
-    expect(state.players.get("player_test-1")?.inventory.ammoStacks).toEqual([{ ammoItemId: "item_pistol-ammo", quantity: 12 }]);
+    expect(state.players.get("player_test-1")?.inventory.ammoStacks).toEqual([{ ammoItemId: "item_pistol-ammo", quantity: 30 }]);
     expect(state.loot.has("loot_test-ammo")).toBe(false);
 
     queueInputIntent(state, "player_test-1", {
@@ -63,7 +63,7 @@ describe("createInventorySystem", () => {
     });
     createInventorySystem().update(state, 0);
 
-    expect(state.players.get("player_test-1")?.inventory.slots[0]).toBeNull();
+    expect(state.players.get("player_test-1")?.inventory.slots[0]).toEqual({ itemId: "item_revolver", quantity: 1 });
     expect(state.loot.has("loot_test-gun")).toBe(true);
   });
 

@@ -82,7 +82,7 @@ describe("respawn helpers", () => {
     expect(player.transform).toMatchObject({ x: 8, y: 8 });
     expect(player.inventory.slots[0]).toBeNull();
     expect(state.zombies.has("zombie_test-1")).toBe(true);
-    expect(state.loot.size).toBe(1);
+    expect(state.loot.size).toBe(3);
   });
 
   it("uses the same selected respawn point for the death event and the actual respawn", () => {

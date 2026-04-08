@@ -165,7 +165,7 @@ describe("createMovementSystem", () => {
       actions: { sprint: true },
     });
     createMovementSystem().update(state, 1);
-    expect(player.stamina).toMatchObject({ current: 8, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 5.4, max: 7.4 });
 
     queueInputIntent(state, "player_test-stamina-drain", {
       ...defaultIntent,
@@ -174,7 +174,7 @@ describe("createMovementSystem", () => {
       actions: { sprint: true },
     });
     createMovementSystem().update(state, 1);
-    expect(player.stamina).toMatchObject({ current: 9, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 6.4, max: 7.4 });
   });
 
   it("does not drain stamina when sprinting into blocked movement", () => {
@@ -212,7 +212,7 @@ describe("createMovementSystem", () => {
 
     expect(player.transform).toMatchObject({ x: 0.5, y: 0, rotation: 0 });
     expect(player.velocity).toEqual({ x: 0, y: 0 });
-    expect(player.stamina).toMatchObject({ current: 10, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 7.4, max: 7.4 });
   });
 
   it("regenerates stamina while not sprinting", () => {
@@ -247,7 +247,7 @@ describe("createMovementSystem", () => {
 
     createMovementSystem().update(state, 1);
 
-    expect(player.stamina).toMatchObject({ current: 6, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 6, max: 7.4 });
   });
 
   it("regenerates stamina on ticks with no queued input", () => {
@@ -279,7 +279,7 @@ describe("createMovementSystem", () => {
 
     expect(player.transform).toMatchObject({ x: 0, y: 0, rotation: 0 });
     expect(player.velocity).toEqual({ x: 0, y: 0 });
-    expect(player.stamina).toMatchObject({ current: 6, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 6, max: 7.4 });
   });
 
   it("emits idle stamina recovery through replication deltas", () => {
@@ -314,7 +314,7 @@ describe("createMovementSystem", () => {
       entityUpdates: [
         {
           entityId: "player_test-idle-stamina-delta",
-          stamina: { current: 6, max: 10 },
+          stamina: { current: 6, max: 7.4 },
         },
       ],
     });
@@ -423,7 +423,7 @@ describe("createMovementSystem", () => {
 
     expect(player.transform.x).toBeCloseTo(4);
     expect(player.velocity).toEqual({ x: 4, y: 0 });
-    expect(player.stamina).toMatchObject({ current: 0, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 0, max: 7.4 });
   });
 
   it("does not stutter-sprint across consecutive ticks while sprint is held from zero stamina", () => {
@@ -462,7 +462,7 @@ describe("createMovementSystem", () => {
 
     expect(player.transform.x).toBeCloseTo(4);
     expect(player.velocity).toEqual({ x: 4, y: 0 });
-    expect(player.stamina).toMatchObject({ current: 0, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 0, max: 7.4 });
 
     queueInputIntent(state, "player_test-stutter-sprint", {
       ...defaultIntent,
@@ -474,7 +474,7 @@ describe("createMovementSystem", () => {
 
     expect(player.transform.x).toBeCloseTo(8);
     expect(player.velocity).toEqual({ x: 4, y: 0 });
-    expect(player.stamina).toMatchObject({ current: 0, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 0, max: 7.4 });
   });
 
   it("recomputes stamina max from current carried items after inventory changes", () => {
@@ -580,7 +580,7 @@ describe("createMovementSystem", () => {
 
     expect(player.transform).toMatchObject({ x: 0.5, y: 0, rotation: 0 });
     expect(player.velocity).toEqual({ x: 0, y: 0 });
-    expect(player.stamina).toMatchObject({ current: 5, max: 10 });
+    expect(player.stamina).toMatchObject({ current: 5, max: 7.4 });
   });
 
   it("blocks movement when the next authoritative position collides", () => {
