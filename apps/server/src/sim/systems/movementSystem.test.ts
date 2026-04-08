@@ -282,6 +282,47 @@ describe("createMovementSystem", () => {
     expect(player.stamina).toMatchObject({ current: 6, max: 7.4 });
   });
 
+  it("clears replicated velocity when a player stops sending movement input", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({ maxPlayerSpeed: 4 }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-stop-moving",
+      displayName: "Kendall",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+
+    queueInputIntent(state, "player_test-stop-moving", {
+      ...defaultIntent,
+      sequence: 1,
+      movement: { x: 1, y: 0 },
+    });
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-stop-moving");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    state.dirtyPlayerIds.clear();
+
+    createMovementSystem().update(state, 0.1);
+
+    expect(player.velocity).toEqual({ x: 0, y: 0 });
+    expect(createRoomReplicationDelta(state)).toMatchObject({
+      entityUpdates: [
+        {
+          entityId: "player_test-stop-moving",
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+    });
+  });
+
   it("emits idle stamina recovery through replication deltas", () => {
     const state = createRoomState({
       roomId: "room_test",

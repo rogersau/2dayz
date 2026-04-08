@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { ErrorReason } from "@2dayz/shared";
+import type { ErrorReason, Inventory } from "@2dayz/shared";
 
 import { GameCanvas } from "./game/GameCanvas";
 import { createSocketClient, SocketClientError, type JoinResult } from "./game/net/socketClient";
@@ -11,10 +11,30 @@ import {
 } from "./game/state/clientGameStore";
 import { ConnectionBanner } from "./game/ui/ConnectionBanner";
 import { ControlsOverlay, hasDismissedControlsInSession } from "./game/ui/ControlsOverlay";
+import { CombatHud } from "./game/ui/CombatHud";
 import { DeathOverlay } from "./game/ui/DeathOverlay";
-import { Hud } from "./game/ui/Hud";
 import { JoinScreen } from "./game/ui/JoinScreen";
 import { useSessionToken } from "./game/ui/useSessionToken";
+
+const weaponAmmoByItemId: Record<string, string> = {
+  item_revolver: "item_pistol-ammo",
+  weapon_pistol: "ammo_9mm",
+  weapon_shotgun: "ammo_shells",
+};
+
+const getEquippedReserveAmmo = (inventory: Inventory) => {
+  const equippedSlot = inventory.equippedWeaponSlot;
+  const equippedItemId = equippedSlot === null ? null : inventory.slots[equippedSlot]?.itemId ?? null;
+  const ammoItemId = equippedItemId ? weaponAmmoByItemId[equippedItemId] : undefined;
+
+  if (!ammoItemId) {
+    return 0;
+  }
+
+  return inventory.ammoStacks
+    .filter((stack) => stack.ammoItemId === ammoItemId)
+    .reduce((total, stack) => total + stack.quantity, 0);
+};
 
 const getConnectionErrorReason = (error: unknown): ErrorReason => {
   if (error instanceof SocketClientError) {
@@ -45,11 +65,12 @@ const getReconnectFailureReason = (reason: ErrorReason): ErrorReason => {
 };
 
 export const App = () => {
+  const socketMode = import.meta.env.DEV && import.meta.env.VITE_CLIENT_SOCKET_MODE === "mock" ? "mock" : "ws";
   const [protocolStore] = useState(() => createProtocolStore());
   const [gameStore] = useState(() => createClientGameStore());
   const [socketClient] = useState(() =>
     createSocketClient({
-      mode: import.meta.env.DEV && import.meta.env.VITE_CLIENT_SOCKET_MODE !== "ws" ? "mock" : "ws",
+      mode: socketMode,
       protocolStore,
     }),
   );
@@ -191,6 +212,7 @@ export const App = () => {
 
   const isConnected = state.connectionState.phase === "joined";
   const showControlsStep = pendingJoinDisplayName !== null && state.connectionState.phase !== "joined";
+  const inventoryAmmo = getEquippedReserveAmmo(state.inventory);
 
   useEffect(() => {
     if (!showControlsStep || !hasDismissedControlsInSession()) {
@@ -212,11 +234,11 @@ export const App = () => {
         {!isConnected && !showControlsStep ? (
           <section className="title-menu" aria-label="title menu">
             <header className="hero-copy">
-              <p className="eyebrow">Browser V1</p>
-              <h1>2D DayZ</h1>
+              <p className="eyebrow">Browser V2</p>
+              <h1>2DayZ</h1>
               <p className="hero-body">
-                Take your place, step through the field briefing, and fight your way back in if the
-                line goes cold.
+                Lock the camera over your survivor, push through the infected lanes, and stay in the
+                fight when the session reconnects.
               </p>
             </header>
             <JoinScreen
@@ -232,21 +254,7 @@ export const App = () => {
         {isConnected ? (
           <section className="game-shell" aria-label="game shell">
             <div className="game-hud-layer">
-              <Hud
-                inventory={state.inventory}
-                isInventoryOpen={state.isInventoryOpen}
-                onSelectSlot={(slotIndex) => {
-                  if (state.inventory.slots[slotIndex] === null) {
-                    return;
-                  }
-
-                  gameStore.queueInventoryAction({
-                    type: "equip",
-                    toSlot: slotIndex,
-                  });
-                }}
-                onToggleInventory={() => gameStore.toggleInventory()}
-              />
+              <CombatHud health={state.health} inventoryAmmo={inventoryAmmo} weaponState={state.weaponState} />
             </div>
           </section>
         ) : null}

@@ -253,61 +253,77 @@ button {
 .game-hud-layer {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: space-between;
   pointer-events: none;
   padding: 16px;
 }
 
-.hud-bottom {
-  margin-top: auto;
-  display: grid;
-  gap: 12px;
+.combat-hud {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
-.quickbar-hud {
+.combat-hud-panel {
+  position: absolute;
+  left: 0;
+  bottom: 0;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
-  align-self: center;
-  pointer-events: auto;
-  width: min(100%, 640px);
-  padding: 10px;
-  border-radius: 18px;
-  border: 1px solid rgba(200, 179, 138, 0.16);
-  background: rgba(24, 21, 19, 0.92);
-  backdrop-filter: blur(18px);
+  width: min(100%, 220px);
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(200, 179, 138, 0.24);
+  background: rgba(24, 21, 19, 0.9);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(18px);
 }
 
-.quickbar-slot {
-  display: grid;
-  gap: 6px;
-  min-height: 72px;
-  padding: 10px;
-  border: 1px solid rgba(216, 185, 128, 0.16);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  color: inherit;
-  text-align: left;
-}
-
-.quickbar-slot[aria-pressed="true"],
-.quickbar-slot[data-equipped="true"] {
-  border-color: rgba(216, 185, 128, 0.75);
-  background: rgba(216, 185, 128, 0.14);
-}
-
-.quickbar-slot-number {
+.combat-hud-kicker {
+  margin: 0;
   font-size: 0.72rem;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #d8b980;
 }
 
-.quickbar-slot-item {
-  font-size: 0.82rem;
-  line-height: 1.2;
-  overflow-wrap: anywhere;
+.combat-hud-readouts {
+  display: grid;
+  gap: 6px;
+}
+
+.combat-hud-readouts p {
+  margin: 0;
+  color: #f2eadc;
+}
+
+.combat-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 28px;
+  transform: translate(-50%, -50%);
+}
+
+.combat-crosshair-line {
+  position: absolute;
+  background: rgba(242, 234, 220, 0.92);
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.45);
+}
+
+.combat-crosshair-line-horizontal {
+  top: 13px;
+  left: 0;
+  width: 28px;
+  height: 2px;
+}
+
+.combat-crosshair-line-vertical {
+  top: 0;
+  left: 13px;
+  width: 2px;
+  height: 28px;
 }
 
 .hud-primary-grid {
@@ -362,37 +378,17 @@ button {
   pointer-events: auto;
 }
 
-.game-runtime-error {
-  margin: 0;
-  padding: 12px 16px;
-  color: #d8d0c4;
-}
-
-.status-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.status-pill,
-.inventory-slot,
-.ammo-pill {
-  border-radius: 999px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.06);
-}
-
 .inventory-grid {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 }
 
 .inventory-card {
   align-self: flex-end;
-  width: min(100%, 360px);
-  display: grid;
-  gap: 12px;
-  background: rgba(24, 21, 19, 0.9);
-  backdrop-filter: none;
+   width: min(100%, 320px);
+   display: grid;
+   gap: 12px;
+   background: rgba(24, 21, 19, 0.9);
+   backdrop-filter: none;
 }
 
 .inventory-panel-header {
@@ -410,6 +406,14 @@ button {
 .inventory-slot {
   border-radius: 14px;
   min-height: 84px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ammo-pill {
+  border-radius: 999px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .inventory-slot strong,
@@ -452,36 +456,29 @@ button {
   .game-hud-layer {
     gap: 12px;
     padding: 12px;
-    justify-content: flex-end;
+    justify-content: space-between;
   }
 
-  .hud-bottom {
-    gap: 10px;
-    width: 100%;
+  .combat-hud-panel {
+    width: min(100%, 200px);
+    padding: 10px 12px;
   }
 
-  .quickbar-hud {
-    width: 100%;
-    max-width: none;
-    padding: 8px;
-    border-radius: 16px;
-    background: linear-gradient(180deg, rgba(17, 15, 12, 0.94), rgba(17, 15, 12, 0.88));
+  .combat-crosshair {
+    width: 24px;
+    height: 24px;
   }
 
-  .hud-module {
-    padding: 12px;
+  .combat-crosshair-line-horizontal {
+    top: 11px;
+    width: 24px;
   }
 
-  .hud-module-value {
-    font-size: 1.3rem;
+  .combat-crosshair-line-vertical {
+    left: 11px;
+    height: 24px;
   }
 
-  .status-row,
-  .hud-secondary-strip {
-    gap: 8px;
-  }
-
-  .status-pill,
   .ammo-pill,
   .inventory-slot,
   .primary-button,
@@ -498,8 +495,6 @@ button {
   .inventory-card {
     width: 100%;
     gap: 10px;
-    max-height: min(36dvh, 280px);
-    overflow: auto;
   }
 
   .controls-card,

@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const serverPort = Number(process.env.PORT ?? 3201);
-const quickbar = (page: import("@playwright/test").Page) => page.getByLabel("quickbar").first();
+const combatHud = (page: import("@playwright/test").Page) => page.getByLabel("combat hud");
 
 const installReconnectSocketMock = async (context: import("@playwright/test").BrowserContext) => {
   await context.addInitScript(() => {
@@ -187,8 +187,7 @@ const joinIntoGameShell = async (page: import("@playwright/test").Page, displayN
   await page.getByLabel("Display name").fill(displayName);
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(quickbar(page)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
+  await expect(combatHud(page)).toBeVisible();
 };
 
 const readReconnectMockState = async (page: import("@playwright/test").Page) => {
@@ -243,8 +242,7 @@ test("reconnects inside the reclaim window using the stored session token", asyn
   const storedSessionToken = await page.evaluate(() => window.sessionStorage.getItem("2dayz:session-token"));
 
   await page.reload();
-  await expect(quickbar(page)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
+  await expect(combatHud(page)).toBeVisible();
 
   await expect.poll(() => readReconnectMockState(page)).toEqual({
     lastReconnectToken: storedSessionToken,
@@ -259,8 +257,7 @@ test("reconnect completes in under 5 seconds during the reclaim window", async (
 
   const startedAt = Date.now();
   await page.reload();
-  await expect(quickbar(page)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
+  await expect(combatHud(page)).toBeVisible();
 
   const reconnectDurationMs = Date.now() - startedAt;
   expect(
@@ -276,8 +273,8 @@ test("does not reuse the reconnect token in a fresh page", async ({ context, pag
   const freshPage = await context.newPage();
   await freshPage.goto("/");
 
-  await expect(freshPage.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
-  await expect(freshPage.getByLabel("quickbar")).toHaveCount(0);
+  await expect(freshPage.getByRole("heading", { name: "2DayZ" })).toBeVisible();
+  await expect(freshPage.getByLabel("combat hud")).toHaveCount(0);
   await expect(freshPage.getByLabel("Display name")).toHaveValue("Fresh Page Scout");
 });
 
@@ -293,7 +290,7 @@ test("falls back to a fresh run after an expired stored token", async ({ page })
 
   await expect(page.getByText("Your previous session expired. Retry to enter a fresh run.")).toBeVisible();
   await page.getByRole("button", { name: "Retry join" }).click();
-  await expect(page.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2DayZ" })).toBeVisible();
   await expect(page.getByLabel("Display name")).toHaveValue("Expired Scout");
 });
 

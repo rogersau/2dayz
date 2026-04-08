@@ -89,6 +89,7 @@ const createPlayerObject = (entity: RenderPlayerEntity, isSelf: boolean) => {
   const torsoMaterial = createMaterial(torsoColor, torsoColor);
   const limbMaterial = createMaterial(limbColor, limbColor);
   const headMaterial = createMaterial(headColor, headColor);
+  const weaponMaterial = createMaterial(isSelf ? "#d9ddd7" : "#b8c2cf", isSelf ? "#d9ddd7" : "#b8c2cf");
 
   group.add(createPart({ depth: 0.55, height: 0.9, material: torsoMaterial, name: "survivor-torso", width: 0.75, y: 1.1 }));
   group.add(createPart({ depth: 0.45, height: 0.38, material: headMaterial, name: "survivor-head", width: 0.45, y: 1.82 }));
@@ -96,9 +97,23 @@ const createPlayerObject = (entity: RenderPlayerEntity, isSelf: boolean) => {
   group.add(createPart({ depth: 0.28, height: 0.7, material: limbMaterial, name: "survivor-arm-right", width: 0.2, x: 0.56, y: 1.08, rotationZ: -0.16 }));
   group.add(createPart({ depth: 0.32, height: 0.78, material: limbMaterial, name: "survivor-leg-left", width: 0.24, x: -0.2, y: 0.38, rotationZ: 0.04 }));
   group.add(createPart({ depth: 0.32, height: 0.78, material: limbMaterial, name: "survivor-leg-right", width: 0.24, x: 0.2, y: 0.38, rotationZ: -0.04 }));
+  group.add(
+    createPart({
+      depth: 0.16,
+      height: 0.9,
+      material: weaponMaterial,
+      name: "survivor-weapon",
+      width: 0.14,
+      x: 0.3,
+      y: 1.1,
+      z: -0.32,
+      rotationX: 0.2,
+      rotationZ: -0.45,
+    }),
+  );
 
   return {
-    materials: [torsoMaterial, limbMaterial, headMaterial],
+    materials: [torsoMaterial, limbMaterial, headMaterial, weaponMaterial],
     object: group,
   };
 };
@@ -111,6 +126,7 @@ const createZombieObject = (entity: RenderZombieEntity) => {
   const limbMaterial = createMaterial("#566f39", "#566f39");
   const headMaterial = createMaterial("#9bb579", "#9bb579");
 
+  group.add(createPart({ depth: 0.58, height: 0.22, material: hunchMaterial, name: "zombie-shoulders", width: 1.08, y: 1.34, z: -0.02, rotationX: -0.18 }));
   group.add(
     createPart({
       depth: 0.72,
@@ -321,12 +337,7 @@ export const createEntityViewStore = (scene: THREE.Scene) => {
           continue;
         }
 
-        if (
-          existingView.current.tick !== latestTick &&
-          (existingView.current.transform.x !== nextTransform.x ||
-            existingView.current.transform.y !== nextTransform.y ||
-            existingView.current.transform.rotation !== nextTransform.rotation)
-        ) {
+        if (existingView.current.tick !== latestTick) {
           existingView.previous = {
             tick: existingView.current.tick,
             transform: cloneTransform(existingView.current.transform),

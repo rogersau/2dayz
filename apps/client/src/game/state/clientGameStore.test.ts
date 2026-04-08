@@ -223,6 +223,92 @@ describe("clientGameStore", () => {
     });
   });
 
+  it("preserves local replicated weaponState across snapshots and deltas", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v2",
+    });
+
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 90, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          stamina: { current: 9, max: 10 },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+          weaponState: {
+            fireCooldownRemainingMs: 0,
+            isReloading: false,
+            magazineAmmo: 5,
+            reloadRemainingMs: 0,
+          },
+        },
+      ],
+      roomId: "room_browser-v2",
+      tick: 30,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    store.applyDelta({
+      enteredEntities: [],
+      entityUpdates: [
+        {
+          entityId: "player_self",
+          health: { current: 81, isDead: false, max: 100 },
+          weaponState: {
+            fireCooldownRemainingMs: 120,
+            isReloading: false,
+            magazineAmmo: 4,
+            reloadRemainingMs: 0,
+          },
+        },
+      ],
+      events: [],
+      removedEntityIds: [],
+      roomId: "room_browser-v2",
+      tick: 31,
+      type: "delta",
+    });
+
+    expect(store.getState()).toMatchObject({
+      health: { current: 81, isDead: false, max: 100 },
+      weaponState: {
+        fireCooldownRemainingMs: 120,
+        isReloading: false,
+        magazineAmmo: 4,
+        reloadRemainingMs: 0,
+      },
+    });
+    expect(store.getState().worldEntities.players[0]).toMatchObject({
+      weaponState: {
+        fireCooldownRemainingMs: 120,
+        isReloading: false,
+        magazineAmmo: 4,
+        reloadRemainingMs: 0,
+      },
+    });
+  });
+
   it("applies zombie state transitions from deltas after the initial snapshot", () => {
     const store = createClientGameStore();
 

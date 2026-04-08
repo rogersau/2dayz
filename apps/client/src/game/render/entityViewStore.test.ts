@@ -51,6 +51,8 @@ describe("createEntityViewStore", () => {
     ).not.toEqual(
       scene.getObjectByName("entity:player_other")?.getObjectByName("survivor-torso")?.userData.baseColor,
     );
+    expect(scene.getObjectByName("entity:player_self")?.getObjectByName("survivor-weapon")).toBeTruthy();
+    expect(scene.getObjectByName("entity:zombie_1")?.getObjectByName("zombie-shoulders")).toBeTruthy();
   });
 
   it("keeps a dead zombie visible for a short death window before removing it", () => {
@@ -204,5 +206,84 @@ describe("createEntityViewStore", () => {
     });
 
     expect(scene.getObjectByName("entity:zombie_1")).toBeUndefined();
+  });
+
+  it("preserves interpolation timing across a stationary tick before movement resumes", () => {
+    const scene = new THREE.Scene();
+    const store = createEntityViewStore(scene);
+
+    store.render({
+      deltaSeconds: 0,
+      entities: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
+          kind: "player",
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      latestTick: 1,
+      localOverrides: new Map(),
+      playerEntityId: "player_self",
+    });
+
+    store.render({
+      deltaSeconds: 1 / 20,
+      entities: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
+          kind: "player",
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      latestTick: 2,
+      localOverrides: new Map(),
+      playerEntityId: "player_self",
+    });
+
+    store.render({
+      deltaSeconds: 0,
+      entities: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
+          kind: "player",
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 10, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      latestTick: 3,
+      localOverrides: new Map(),
+      playerEntityId: "player_self",
+    });
+
+    store.render({
+      deltaSeconds: 1 / 40,
+      entities: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          inventory: { ammoStacks: [], equippedWeaponSlot: null, slots: [null, null, null, null, null, null] },
+          kind: "player",
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 10, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      latestTick: 3,
+      localOverrides: new Map(),
+      playerEntityId: "player_self",
+    });
+
+    expect(scene.getObjectByName("entity:player_self")?.position.x).toBeCloseTo(5);
   });
 });

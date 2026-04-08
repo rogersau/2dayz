@@ -1,6 +1,14 @@
 import { inputMessageSchema } from "@2dayz/shared";
 
 import { ACTION_KEYS, MOVEMENT_KEYS } from "./keymap";
+import { resolveCameraRelativeMovement, resolveProjectedAim } from "../thirdPersonMath";
+
+const LOOK_SENSITIVITY = 0.01;
+const MAX_PITCH = Math.PI / 3;
+
+const clamp = (value: number, min: number, max: number) => {
+  return Math.min(max, Math.max(min, value));
+};
 
 const isMatchingKey = (eventKey: string, keys: readonly string[]) => {
   return keys.includes(eventKey.toLowerCase());
@@ -28,8 +36,10 @@ export const createInputController = ({
     interact: false,
     reload: false,
   };
-  const aim = { x: 0, y: 0 };
   let isFiring = false;
+  let isAiming = false;
+  let yaw = 0;
+  let pitch = 0;
 
   const clearLatchedState = () => {
     pressedKeys.clear();
@@ -40,17 +50,10 @@ export const createInputController = ({
 
   const clearDisabledState = () => {
     clearLatchedState();
-    aim.x = 0;
-    aim.y = 0;
-  };
-
-  const updateAim = (event: MouseEvent) => {
-    const bounds = element.getBoundingClientRect();
-    const centerX = bounds.left + bounds.width / 2;
-    const centerY = bounds.top + bounds.height / 2;
-
-    aim.x = event.clientX - centerX;
-    aim.y = centerY - event.clientY;
+    isAiming = false;
+    if (document.pointerLockElement === element) {
+      document.exitPointerLock?.();
+    }
   };
 
   const canCaptureInput = () => {
@@ -68,9 +71,10 @@ export const createInputController = ({
     }
 
     const key = event.key.toLowerCase();
+    const isFocusableTarget = isFocusableControl(event.target);
 
     if (isMatchingKey(key, ACTION_KEYS.inventory)) {
-      if (isFocusableControl(event.target)) {
+      if (isFocusableTarget) {
         return;
       }
 
@@ -78,6 +82,10 @@ export const createInputController = ({
       if (!event.repeat) {
         onToggleInventory?.();
       }
+      return;
+    }
+
+    if (isFocusableTarget) {
       return;
     }
 
@@ -105,9 +113,14 @@ export const createInputController = ({
       return;
     }
 
-    updateAim(event);
     if (event.button === 0) {
       isFiring = true;
+    }
+
+    if (event.button === 2) {
+      event.preventDefault();
+      isAiming = true;
+      element.requestPointerLock?.();
     }
   };
 
@@ -116,16 +129,30 @@ export const createInputController = ({
       return;
     }
 
-    updateAim(event);
     if (event.button === 0) {
       isFiring = false;
+    }
+
+    if (event.button === 2) {
+      isAiming = false;
+      if (document.pointerLockElement === element) {
+        document.exitPointerLock?.();
+      }
     }
   };
 
   const handleVisibilityChange = () => {
     if (document.visibilityState === "hidden") {
-      clearLatchedState();
+      clearDisabledState();
     }
+  };
+
+  const handleBlur = () => {
+    clearDisabledState();
+  };
+
+  const handleContextMenu = (event: MouseEvent) => {
+    event.preventDefault();
   };
 
   const handleMouseMove = (event: MouseEvent) => {
@@ -133,33 +160,51 @@ export const createInputController = ({
       return;
     }
 
-    updateAim(event);
+    if (document.pointerLockElement !== element) {
+      return;
+    }
+
+    yaw += (event.movementX ?? 0) * LOOK_SENSITIVITY;
+    pitch = clamp(pitch - (event.movementY ?? 0) * LOOK_SENSITIVITY, -MAX_PITCH, MAX_PITCH);
+  };
+
+  const handlePointerLockChange = () => {
+    if (document.pointerLockElement !== element) {
+      isAiming = false;
+    }
   };
 
   window.addEventListener("keydown", handleKeyDown);
   window.addEventListener("keyup", handleKeyUp);
-  window.addEventListener("blur", clearLatchedState);
+  window.addEventListener("blur", handleBlur);
   document.addEventListener("visibilitychange", handleVisibilityChange);
+  document.addEventListener("pointerlockchange", handlePointerLockChange);
   element.addEventListener("mousemove", handleMouseMove);
   element.addEventListener("mousedown", handleMouseDown);
-  element.addEventListener("mouseup", handleMouseUp);
-  element.addEventListener("mouseleave", handleMouseUp);
+  element.addEventListener("contextmenu", handleContextMenu);
+  window.addEventListener("mouseup", handleMouseUp);
 
   return {
     destroy() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("blur", clearLatchedState);
+      window.removeEventListener("blur", handleBlur);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      document.removeEventListener("pointerlockchange", handlePointerLockChange);
       element.removeEventListener("mousemove", handleMouseMove);
       element.removeEventListener("mousedown", handleMouseDown);
-      element.removeEventListener("mouseup", handleMouseUp);
-      element.removeEventListener("mouseleave", handleMouseUp);
+      element.removeEventListener("contextmenu", handleContextMenu);
+      window.removeEventListener("mouseup", handleMouseUp);
+    },
+    getViewState() {
+      return { isAiming, pitch, yaw };
     },
     reset() {
       clearDisabledState();
     },
     pollInput(sequence: number) {
+      const aim = resolveProjectedAim({ pitch, yaw });
+
       if (!canCaptureInput()) {
         return inputMessageSchema.parse({
           actions: {},
@@ -177,16 +222,18 @@ export const createInputController = ({
           - (MOVEMENT_KEYS.up.some((key) => pressedKeys.has(key)) ? 1 : 0),
       };
       const isSprinting = ACTION_KEYS.sprint.some((key) => pressedKeys.has(key));
+      const resolvedMovement = resolveCameraRelativeMovement(movement, yaw);
 
       const nextInput = inputMessageSchema.parse({
         actions: {
+          ...(isAiming ? { aiming: true } : {}),
           ...(isFiring ? { fire: true } : {}),
           ...(isSprinting ? { sprint: true } : {}),
           ...(queuedActions.interact ? { interact: true } : {}),
           ...(queuedActions.reload ? { reload: true } : {}),
         },
         aim,
-        movement,
+        movement: resolvedMovement,
         sequence,
         type: "input",
       });

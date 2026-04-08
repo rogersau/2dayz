@@ -53,6 +53,10 @@ export const createMovementSystem = (): MovementSystem => {
           current: player.stamina.current,
           max: player.stamina.max,
         };
+        const previousVelocity = {
+          x: player.velocity.x,
+          y: player.velocity.y,
+        };
         const staminaMax = getStaminaMax(state, player);
         player.stamina.max = staminaMax;
         player.stamina.current = Math.min(player.stamina.current, staminaMax);
@@ -61,8 +65,10 @@ export const createMovementSystem = (): MovementSystem => {
 
         const intent = state.inputIntents.get(player.entityId);
         if (!intent) {
+          player.velocity = { x: 0, y: 0 };
           player.stamina.current = Math.min(player.stamina.max, player.stamina.current + state.config.staminaRegenPerSecond * deltaSeconds);
-          if (staminaChanged || player.stamina.current !== previousStamina.current) {
+          const velocityChanged = player.velocity.x !== previousVelocity.x || player.velocity.y !== previousVelocity.y;
+          if (staminaChanged || player.stamina.current !== previousStamina.current || velocityChanged) {
             state.dirtyPlayerIds.add(player.entityId);
           }
           continue;
@@ -80,8 +86,7 @@ export const createMovementSystem = (): MovementSystem => {
 
         const direction = normalizeMovement(intent.movement);
         const moving = direction.x !== 0 || direction.y !== 0;
-        const sprinting =
-          Boolean(intent.actions.sprint) && !Boolean(intent.actions.aiming) && moving && player.stamina.current > 0;
+        const sprinting = intent.actions.sprint === true && !intent.actions.aiming && moving && player.stamina.current > 0;
         const speed = sprinting
           ? state.config.maxPlayerSpeed * state.config.sprintSpeedMultiplier
           : state.config.maxPlayerSpeed;

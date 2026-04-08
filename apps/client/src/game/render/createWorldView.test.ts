@@ -1,4 +1,4 @@
-import { defaultTownMap } from "@2dayz/shared";
+import { defaultTownMap, thirdPersonSliceMap } from "@2dayz/shared";
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 
@@ -30,5 +30,23 @@ describe("createWorldView", () => {
     worldView.dispose();
 
     expect(scene.getObjectByName("world:static")).toBeUndefined();
+  });
+
+  it("builds third-person encounter landmarks and clears them on dispose", () => {
+    const scene = new THREE.Scene();
+    const worldView = createWorldView({ map: thirdPersonSliceMap, scene });
+
+    const centralTruck = scene.getObjectByName("building:volume_central-truck");
+    const eastShed = scene.getObjectByName("building:volume_east-shed");
+
+    expect(centralTruck).toBeInstanceOf(THREE.Group);
+    expect(eastShed).toBeInstanceOf(THREE.Group);
+    expect(centralTruck?.getObjectByName("cover:volume_central-truck")).toBeInstanceOf(THREE.Mesh);
+    expect(eastShed?.getObjectByName("building-body:volume_east-shed")).toBeInstanceOf(THREE.Mesh);
+
+    worldView.dispose();
+
+    expect(scene.getObjectByName("building:volume_central-truck")).toBeUndefined();
+    expect(scene.getObjectByName("building:volume_east-shed")).toBeUndefined();
   });
 });

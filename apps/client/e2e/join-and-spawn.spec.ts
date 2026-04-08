@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const quickbar = (page: import("@playwright/test").Page) => page.getByLabel("quickbar").first();
+const combatHud = (page: import("@playwright/test").Page) => page.getByLabel("combat hud");
 
 const installQuickbarSelectionSocketMock = async (page: import("@playwright/test").Page) => {
   await page.addInitScript(() => {
@@ -58,20 +58,26 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                 entityUpdates: [
                   {
                     entityId: "player_quickbar-scout",
-                  health: { current: 100, isDead: false, max: 100 },
-                  inventory: {
-                    ammoStacks: [],
-                    equippedWeaponSlot,
-                    slots: [
-                      { itemId: "weapon_pistol", quantity: 1 },
-                      { itemId: "bandage", quantity: 2 },
-                      null,
-                      null,
-                      null,
-                      null,
-                    ],
-                  },
+                    health: { current: 100, isDead: false, max: 100 },
+                    inventory: {
+                      ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
+                      equippedWeaponSlot,
+                      slots: [
+                        { itemId: "weapon_pistol", quantity: 1 },
+                        { itemId: "bandage", quantity: 2 },
+                        null,
+                        null,
+                        null,
+                        null,
+                      ],
+                    },
                     lastProcessedInputSequence: 0,
+                    weaponState: {
+                      fireCooldownRemainingMs: 0,
+                      isReloading: false,
+                      magazineAmmo: 5,
+                      reloadRemainingMs: 0,
+                    },
                     transform: { rotation: 0, x: 0, y: 0 },
                     velocity: { x: 0, y: 0 },
                   },
@@ -116,10 +122,10 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                   displayName: payload.displayName ?? "Quickbar Scout",
                   entityId: "player_quickbar-scout",
                   health: { current: 100, isDead: false, max: 100 },
-                   inventory: {
-                     ammoStacks: [],
-                     equippedWeaponSlot,
-                     slots: [
+                  inventory: {
+                    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
+                    equippedWeaponSlot,
+                    slots: [
                       { itemId: "weapon_pistol", quantity: 1 },
                       { itemId: "bandage", quantity: 2 },
                       null,
@@ -127,6 +133,12 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                       null,
                       null,
                     ],
+                  },
+                  weaponState: {
+                    fireCooldownRemainingMs: 0,
+                    isReloading: false,
+                    magazineAmmo: 5,
+                    reloadRemainingMs: 0,
                   },
                   transform: { rotation: 0, x: 0, y: 0 },
                   velocity: { x: 0, y: 0 },
@@ -155,23 +167,20 @@ test("joins from landing page and reaches the game shell", async ({ page }) => {
   await installQuickbarSelectionSocketMock(page);
   await page.goto("/");
 
-  await expect(page.getByRole("heading", { name: "2D DayZ" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2DayZ" })).toBeVisible();
   await page.getByLabel("Display name").fill("Scout");
   await page.getByRole("button", { name: "Review briefing" }).click();
 
   await expect(page.getByRole("heading", { name: "Field briefing" })).toBeVisible();
   await page.getByRole("button", { name: "Enter session" }).click();
 
-  await expect(quickbar(page)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Open inventory" })).toBeVisible();
-
-  const secondSlot = page.getByRole("button", { name: /^Quickbar slot 2,/i });
-  await expect(secondSlot).not.toHaveAttribute("data-equipped", "true");
-  await secondSlot.click();
-  await expect(secondSlot).toHaveAttribute("data-equipped", "true");
+  await expect(combatHud(page)).toBeVisible();
+  await expect(combatHud(page).getByText("Health 100/100")).toBeVisible();
+  await expect(combatHud(page).getByText("Ammo 5/12")).toBeVisible();
 });
 
 test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
+  await installQuickbarSelectionSocketMock(page);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
@@ -189,23 +198,14 @@ test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(quickbar(page)).toBeVisible();
-  await page.getByRole("button", { name: "Open inventory" }).click();
-  await expect(page.getByRole("button", { name: "Collapse inventory" })).toBeVisible();
+  await expect(combatHud(page)).toBeVisible();
+  await expect(page.getByLabel("crosshair")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  expect(
-    await page.evaluate(() => {
-      const inventoryPanel = document.querySelector(".inventory-card");
-      if (!(inventoryPanel instanceof HTMLElement)) {
-        return false;
-      }
-
-      return inventoryPanel.getBoundingClientRect().bottom <= window.innerHeight;
-    }),
-  ).toBe(true);
+  expect(await page.locator(".combat-hud-panel").evaluate((node) => node.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
 });
 
 test("keeps the joined shell reachable on a shorter phone viewport", async ({ page }) => {
+  await installQuickbarSelectionSocketMock(page);
   await page.setViewportSize({ width: 390, height: 667 });
   await page.goto("/");
 
@@ -213,32 +213,21 @@ test("keeps the joined shell reachable on a shorter phone viewport", async ({ pa
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
 
-  await expect(quickbar(page)).toBeVisible();
-  await page.getByRole("button", { name: "Open inventory" }).click();
-
-  const collapseInventoryButton = page.getByRole("button", { name: "Collapse inventory" });
-  const lastInventorySlot = page.getByText("Slot 6");
-  await expect(collapseInventoryButton).toBeVisible();
-  await expect(collapseInventoryButton).toBeInViewport();
-  await expect(lastInventorySlot).not.toBeInViewport();
-
-  await page.locator(".inventory-card").hover();
-  await page.mouse.wheel(0, 600);
-  await page.locator(".inventory-card").hover();
-  await page.mouse.wheel(0, 1200);
-
-  await expect(lastInventorySlot).toBeInViewport();
+  await expect(combatHud(page)).toBeVisible();
+  await expect(page.getByLabel("crosshair")).toBeVisible();
+  await expect(page.locator(".combat-hud-panel")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 
 test("landing-to-spawn stays under 10 seconds in healthy local conditions", async ({ page }) => {
+  await installQuickbarSelectionSocketMock(page);
   const startedAt = Date.now();
 
   await page.goto("/");
   await page.getByLabel("Display name").fill("Speed Scout");
   await page.getByRole("button", { name: "Review briefing" }).click();
   await page.getByRole("button", { name: "Enter session" }).click();
-  await expect(quickbar(page)).toBeVisible();
+  await expect(combatHud(page)).toBeVisible();
 
   const joinDurationMs = Date.now() - startedAt;
   expect(

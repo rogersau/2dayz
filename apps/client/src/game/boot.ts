@@ -113,6 +113,7 @@ export const bootGame = ({
       renderer,
       scene,
       store,
+      viewState: inputController.getViewState(),
     });
     animationFrame = window.requestAnimationFrame(tick);
   };

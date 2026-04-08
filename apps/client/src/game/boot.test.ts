@@ -43,6 +43,7 @@ const {
   combatEffectsQueueLocalShotMock,
   createPredictionControllerMock,
   createInputControllerMock,
+  getViewStateMock,
   createWorldViewMock,
   clearIntervalMock,
   destroyInputControllerMock,
@@ -65,6 +66,7 @@ const {
   combatEffectsQueueLocalShotMock: vi.fn(),
   createPredictionControllerMock: vi.fn(),
   createInputControllerMock: vi.fn(),
+  getViewStateMock: vi.fn(),
   createWorldViewMock: vi.fn(),
   clearIntervalMock: vi.fn(),
   destroyInputControllerMock: vi.fn(),
@@ -114,6 +116,7 @@ vi.mock("./input/inputController", () => ({
     createInputControllerMock(...args);
     return {
       destroy: destroyInputControllerMock,
+      getViewState: getViewStateMock,
       pollInput: pollInputMock,
       reset: resetInputControllerMock,
     };
@@ -169,6 +172,7 @@ describe("bootGame", () => {
     rendererMock.dispose = rendererDisposeMock;
     scheduledInterval = null;
     scheduledFrame = null;
+    getViewStateMock.mockReturnValue({ isAiming: false, pitch: 0, yaw: 0 });
     pollInputMock.mockImplementation((sequence: number) => ({
       actions: { fire: true },
       aim: { x: 12, y: -4 },
@@ -233,6 +237,33 @@ describe("bootGame", () => {
       type: "input",
     });
     expect(renderFrameMock).toHaveBeenCalled();
+  });
+
+  it("passes the current look state into renderFrame", () => {
+    const viewState = { isAiming: true, pitch: -0.35, yaw: 0.4 };
+    const sendInput = vi.fn();
+    const canvas = document.createElement("canvas");
+
+    getViewStateMock.mockReturnValue(viewState);
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput },
+      store: {
+        getState: (): TestStoreState =>
+          createStoreState({ connectionState: { phase: "joined" }, playerEntityId: "player_survivor" }),
+        subscribe: () => () => {},
+        toggleInventory: vi.fn(),
+      } as never,
+    });
+
+    scheduledFrame?.(16);
+
+    expect(renderFrameMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        viewState,
+      }),
+    );
   });
 
   it("does not queue a speculative local shot effect when joined fire input is sent", () => {
