@@ -5,7 +5,7 @@ import { createRoomState, queueSpawnPlayer } from "./state";
 import { createLifecycleSystem } from "./systems/lifecycleSystem";
 
 describe("simulation query replication", () => {
-  it("includes loot and zombies in authoritative snapshots and player inventory/input acks in deltas", () => {
+  it("includes loot and zombies in authoritative snapshots and player starter weapon state in deltas", () => {
     const state = createRoomState({ roomId: "room_test" });
 
     queueSpawnPlayer(state, {
@@ -42,7 +42,25 @@ describe("simulation query replication", () => {
       players: [
         {
           entityId: "player_test-1",
+          inventory: {
+            ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_bandage", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
           stamina: { current: 10, max: 10 },
+          weaponState: {
+            magazineAmmo: 6,
+            isReloading: false,
+            reloadRemainingMs: 0,
+            fireCooldownRemainingMs: 0,
+          },
         },
       ],
       loot: [
@@ -68,13 +86,26 @@ describe("simulation query replication", () => {
         {
           entityId: "player_test-1",
           inventory: {
-            ammoStacks: [],
-            equippedWeaponSlot: null,
-            slots: [null, null, null, null, null, null],
+            ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_bandage", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+            ],
           },
           lastProcessedInputSequence: 3,
           stamina: { current: 10, max: 10 },
           transform: { x: 1, y: 1, rotation: 0 },
+          weaponState: {
+            magazineAmmo: 6,
+            isReloading: false,
+            reloadRemainingMs: 0,
+            fireCooldownRemainingMs: 0,
+          },
         },
         {
           entityId: "loot_test-1",

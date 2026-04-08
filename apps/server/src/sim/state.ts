@@ -171,6 +171,17 @@ const createEmptyInventory = (): Inventory => {
   };
 };
 
+const createStarterInventory = (): Inventory => {
+  const inventory = createEmptyInventory();
+
+  inventory.slots[0] = { itemId: "item_revolver", quantity: 1 };
+  inventory.slots[1] = { itemId: "item_bandage", quantity: 1 };
+  inventory.equippedWeaponSlot = 0;
+  inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 18 }];
+
+  return inventory;
+};
+
 const createDefaultHealth = (): Health => {
   return {
     current: 100,
@@ -181,7 +192,7 @@ const createDefaultHealth = (): Health => {
 
 export const createDefaultWeaponState = (): WeaponState => {
   return {
-    magazineAmmo: 0,
+    magazineAmmo: 6,
     isReloading: false,
     reloadRemainingMs: 0,
     fireCooldownRemainingMs: 0,
@@ -363,7 +374,7 @@ export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerR
     velocity: { x: 0, y: 0 },
     health: createDefaultHealth(),
     stamina: { current: staminaMax, max: staminaMax },
-    inventory: createEmptyInventory(),
+    inventory: createStarterInventory(),
     weaponState: createDefaultWeaponState(),
     lastDamagedByEntityId: null,
   });

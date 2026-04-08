@@ -26,6 +26,7 @@ const createPlayerState = (state: RoomSimulationState, player: SimPlayer): Playe
     velocity: player.velocity,
     stamina: player.stamina,
     inventory: player.inventory,
+    weaponState: player.weaponState,
     lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
     health: player.health,
   };
@@ -35,6 +36,7 @@ const createPlayerDelta = (state: RoomSimulationState, player: SimPlayer): Delta
   return {
     entityId: player.entityId,
     inventory: player.inventory,
+    weaponState: player.weaponState,
     lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
     stamina: player.stamina,
     transform: player.transform,

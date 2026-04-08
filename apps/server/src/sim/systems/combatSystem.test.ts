@@ -33,6 +33,33 @@ const spawnPlayer = (state: ReturnType<typeof createRoomState>, entityId: string
 };
 
 describe("createCombatSystem", () => {
+  it("lets a freshly spawned player fire once without test-only inventory setup", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-starter-1",
+      displayName: "Avery",
+      position: { x: 0, y: 0 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const attacker = state.players.get("player_test-starter-1");
+    if (!attacker) {
+      throw new Error("expected spawned player");
+    }
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0.1);
+
+    expect(attacker.weaponState.magazineAmmo).toBe(5);
+  });
+
   it("applies authoritative hitscan damage and consumes ammo when a valid shot lands", () => {
     const state = createRoomState({ roomId: "room_test" });
     const attacker = spawnPlayer(state, "player_test-1", "Avery", 0, 0);
