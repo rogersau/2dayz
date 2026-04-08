@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { defaultTownMap } from "@2dayz/shared";
+import { thirdPersonSliceMap } from "@2dayz/shared";
 
 import { createCollisionIndex, isCirclePositionBlocked } from "./collision";
 import { loadMapDefinition } from "./loadMapDefinition";
 import { hasLineOfSight } from "./lineOfSight";
 
 describe("loadMapDefinition", () => {
-  it("loads the default town map with typed world metadata", () => {
-    const map = loadMapDefinition(defaultTownMap);
+  it("loads the third-person encounter map with typed world metadata", () => {
+    const map = loadMapDefinition(thirdPersonSliceMap);
 
-    expect(map.mapId).toBe("map_default-town");
-    expect(map.name).toContain("Town");
+    expect(map.mapId).toBe("map_third-person-yard");
+    expect(map.name).toContain("Yard");
     expect(map.respawnPoints).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          pointId: "point_respawn-main-road",
+          pointId: "point_respawn-west-entry",
           position: expect.objectContaining({ x: expect.any(Number), y: expect.any(Number) }),
         }),
       ]),
@@ -23,23 +23,23 @@ describe("loadMapDefinition", () => {
     expect(map.lootPoints).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          pointId: "point_loot-market-shelves",
-          tableId: "loot_residential",
+          pointId: "point_loot-field-cache",
+          tableId: "loot_police",
         }),
       ]),
     );
     expect(map.zombieSpawnZones).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          zoneId: "zone_town-center",
-          archetypeIds: expect.arrayContaining(["zombie_shambler"]),
+          zoneId: "zone_north-lane",
+          archetypeIds: expect.arrayContaining(["zombie_shambler", "zombie_runner"]),
         }),
       ]),
     );
     expect(map.collisionVolumes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          volumeId: "volume_market",
+          volumeId: "volume_central-truck",
           kind: "box",
         }),
       ]),
@@ -47,9 +47,9 @@ describe("loadMapDefinition", () => {
     expect(map.navigation.links).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          from: "node_square",
-          to: "node_market",
-          cost: expect.any(Number),
+          from: "node_west-entry",
+          to: "node_north-lane",
+          cost: 10,
         }),
       ]),
     );

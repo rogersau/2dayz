@@ -1,4 +1,4 @@
-import { defaultTownMap, mapDefinitionSchema, type MapDefinition } from "@2dayz/shared";
+import { mapDefinitionSchema, thirdPersonSliceMap, type MapDefinition } from "@2dayz/shared";
 import { createCollisionIndex, isCirclePositionBlocked } from "./collision";
 import { hasLineOfSight } from "./lineOfSight";
 
@@ -123,7 +123,7 @@ const assertSpatialInvariants = (map: MapDefinition): void => {
   }
 };
 
-export const loadMapDefinition = (definition: MapDefinition = defaultTownMap): MapDefinition => {
+export const loadMapDefinition = (definition: MapDefinition = thirdPersonSliceMap): MapDefinition => {
   const map = mapDefinitionSchema.parse(definition);
   assertSpatialInvariants(map);
   return map;

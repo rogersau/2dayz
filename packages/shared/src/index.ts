@@ -13,5 +13,6 @@ export * from "./content/weapons";
 export * from "./content/zombies";
 export * from "./content/maps";
 export * from "./content/defaultTownMap";
+export * from "./content/thirdPersonSliceMap";
 export * from "./content/loot";
 export * from "./content/spawns";
