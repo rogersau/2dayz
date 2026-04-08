@@ -272,6 +272,38 @@ describe("createZombieSystem", () => {
     expect(state.players.get("player_test-2")?.health.current).toBe(76);
   });
 
+  it("marks a zombie dirty when it re-enters attack range during cooldown", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-cooldown-attack",
+      displayName: "Blair",
+      position: { x: 3, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    state.zombies.set("zombie_test-cooldown-attack", {
+      entityId: "zombie_test-cooldown-attack",
+      archetypeId: "zombie_shambler",
+      transform: { x: 1, y: 1, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "chasing",
+      aggroTargetEntityId: "player_test-cooldown-attack",
+      attackCooldownRemainingMs: 200,
+      lostTargetMs: 0,
+    });
+    state.players.get("player_test-cooldown-attack")!.transform = { x: 2.2, y: 1, rotation: 0 };
+
+    const zombieSystem = createZombieSystem();
+    zombieSystem.update(state, 0.05);
+
+    const zombie = state.zombies.get("zombie_test-cooldown-attack");
+    expect(zombie?.state).toBe("attacking");
+    expect(zombie?.velocity).toEqual({ x: 0, y: 0 });
+    expect(state.dirtyZombieIds.has("zombie_test-cooldown-attack")).toBe(true);
+  });
+
   it("hears a gunshot without line of sight and searches toward the shot origin", () => {
     const state = createRoomState({
       roomId: "room_test",

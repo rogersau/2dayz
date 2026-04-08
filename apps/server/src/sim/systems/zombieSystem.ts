@@ -405,6 +405,7 @@ export const createZombieSystem = () => {
         if (distance <= archetype.attackRange) {
           zombie.state = "attacking";
           zombie.velocity = { x: 0, y: 0 };
+          state.dirtyZombieIds.add(zombie.entityId);
 
           if (zombie.attackCooldownRemainingMs === 0) {
             target.health.current = Math.max(0, target.health.current - archetype.attackDamage);
@@ -412,7 +413,6 @@ export const createZombieSystem = () => {
             target.lastDamagedByEntityId = zombie.entityId;
             zombie.attackCooldownRemainingMs = attackCooldownMs;
             state.dirtyPlayerIds.add(target.entityId);
-            state.dirtyZombieIds.add(zombie.entityId);
           }
 
           continue;
