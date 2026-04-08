@@ -40,6 +40,13 @@ describe("thirdPersonSliceMap", () => {
         }),
       ]),
     );
+    expect(map.navigation.nodes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ nodeId: "node_center-west", position: { x: 12, y: 16 } }),
+        expect.objectContaining({ nodeId: "node_center-east", position: { x: 24, y: 16 } }),
+        expect.objectContaining({ nodeId: "node_east-lane", position: { x: 31, y: 14 } }),
+      ]),
+    );
     expect(map.navigation.links).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ from: "node_west-entry", to: "node_north-lane", cost: 10 }),

@@ -17,13 +17,13 @@ export const thirdPersonSliceMap: MapDefinition = {
     {
       volumeId: "volume_central-truck",
       kind: "box",
-      position: { x: 18, y: 14 },
+      position: { x: 13, y: 13 },
       size: { width: 6, height: 3 },
     },
     {
       volumeId: "volume_east-shed",
       kind: "box",
-      position: { x: 29, y: 18 },
+      position: { x: 29, y: 19 },
       size: { width: 6, height: 6 },
     },
   ],
@@ -81,9 +81,9 @@ export const thirdPersonSliceMap: MapDefinition = {
     nodes: [
       { nodeId: "node_west-entry", position: { x: 4, y: 14 } },
       { nodeId: "node_north-lane", position: { x: 12, y: 8 } },
-      { nodeId: "node_center-west", position: { x: 12, y: 10 } },
-      { nodeId: "node_center-east", position: { x: 24, y: 10 } },
-      { nodeId: "node_east-lane", position: { x: 31, y: 10 } },
+      { nodeId: "node_center-west", position: { x: 12, y: 16 } },
+      { nodeId: "node_center-east", position: { x: 24, y: 16 } },
+      { nodeId: "node_east-lane", position: { x: 31, y: 14 } },
       { nodeId: "node_south-lane", position: { x: 10, y: 23 } },
     ],
     links: [
