@@ -301,14 +301,16 @@ export const createZombieSystem = () => {
 
         zombie.attackCooldownRemainingMs = Math.max(0, zombie.attackCooldownRemainingMs - deltaSeconds * 1000);
 
-        let target = zombie.aggroTargetEntityId ? state.players.get(zombie.aggroTargetEntityId) : undefined;
+        const trackedAggroTarget = zombie.aggroTargetEntityId ? state.players.get(zombie.aggroTargetEntityId) : undefined;
+        const trackedTargetStillAlive = Boolean(trackedAggroTarget && !trackedAggroTarget.health.isDead);
         const currentTargetHasAggro = Boolean(
-          target &&
-            !target.health.isDead &&
-            Math.hypot(target.transform.x - zombie.transform.x, target.transform.y - zombie.transform.y) <=
+          trackedAggroTarget &&
+            !trackedAggroTarget.health.isDead &&
+            Math.hypot(trackedAggroTarget.transform.x - zombie.transform.x, trackedAggroTarget.transform.y - zombie.transform.y) <=
               archetype.aggroRadius * 1.5 &&
-            canSeeTarget(state, zombie, target.transform),
+            canSeeTarget(state, zombie, trackedAggroTarget.transform),
         );
+        let target = trackedTargetStillAlive ? trackedAggroTarget : undefined;
         let pendingHiddenStimulus: HeardStimulus | null = null;
 
         const heardStimulus = findNearestHeardStimulus(state, zombie);
@@ -319,6 +321,8 @@ export const createZombieSystem = () => {
           if (heardPlayer && !heardPlayer.health.isDead && heardStimulus.grantsImmediateAggroFromPosition && canSeeStimulus) {
             lockAggroToTarget(zombie, heardPlayer.entityId);
             target = heardPlayer;
+          } else if (trackedTargetStillAlive && !currentTargetHasAggro) {
+            pendingHiddenStimulus = heardStimulus;
           } else if (!currentTargetHasAggro) {
             beginSearching(zombie, heardStimulus.sourceEntityId, heardStimulus.position);
             pendingHiddenStimulus = heardStimulus;

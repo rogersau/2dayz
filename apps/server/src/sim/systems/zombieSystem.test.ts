@@ -196,6 +196,50 @@ describe("createZombieSystem", () => {
     expect(["idle", "roaming"]).toContain(zombie.state);
   });
 
+  it("expires stale aggro under repeated hidden sounds and then searches the freshest heard position", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        isMovementBlocked: ({ from, to }) => from.x < 5 && to.x > 5 && from.y <= 3 && to.y <= 3,
+      }),
+      world: createBlockedHearingWorld(),
+    });
+
+    const staleTarget = spawnPlayer(state, "player_test-stale-hidden", "Avery", { x: 8, y: 2 });
+    const hiddenNoisemaker = spawnPlayer(state, "player_test-fresh-hidden", "Blair", { x: 8, y: 3.5 });
+    state.zombies.set("zombie_test-hidden-grace", {
+      entityId: "zombie_test-hidden-grace",
+      archetypeId: "zombie_shambler",
+      transform: { x: 2, y: 2, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "chasing",
+      aggroTargetEntityId: staleTarget.entityId,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    const zombieSystem = createZombieSystem();
+    staleTarget.transform = { x: 8, y: 3.5, rotation: 0 };
+
+    for (let index = 0; index < 16; index += 1) {
+      const heardPosition = { x: 8, y: 3.5 + index * 0.1 };
+      hiddenNoisemaker.transform = { ...heardPosition, rotation: 0 };
+      state.sprintNoiseEvents.push({
+        playerEntityId: hiddenNoisemaker.entityId,
+        position: heardPosition,
+      });
+      zombieSystem.update(state, 0.1);
+      state.sprintNoiseEvents.length = 0;
+    }
+
+    const zombie = state.zombies.get("zombie_test-hidden-grace");
+    expect(zombie?.aggroTargetEntityId).toBeNull();
+    expect(zombie?.state).toBe("searching");
+    expect(asHearingZombie(zombie)?.heardTargetEntityId).toBe(hiddenNoisemaker.entityId);
+    expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: 8, y: 5 });
+  });
+
   it("applies zombie attack damage on a cooldown instead of every tick", () => {
     const state = createRoomState({ roomId: "room_test" });
 
@@ -459,8 +503,8 @@ describe("createZombieSystem", () => {
     const zombie = state.zombies.get("zombie_test-preserve-chase");
     expect(zombie?.aggroTargetEntityId).toBe(chasingTarget.entityId);
     expect(zombie?.state).toBe("chasing");
-    expect(asHearingZombie(zombie)?.heardTargetEntityId).toBeNull();
-    expect(asHearingZombie(zombie)?.heardPosition).toBeNull();
+    expect(asHearingZombie(zombie)?.heardTargetEntityId ?? null).toBeNull();
+    expect(asHearingZombie(zombie)?.heardPosition ?? null).toBeNull();
   });
 
   it("searches when a stale chase target expires on the same tick a new hidden sound is heard", () => {
