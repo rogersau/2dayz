@@ -38,6 +38,7 @@ export const inputMessageSchema = z
     actions: z
       .object({
         aiming: z.boolean().optional(),
+        block: z.boolean().optional(),
         fire: z.boolean().optional(),
         sprint: z.boolean().optional(),
         reload: z.boolean().optional(),

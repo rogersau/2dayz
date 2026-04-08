@@ -1,0 +1,43 @@
+import type { WeaponDefinition } from "./weapons";
+
+export const defaultWeapons: WeaponDefinition[] = [
+  {
+    itemId: "item_revolver",
+    name: "Civilian Revolver",
+    category: "firearm",
+    stackable: false,
+    maxStack: 1,
+    weaponType: "firearm",
+    damage: 35,
+    range: 8,
+    spread: 0,
+    fireRate: 2,
+    magazineSize: 6,
+    reloadTimeMs: 1200,
+    ammoItemId: "item_pistol-ammo",
+  },
+  {
+    itemId: "item_pipe",
+    name: "Pipe",
+    category: "melee",
+    stackable: false,
+    maxStack: 1,
+    weaponType: "melee",
+    damage: 20,
+    range: 1.5,
+    swingDurationMs: 450,
+    staminaCost: 10,
+  },
+  {
+    itemId: "item_unarmed",
+    name: "Fists",
+    category: "unarmed",
+    stackable: false,
+    maxStack: 1,
+    weaponType: "unarmed",
+    damage: 8,
+    range: 1,
+    swingDurationMs: 300,
+    staminaCost: 4,
+  },
+];

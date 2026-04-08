@@ -4,6 +4,7 @@ import {
   SERVER_TICK_RATE,
   SPRINT_SPEED_MULTIPLIER,
   STAMINA_DRAIN_PER_SECOND,
+  defaultWeapons,
   type Health,
   type InputMessage,
   type Inventory,
@@ -15,14 +16,17 @@ import {
   type Vector2,
   type Velocity,
   type WeaponDefinition,
+  type WeaponState as SharedWeaponState,
   type ZombieArchetype,
 } from "@2dayz/shared";
 
+import { defaultStarterLoadout } from "../content/defaultStarterLoadout";
 import { defaultItems } from "../content/defaultItems";
 import { defaultLootTables } from "../content/defaultLootTable";
 import { defaultZombieArchetypes } from "../content/defaultZombies";
 import type { CollisionIndex } from "../world/collision";
 import type { NavigationGraph } from "../world/navigation";
+import { createWeaponStateFromDefinition, resolveActiveWeaponDefinition } from "./weapons";
 
 export const MIN_ROOM_PLAYER_CAPACITY = 8;
 export const MAX_ROOM_PLAYER_CAPACITY = 12;
@@ -71,15 +75,13 @@ export type SimPlayer = {
   lastDamagedByEntityId: string | null;
 };
 
-export type WeaponState = {
-  magazineAmmo: number;
-  isReloading: boolean;
-  reloadRemainingMs: number;
-  fireCooldownRemainingMs: number;
-};
+export type WeaponState = SharedWeaponState;
 
 export type SimLoot = {
   entityId: string;
+  firearmState?: {
+    magazineAmmo: number;
+  };
   itemId: string;
   quantity: number;
   position: Vector2;
@@ -146,23 +148,6 @@ export type RoomSimulationState = {
   sprintNoiseEvents: Array<{ playerEntityId: string; position: Vector2 }>;
 };
 
-const defaultWeaponDefinitions: WeaponDefinition[] = [
-  {
-    itemId: "item_revolver",
-    name: "Civilian Revolver",
-    category: "firearm",
-    stackable: false,
-    maxStack: 1,
-    damage: 35,
-    range: 8,
-    spread: 0,
-    fireRate: 2,
-    magazineSize: 6,
-    reloadTimeMs: 1_200,
-    ammoItemId: "item_pistol-ammo",
-  },
-];
-
 const createEmptyInventory = (): Inventory => {
   return {
     slots: Array.from({ length: INVENTORY_SLOT_COUNT }, () => null),
@@ -172,14 +157,11 @@ const createEmptyInventory = (): Inventory => {
 };
 
 const createStarterInventory = (): Inventory => {
-  const inventory = createEmptyInventory();
-
-  inventory.slots[0] = { itemId: "item_revolver", quantity: 1 };
-  inventory.slots[1] = { itemId: "item_bandage", quantity: 1 };
-  inventory.equippedWeaponSlot = 0;
-  inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 18 }];
-
-  return inventory;
+  return {
+    slots: defaultStarterLoadout.slots.map((slot) => (slot ? { ...slot } : null)),
+    equippedWeaponSlot: defaultStarterLoadout.equippedWeaponSlot,
+    ammoStacks: defaultStarterLoadout.ammoStacks.map((stack) => ({ ...stack })),
+  };
 };
 
 const createDefaultHealth = (): Health => {
@@ -187,15 +169,6 @@ const createDefaultHealth = (): Health => {
     current: 100,
     max: 100,
     isDead: false,
-  };
-};
-
-export const createDefaultWeaponState = (): WeaponState => {
-  return {
-    magazineAmmo: 6,
-    isReloading: false,
-    reloadRemainingMs: 0,
-    fireCooldownRemainingMs: 0,
   };
 };
 
@@ -321,7 +294,7 @@ export const createRoomState = ({
     nextZombieEntitySequence: 0,
     itemDefinitions: new Map(defaultItems.map((item) => [item.itemId, item])),
     lootTables: new Map(defaultLootTables.map((table) => [table.tableId, table])),
-    weaponDefinitions: new Map(defaultWeaponDefinitions.map((weapon) => [weapon.itemId, { ...weapon }])),
+    weaponDefinitions: new Map(defaultWeapons.map((weapon) => [weapon.itemId, { ...weapon }])),
     zombieArchetypes: new Map(defaultZombieArchetypes.map((zombie) => [zombie.archetypeId, zombie])),
     events: [],
     sprintNoiseEvents: [],
@@ -362,6 +335,8 @@ export const clearTransientSimulationState = (state: RoomSimulationState): void 
 
 export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerRequest): void => {
   const staminaMax = state.config.staminaBaseline;
+  const inventory = createStarterInventory();
+  const activeWeaponDefinition = resolveActiveWeaponDefinition(state.weaponDefinitions, inventory);
 
   state.players.set(request.entityId, {
     entityId: request.entityId,
@@ -374,8 +349,8 @@ export const spawnPlayerNow = (state: RoomSimulationState, request: SpawnPlayerR
     velocity: { x: 0, y: 0 },
     health: createDefaultHealth(),
     stamina: { current: staminaMax, max: staminaMax },
-    inventory: createStarterInventory(),
-    weaponState: createDefaultWeaponState(),
+    inventory,
+    weaponState: createWeaponStateFromDefinition(activeWeaponDefinition),
     lastDamagedByEntityId: null,
   });
   state.dirtyPlayerIds.add(request.entityId);

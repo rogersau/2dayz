@@ -31,11 +31,12 @@ export const ControlsOverlay = ({ onContinue }: ControlsOverlayProps) => {
         <li>Click to capture mouse</li>
         <li>Mouse aim</li>
         <li>Left click fire</li>
-        <li>Right click aim</li>
+        <li>Right click aim or block</li>
         <li>Esc release mouse</li>
         <li>WASD move</li>
         <li>E interact</li>
         <li>R reload</li>
+        <li>X stow weapon</li>
         <li>Tab inventory</li>
       </ul>
       <button

@@ -40,6 +40,37 @@ describe("createLootSystem", () => {
     ]);
   });
 
+  it("can spawn melee weapon loot from the default residential table", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      world: {
+        map: {
+          mapId: "map_test",
+          name: "Test",
+          bounds: { width: 20, height: 20 },
+          collisionVolumes: [],
+          zombieSpawnZones: [],
+          lootPoints: [{ pointId: "point_loot-melee", position: { x: 2, y: 2 }, tableId: "loot_residential" }],
+          respawnPoints: [],
+          interactablePlacements: [],
+          navigation: {
+            nodes: [{ nodeId: "node_a", position: { x: 1, y: 1 } }],
+            links: [{ from: "node_a", to: "node_a", cost: 1 }],
+          },
+        },
+        collision: { volumes: [] },
+        navigation: { nodes: new Map(), neighbors: new Map() },
+        respawnPoints: [],
+      },
+    });
+
+    createLootSystem({ random: () => 0.95 }).update(state, 0);
+
+    expect([...state.loot.values()].map((loot) => ({ itemId: loot.itemId, quantity: loot.quantity }))).toEqual([
+      { itemId: "item_pipe", quantity: 1 },
+    ]);
+  });
+
   it("validates loot pickup ownership and proximity before allowing a claim", () => {
     const state = createRoomState({ roomId: "room_test" });
 

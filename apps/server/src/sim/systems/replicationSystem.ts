@@ -2,6 +2,7 @@ import type { EnteredEntity, LootEntity, PlayerState, ZombieEntity } from "@2day
 
 import { createRoomReplicationSnapshot, type RoomReplicationDelta, type RoomReplicationSnapshot } from "../query";
 import type { RoomSimulationState } from "../state";
+import { createSyncedWeaponState } from "../weapons";
 
 export type ReplicationSystemOptions = {
   nearbyRadius?: number;
@@ -32,7 +33,7 @@ const createEnteredEntityFromState = (state: RoomSimulationState, entityId: stri
       transform: player.transform,
       velocity: player.velocity,
       inventory: player.inventory,
-      weaponState: player.weaponState,
+      weaponState: createSyncedWeaponState(state.weaponDefinitions, player.inventory, player.weaponState),
       health: player.health,
       stamina: player.stamina,
     };

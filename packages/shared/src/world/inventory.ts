@@ -59,11 +59,18 @@ export const dropInventoryActionSchema = z
   })
   .strict();
 
+export const stowInventoryActionSchema = z
+  .object({
+    type: z.literal("stow"),
+  })
+  .strict();
+
 export const inventoryActionSchema = z.discriminatedUnion("type", [
   pickupInventoryActionSchema,
   moveInventoryActionSchema,
   equipInventoryActionSchema,
   dropInventoryActionSchema,
+  stowInventoryActionSchema,
 ]);
 
 export const deathDropSchema = z

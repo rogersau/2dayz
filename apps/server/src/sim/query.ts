@@ -1,6 +1,7 @@
 import type { DeltaMessage, LootEntity, PlayerState, ServerEvent, ZombieEntity } from "@2dayz/shared";
 
 import type { RoomSimulationState, SimLoot, SimPlayer, SimZombie } from "./state";
+import { createSyncedWeaponState } from "./weapons";
 
 export type RoomReplicationSnapshot = {
   tick: number;
@@ -26,7 +27,7 @@ const createPlayerState = (state: RoomSimulationState, player: SimPlayer): Playe
     velocity: player.velocity,
     stamina: player.stamina,
     inventory: player.inventory,
-    weaponState: player.weaponState,
+    weaponState: createSyncedWeaponState(state.weaponDefinitions, player.inventory, player.weaponState),
     lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
     health: player.health,
   };
@@ -36,7 +37,7 @@ const createPlayerDelta = (state: RoomSimulationState, player: SimPlayer): Delta
   return {
     entityId: player.entityId,
     inventory: player.inventory,
-    weaponState: player.weaponState,
+    weaponState: createSyncedWeaponState(state.weaponDefinitions, player.inventory, player.weaponState),
     lastProcessedInputSequence: state.lastProcessedInputSequence.get(player.entityId),
     stamina: player.stamina,
     transform: player.transform,

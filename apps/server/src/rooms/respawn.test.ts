@@ -82,7 +82,7 @@ describe("respawn helpers", () => {
     expect(player.transform).toMatchObject({ x: 8, y: 8 });
     expect(player.inventory.slots[0]).toBeNull();
     expect(state.zombies.has("zombie_test-1")).toBe(true);
-    expect(state.loot.size).toBe(3);
+    expect(state.loot.size).toBe(4);
   });
 
   it("uses the same selected respawn point for the death event and the actual respawn", () => {
@@ -145,6 +145,50 @@ describe("respawn helpers", () => {
     processPendingRespawns(state);
 
     expect(player.transform).toMatchObject(deathEvent.respawnAt);
+  });
+
+  it("resets stale weapon state to unarmed when respawning with no equipped weapon", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-weapon-reset",
+      displayName: "Avery",
+      position: { x: 2, y: 2 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-weapon-reset");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.inventory.slots = [null, null, null, null, null, null];
+    player.inventory.equippedWeaponSlot = null;
+    player.inventory.ammoStacks = [];
+    player.weaponState = {
+      weaponItemId: "item_pipe",
+      weaponType: "melee",
+      magazineAmmo: 0,
+      isBlocking: true,
+      isReloading: true,
+      reloadRemainingMs: 200,
+      fireCooldownRemainingMs: 100,
+    };
+
+    queuePlayerRespawn(state, player.entityId, 250);
+    state.elapsedMs = 250;
+    processPendingRespawns(state);
+
+    expect(player.inventory.equippedWeaponSlot).toBeNull();
+    expect(player.weaponState).toEqual({
+      weaponItemId: "item_unarmed",
+      weaponType: "unarmed",
+      magazineAmmo: 0,
+      isBlocking: false,
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    });
   });
 
   it("revalidates a scheduled respawn point and falls back if it becomes occupied", () => {

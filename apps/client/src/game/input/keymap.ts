@@ -10,4 +10,5 @@ export const ACTION_KEYS = {
   inventory: ["tab"],
   reload: ["r"],
   sprint: ["shift"],
+  stow: ["x"],
 } as const;

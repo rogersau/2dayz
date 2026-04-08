@@ -25,6 +25,66 @@ const createEmptyInventory = (): Inventory => ({
   slots: Array.from({ length: INVENTORY_SLOT_COUNT }, () => null),
 });
 
+const FIREARM_ITEM_IDS = new Set(["item_revolver", "weapon_pistol", "weapon_shotgun"]);
+const MELEE_ITEM_IDS = new Set(["item_pipe", "weapon_hatchet"]);
+
+const toWeaponType = (itemId: string | null | undefined): WeaponState["weaponType"] => {
+  if (!itemId) {
+    return "unarmed";
+  }
+
+  if (FIREARM_ITEM_IDS.has(itemId)) {
+    return "firearm";
+  }
+
+  if (MELEE_ITEM_IDS.has(itemId)) {
+    return "melee";
+  }
+
+  return "unarmed";
+};
+
+const deriveLocalWeaponState = (
+  inventory: Inventory,
+  currentWeaponState: WeaponState | null,
+): WeaponState | null => {
+  const equippedSlot = inventory.equippedWeaponSlot;
+  const equippedItemId = equippedSlot === null ? null : inventory.slots[equippedSlot]?.itemId ?? null;
+  const weaponType = toWeaponType(equippedItemId);
+
+  if (weaponType === "unarmed") {
+    return {
+      fireCooldownRemainingMs: 0,
+      isBlocking: false,
+      isReloading: false,
+      magazineAmmo: 0,
+      reloadRemainingMs: 0,
+      weaponItemId: "item_unarmed",
+      weaponType,
+    };
+  }
+
+  if (!equippedItemId) {
+    return currentWeaponState;
+  }
+
+  return {
+    fireCooldownRemainingMs: currentWeaponState?.weaponItemId === equippedItemId
+      ? currentWeaponState.fireCooldownRemainingMs
+      : 0,
+    isBlocking: currentWeaponState?.weaponItemId === equippedItemId ? currentWeaponState.isBlocking : false,
+    isReloading: currentWeaponState?.weaponItemId === equippedItemId ? currentWeaponState.isReloading : false,
+    magazineAmmo:
+      currentWeaponState?.weaponItemId === equippedItemId && weaponType === "firearm"
+        ? currentWeaponState.magazineAmmo
+        : 0,
+    reloadRemainingMs:
+      currentWeaponState?.weaponItemId === equippedItemId ? currentWeaponState.reloadRemainingMs : 0,
+    weaponItemId: equippedItemId,
+    weaponType,
+  };
+};
+
 type ConnectionState =
   | { phase: "idle" }
   | { phase: "joining" }
@@ -137,17 +197,19 @@ const applyEntityUpdate = (state: ClientGameState, update: DeltaMessage["entityU
   });
 
   const selfPlayer = players.find((entity) => entity.entityId === state.playerEntityId) ?? null;
+  const inventory = selfPlayer?.inventory ?? state.inventory;
+  const weaponState = deriveLocalWeaponState(inventory, selfPlayer?.weaponState ?? state.weaponState);
 
-    return {
-      ...state,
-      health: selfPlayer?.health ?? state.health,
-      inventory: selfPlayer?.inventory ?? state.inventory,
-      isDead: selfPlayer?.health?.isDead ?? state.isDead,
-      stamina: selfPlayer?.stamina ?? state.stamina,
-      weaponState: selfPlayer?.weaponState ?? state.weaponState,
-      worldEntities: {
-        loot,
-        players,
+  return {
+    ...state,
+    health: selfPlayer?.health ?? state.health,
+    inventory,
+    isDead: selfPlayer?.health?.isDead ?? state.isDead,
+    stamina: selfPlayer?.stamina ?? state.stamina,
+    weaponState,
+    worldEntities: {
+      loot,
+      players,
       zombies,
     },
   };
@@ -269,7 +331,7 @@ export const createClientGameStore = () => {
           playerEntityId: snapshot.playerEntityId,
             roomId: snapshot.roomId,
             stamina: selfPlayer?.stamina ?? null,
-            weaponState: selfPlayer?.weaponState ?? null,
+            weaponState: deriveLocalWeaponState(selfPlayer?.inventory ?? current.inventory, selfPlayer?.weaponState ?? null),
             worldEntities: {
               loot: snapshot.loot.map((entity) => ({ ...entity, kind: "loot" })),
               players,
@@ -358,16 +420,35 @@ export const createClientGameStore = () => {
           return current;
         }
 
-        if (current.inventory.slots[slotIndex] === null) {
-          return current;
-        }
+        const nextEquippedWeaponSlot = current.inventory.slots[slotIndex] === null ? null : slotIndex;
+        const inventory = {
+          ...current.inventory,
+          equippedWeaponSlot: nextEquippedWeaponSlot,
+        };
+
+        queuedInventoryAction = nextEquippedWeaponSlot === null
+          ? { type: "stow" }
+          : { toSlot: slotIndex, type: "equip" };
 
         return {
           ...current,
-          inventory: {
-            ...current.inventory,
-            equippedWeaponSlot: slotIndex,
-          },
+          inventory,
+          weaponState: deriveLocalWeaponState(inventory, current.weaponState),
+        };
+      });
+    },
+    stowWeapon() {
+      queuedInventoryAction = { type: "stow" };
+      update((current) => {
+        const inventory = {
+          ...current.inventory,
+          equippedWeaponSlot: null,
+        };
+
+        return {
+          ...current,
+          inventory,
+          weaponState: deriveLocalWeaponState(inventory, current.weaponState),
         };
       });
     },
@@ -388,6 +469,7 @@ export const createClientGameStore = () => {
       update((current) => ({
         ...current,
         inventory,
+        weaponState: deriveLocalWeaponState(inventory, current.weaponState),
       }));
     },
     subscribe(listener: () => void) {

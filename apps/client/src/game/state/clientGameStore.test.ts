@@ -254,12 +254,15 @@ describe("clientGameStore", () => {
           },
           stamina: { current: 9, max: 10 },
           transform: { rotation: 0, x: 0, y: 0 },
-          velocity: { x: 0, y: 0 },
-          weaponState: {
-            fireCooldownRemainingMs: 0,
-            isReloading: false,
-            magazineAmmo: 5,
-            reloadRemainingMs: 0,
+           velocity: { x: 0, y: 0 },
+           weaponState: {
+             weaponItemId: "weapon_pistol",
+             weaponType: "firearm",
+             fireCooldownRemainingMs: 0,
+             isBlocking: false,
+             isReloading: false,
+             magazineAmmo: 5,
+             reloadRemainingMs: 0,
           },
         },
       ],
@@ -273,13 +276,16 @@ describe("clientGameStore", () => {
       enteredEntities: [],
       entityUpdates: [
         {
-          entityId: "player_self",
-          health: { current: 81, isDead: false, max: 100 },
-          weaponState: {
-            fireCooldownRemainingMs: 120,
-            isReloading: false,
-            magazineAmmo: 4,
-            reloadRemainingMs: 0,
+           entityId: "player_self",
+           health: { current: 81, isDead: false, max: 100 },
+           weaponState: {
+             weaponItemId: "weapon_pistol",
+             weaponType: "firearm",
+             fireCooldownRemainingMs: 120,
+             isBlocking: false,
+             isReloading: false,
+             magazineAmmo: 4,
+             reloadRemainingMs: 0,
           },
         },
       ],
@@ -293,7 +299,10 @@ describe("clientGameStore", () => {
     expect(store.getState()).toMatchObject({
       health: { current: 81, isDead: false, max: 100 },
       weaponState: {
+        weaponItemId: "weapon_pistol",
+        weaponType: "firearm",
         fireCooldownRemainingMs: 120,
+        isBlocking: false,
         isReloading: false,
         magazineAmmo: 4,
         reloadRemainingMs: 0,
@@ -301,7 +310,10 @@ describe("clientGameStore", () => {
     });
     expect(store.getState().worldEntities.players[0]).toMatchObject({
       weaponState: {
+        weaponItemId: "weapon_pistol",
+        weaponType: "firearm",
         fireCooldownRemainingMs: 120,
+        isBlocking: false,
         isReloading: false,
         magazineAmmo: 4,
         reloadRemainingMs: 0,
@@ -543,6 +555,69 @@ describe("clientGameStore", () => {
     });
   });
 
+  it("treats selecting an occupied non-weapon slot as unarmed instead of fake melee", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 90, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              { itemId: "bandage", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+          weaponState: {
+            weaponItemId: "weapon_pistol",
+            weaponType: "firearm",
+            fireCooldownRemainingMs: 0,
+            isBlocking: false,
+            isReloading: false,
+            magazineAmmo: 5,
+            reloadRemainingMs: 0,
+          },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 30,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    store.selectInventorySlot(1);
+
+    expect(store.getState()).toMatchObject({
+      inventory: {
+        equippedWeaponSlot: 1,
+      },
+      weaponState: {
+        weaponItemId: "item_unarmed",
+        weaponType: "unarmed",
+      },
+    });
+    expect(store.consumeQueuedInventoryAction()).toEqual({ toSlot: 1, type: "equip" });
+  });
+
   it("leaves state unchanged when selecting an empty inventory slot", () => {
     const store = createClientGameStore();
 
@@ -587,7 +662,64 @@ describe("clientGameStore", () => {
 
     store.selectInventorySlot(1);
 
-    expect(store.getState()).toBe(initialState);
+    expect(store.getState()).not.toBe(initialState);
+    expect(store.getState()).toMatchObject({
+      inventory: {
+        equippedWeaponSlot: null,
+      },
+    });
+    expect(store.consumeQueuedInventoryAction()).toEqual({ type: "stow" });
+  });
+
+  it("queues a local stow inventory action and clears the equipped slot immediately", () => {
+    const store = createClientGameStore();
+
+    store.completeJoin({
+      displayName: "Survivor",
+      playerEntityId: "player_self",
+      roomId: "room_browser-v1",
+    });
+
+    store.applySnapshot({
+      loot: [],
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 90, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "weapon_pistol", quantity: 1 },
+              { itemId: "weapon_hatchet", quantity: 1 },
+              null,
+              null,
+              null,
+              null,
+            ],
+          },
+          stamina: { current: 10, max: 10 },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      roomId: "room_browser-v1",
+      tick: 30,
+      type: "snapshot",
+      zombies: [],
+    });
+
+    store.stowWeapon();
+
+    expect(store.getState()).toMatchObject({
+      inventory: {
+        equippedWeaponSlot: null,
+      },
+    });
+    expect(store.consumeQueuedInventoryAction()).toEqual({ type: "stow" });
+    expect(store.consumeQueuedInventoryAction()).toBeUndefined();
   });
 
   it("leaves state unchanged when selecting an out-of-range inventory slot", () => {

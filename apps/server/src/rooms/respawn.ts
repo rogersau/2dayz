@@ -1,4 +1,5 @@
 import type { RoomSimulationState } from "../sim/state";
+import { syncWeaponStateFromDefinition } from "../sim/weapons";
 
 const playerRespawnRadius = 0.5;
 
@@ -14,6 +15,27 @@ const isRespawnPointValid = (state: RoomSimulationState, entityId: string | null
   return occupiedPoints.every((occupiedPoint) => {
     return Math.hypot(position.x - occupiedPoint.x, position.y - occupiedPoint.y) >= playerRespawnRadius * 2;
   });
+};
+
+const syncRespawnWeaponState = (state: RoomSimulationState, player: RoomSimulationState["players"] extends Map<string, infer T> ? T : never): void => {
+  const slotIndex = player.inventory.equippedWeaponSlot;
+  const equippedSlot = slotIndex === null ? null : player.inventory.slots[slotIndex];
+  const weaponDefinition = equippedSlot ? state.weaponDefinitions.get(equippedSlot.itemId) : null;
+
+  if (!weaponDefinition) {
+    player.inventory.equippedWeaponSlot = null;
+    player.weaponState.weaponItemId = "item_unarmed";
+    player.weaponState.weaponType = "unarmed";
+    player.weaponState.magazineAmmo = 0;
+    player.weaponState.isBlocking = false;
+    player.weaponState.isReloading = false;
+    player.weaponState.reloadRemainingMs = 0;
+    player.weaponState.fireCooldownRemainingMs = 0;
+    return;
+  }
+
+  player.weaponState = syncWeaponStateFromDefinition(player.weaponState, weaponDefinition);
+  player.weaponState.isBlocking = false;
 };
 
 export const selectRespawnPoint = (state: RoomSimulationState): { x: number; y: number } => {
@@ -77,6 +99,7 @@ export const processPendingRespawns = (state: RoomSimulationState): void => {
       max: player.stamina.max,
     };
     player.lastDamagedByEntityId = null;
+    syncRespawnWeaponState(state, player);
 
     state.handledDeathEntityIds.delete(player.entityId);
     state.dirtyPlayerIds.add(player.entityId);

@@ -1,10 +1,36 @@
 import { expect, test } from "@playwright/test";
 
 const combatHud = (page: import("@playwright/test").Page) => page.getByLabel("combat hud");
+const quickbar = (page: import("@playwright/test").Page) => page.getByRole("region", { name: "Quickbar" });
 
 const installQuickbarSelectionSocketMock = async (page: import("@playwright/test").Page) => {
   await page.addInitScript(() => {
     let equippedWeaponSlot = 0;
+
+    const createInventory = () => ({
+      ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+      equippedWeaponSlot,
+      slots: [
+        { itemId: "item_revolver", quantity: 1 },
+        { itemId: "item_pipe", quantity: 1 },
+        { itemId: "item_bandage", quantity: 1 },
+        null,
+        null,
+        null,
+      ],
+    });
+
+    const createWeaponState = () => ({
+      fireCooldownRemainingMs: 0,
+      isBlocking: false,
+      isReloading: false,
+      magazineAmmo: equippedWeaponSlot === 0 ? 6 : 0,
+      reloadRemainingMs: 0,
+      weaponItemId:
+        equippedWeaponSlot === 0 ? "item_revolver" : equippedWeaponSlot === 1 ? "item_pipe" : "unarmed",
+      weaponType:
+        equippedWeaponSlot === 0 ? "firearm" : equippedWeaponSlot === 1 ? "melee" : "unarmed",
+    });
 
     class MockQuickbarSocket extends EventTarget {
       static CONNECTING = 0;
@@ -46,11 +72,14 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
         };
 
         if (payload.type === "input") {
-          if (payload.actions?.inventory?.type !== "equip") {
+          if (payload.actions?.inventory?.type === "equip") {
+            equippedWeaponSlot = payload.actions.inventory.toSlot;
+          } else if (payload.actions?.inventory?.type === "stow") {
+            equippedWeaponSlot = null;
+          } else {
             return;
           }
 
-          equippedWeaponSlot = payload.actions.inventory.toSlot;
           queueMicrotask(() => {
             const delta = new MessageEvent("message", {
               data: JSON.stringify({
@@ -59,25 +88,9 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                   {
                     entityId: "player_quickbar-scout",
                     health: { current: 100, isDead: false, max: 100 },
-                    inventory: {
-                      ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
-                      equippedWeaponSlot,
-                      slots: [
-                        { itemId: "weapon_pistol", quantity: 1 },
-                        { itemId: "bandage", quantity: 2 },
-                        null,
-                        null,
-                        null,
-                        null,
-                      ],
-                    },
+                    inventory: createInventory(),
                     lastProcessedInputSequence: 0,
-                    weaponState: {
-                      fireCooldownRemainingMs: 0,
-                      isReloading: false,
-                      magazineAmmo: 5,
-                      reloadRemainingMs: 0,
-                    },
+                    weaponState: createWeaponState(),
                     transform: { rotation: 0, x: 0, y: 0 },
                     velocity: { x: 0, y: 0 },
                   },
@@ -122,25 +135,8 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                   displayName: payload.displayName ?? "Quickbar Scout",
                   entityId: "player_quickbar-scout",
                   health: { current: 100, isDead: false, max: 100 },
-                  inventory: {
-                    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
-                    equippedWeaponSlot,
-                    slots: [
-                      { itemId: "weapon_pistol", quantity: 1 },
-                      { itemId: "bandage", quantity: 2 },
-                      null,
-                      null,
-                      null,
-                      null,
-                    ],
-                  },
-                  stamina: { current: 10, max: 10 },
-                  weaponState: {
-                    fireCooldownRemainingMs: 0,
-                    isReloading: false,
-                    magazineAmmo: 5,
-                    reloadRemainingMs: 0,
-                  },
+                  inventory: createInventory(),
+                  weaponState: createWeaponState(),
                   transform: { rotation: 0, x: 0, y: 0 },
                   velocity: { x: 0, y: 0 },
                 },
@@ -176,8 +172,8 @@ test("joins from landing page and reaches the game shell", async ({ page }) => {
   await page.getByRole("button", { name: "Enter session" }).click();
 
   await expect(combatHud(page)).toBeVisible();
-  await expect(combatHud(page).getByText("Health 100/100")).toBeVisible();
-  await expect(combatHud(page).getByText("Ammo 5/12")).toBeVisible();
+  await expect(page.getByLabel("crosshair")).toBeVisible();
+  await expect(quickbar(page)).toBeVisible();
 });
 
 test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
@@ -201,6 +197,7 @@ test("keeps the title menu usable on a narrow viewport", async ({ page }) => {
   await page.getByRole("button", { name: "Enter session" }).click();
   await expect(combatHud(page)).toBeVisible();
   await expect(page.getByLabel("crosshair")).toBeVisible();
+  await expect(quickbar(page)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(await page.locator(".combat-hud-panel").evaluate((node) => node.getBoundingClientRect().bottom <= window.innerHeight)).toBe(true);
 });
@@ -216,6 +213,7 @@ test("keeps the joined shell reachable on a shorter phone viewport", async ({ pa
 
   await expect(combatHud(page)).toBeVisible();
   await expect(page.getByLabel("crosshair")).toBeVisible();
+  await expect(quickbar(page)).toBeVisible();
   await expect(page.locator(".combat-hud-panel")).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

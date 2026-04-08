@@ -107,14 +107,53 @@ const createMockJoinMessage = (displayName: string, sessionToken = createSession
   });
 };
 
+const STARTER_AMMO_QUANTITY = 18;
+const STARTER_REVOLVER_MAGAZINE_AMMO = 6;
+
+const getEquippedWeaponItemId = (equippedWeaponSlot: number | null) => {
+  if (equippedWeaponSlot === 0) {
+    return "item_revolver";
+  }
+
+  if (equippedWeaponSlot === 1) {
+    return "item_pipe";
+  }
+
+  return null;
+};
+
+const getWeaponType = (equippedWeaponSlot: number | null) => {
+  if (equippedWeaponSlot === 0) {
+    return "firearm" as const;
+  }
+
+  if (equippedWeaponSlot === 1) {
+    return "melee" as const;
+  }
+
+  return "unarmed" as const;
+};
+
+const createMockWeaponState = (worldState: MockWorldState) => {
+  return {
+    fireCooldownRemainingMs: 0,
+    isBlocking: false,
+    isReloading: false,
+    magazineAmmo: worldState.equippedWeaponSlot === 0 ? worldState.revolverMagazineAmmo : 0,
+    reloadRemainingMs: 0,
+    weaponItemId: getEquippedWeaponItemId(worldState.equippedWeaponSlot) ?? "unarmed",
+    weaponType: getWeaponType(worldState.equippedWeaponSlot),
+  };
+};
+
 const createMockInventory = (worldState: MockWorldState) => {
   return {
-    ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: worldState.ammoReserve }],
+    ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: worldState.ammoReserve }],
     equippedWeaponSlot: worldState.equippedWeaponSlot,
     slots: [
-      { itemId: "weapon_pistol", quantity: 1 },
-      worldState.localInventorySlotOne,
-      null,
+      { itemId: "item_revolver", quantity: 1 },
+      { itemId: "item_pipe", quantity: 1 },
+      { itemId: "item_bandage", quantity: 1 },
       null,
       null,
       null,
@@ -143,6 +182,7 @@ const createMockSnapshot = (joined: JoinResult, tick: number, worldState: MockWo
         stamina: { current: 10, max: 10 },
         transform: worldState.localTransform,
         velocity: { x: 0, y: 0 },
+        weaponState: createMockWeaponState(worldState),
       },
       {
         displayName: "Bandit",
@@ -155,6 +195,15 @@ const createMockSnapshot = (joined: JoinResult, tick: number, worldState: MockWo
         stamina: { current: 10, max: 10 },
         transform: { rotation: 0.2, ...anchors.banditSpawn },
         velocity: { x: -0.3, y: 0 },
+        weaponState: {
+          fireCooldownRemainingMs: 0,
+          isBlocking: false,
+          isReloading: false,
+          magazineAmmo: 0,
+          reloadRemainingMs: 0,
+          weaponItemId: "unarmed",
+          weaponType: "unarmed",
+        },
       },
     ],
     roomId: joined.roomId,
@@ -205,6 +254,7 @@ const createMockDelta = (
         stamina: { current: 10, max: 10 },
         transform: worldState.localTransform,
         velocity: { x: 0, y: 0 },
+        weaponState: createMockWeaponState(worldState),
       },
       {
         entityId: "player_bandit",
@@ -304,8 +354,8 @@ type MockWorldState = {
   ammoReserve: number;
   equippedWeaponSlot: number | null;
   lastProcessedInputSequence: number;
-  localInventorySlotOne: { itemId: string; quantity: number } | null;
   localTransform: { rotation: number; x: number; y: number };
+  revolverMagazineAmmo: number;
   zombieHealth: number;
   zombieIsAlive: boolean;
   zombieTransform: { rotation: number; x: number; y: number };
@@ -325,11 +375,11 @@ export const createSocketClient = ({
   let mockTick = 1;
   let mockWorldInterval: ReturnType<typeof setInterval> | null = null;
   let mockWorldState: MockWorldState = {
-    ammoReserve: 27,
+    ammoReserve: STARTER_AMMO_QUANTITY,
     equippedWeaponSlot: 0,
     lastProcessedInputSequence: 0,
-    localInventorySlotOne: { itemId: "bandage", quantity: 2 },
     localTransform: { rotation: 0, x: 0, y: 0 },
+    revolverMagazineAmmo: STARTER_REVOLVER_MAGAZINE_AMMO,
     zombieHealth: MOCK_ZOMBIE_MAX_HEALTH,
     zombieIsAlive: true,
     zombieTransform: { rotation: 0.1, x: 0, y: 0 },
@@ -372,11 +422,11 @@ export const createSocketClient = ({
 
     mockTick = 1;
     mockWorldState = {
-      ammoReserve: 27,
+      ammoReserve: STARTER_AMMO_QUANTITY,
       equippedWeaponSlot: 0,
       lastProcessedInputSequence: 0,
-      localInventorySlotOne: { itemId: "bandage", quantity: 2 },
       localTransform: { rotation: 0, ...anchors.playerSpawn },
+      revolverMagazineAmmo: STARTER_REVOLVER_MAGAZINE_AMMO,
       zombieHealth: MOCK_ZOMBIE_MAX_HEALTH,
       zombieIsAlive: true,
       zombieTransform: { rotation: 0.1, ...anchors.zombieSpawn },
@@ -413,12 +463,15 @@ export const createSocketClient = ({
         equippedWeaponSlot:
           payload.actions.inventory?.type === "equip"
             ? payload.actions.inventory.toSlot
+            : payload.actions.inventory?.type === "stow"
+              ? null
             : mockWorldState.equippedWeaponSlot,
         lastProcessedInputSequence: payload.sequence,
-        localInventorySlotOne: payload.actions.reload ? { itemId: "bandage", quantity: 1 } : mockWorldState.localInventorySlotOne,
         localTransform: nextLocalTransform,
+        revolverMagazineAmmo: mockWorldState.revolverMagazineAmmo,
       };
-      const firedShot = payload.actions.fire && aimMagnitude > 0 && nextWorldState.equippedWeaponSlot !== null;
+      const activeWeaponType = getWeaponType(nextWorldState.equippedWeaponSlot);
+      const firedShot = payload.actions.fire && aimMagnitude > 0 && activeWeaponType === "firearm";
       const shouldHitZombie = firedShot && isZombieInFrontOfPlayer(nextWorldState);
       const combatEvents = [];
       let includeZombieRemoval = false;
@@ -427,7 +480,14 @@ export const createSocketClient = ({
       if (firedShot) {
         nextWorldState = {
           ...nextWorldState,
-          ammoReserve: Math.max(0, nextWorldState.ammoReserve - 1),
+          ammoReserve:
+            nextWorldState.equippedWeaponSlot === 0
+              ? nextWorldState.ammoReserve
+              : Math.max(0, nextWorldState.ammoReserve - 1),
+          revolverMagazineAmmo:
+            nextWorldState.equippedWeaponSlot === 0
+              ? Math.max(0, nextWorldState.revolverMagazineAmmo - 1)
+              : nextWorldState.revolverMagazineAmmo,
         };
         combatEvents.push({
           attackerEntityId: activeMockSession?.playerEntityId ?? "player_mock",
@@ -438,7 +498,7 @@ export const createSocketClient = ({
           },
           roomId: activeMockSession?.roomId ?? MOCK_ROOM_ID,
           type: "shot" as const,
-          weaponItemId: "weapon_pistol",
+          weaponItemId: getEquippedWeaponItemId(nextWorldState.equippedWeaponSlot) ?? "unarmed",
         });
       }
 
@@ -462,7 +522,7 @@ export const createSocketClient = ({
           roomId: activeMockSession?.roomId ?? MOCK_ROOM_ID,
           targetEntityId: "zombie_1",
           type: "combat" as const,
-          weaponItemId: "weapon_pistol",
+          weaponItemId: getEquippedWeaponItemId(nextWorldState.equippedWeaponSlot) ?? "unarmed",
         });
         includeZombieRemoval = !zombieIsAlive;
         zombieDiedThisTick = !zombieIsAlive;

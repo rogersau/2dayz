@@ -52,9 +52,9 @@ vi.mock("./game/net/protocolStore", () => ({
 const expectJoinedShell = () => {
   expect(screen.getByLabelText(/game shell/i)).toBeInTheDocument();
   expect(screen.getByLabelText(/combat hud/i)).toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /quickbar slot 1/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /open inventory/i })).not.toBeInTheDocument();
-  expect(screen.queryByRole("button", { name: /collapse inventory/i })).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /quickbar slot 1/i })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: /open inventory|collapse inventory/i })).toBeInTheDocument();
+  expect(screen.getByText(/stowed|active slot/i)).toBeInTheDocument();
 };
 
 describe("App join and reconnect flow", () => {
@@ -359,7 +359,7 @@ describe("App join and reconnect flow", () => {
     expect(screen.getByRole("button", { name: /retry join/i })).toBeInTheDocument();
   });
 
-  it("renders the joined shell with combat hud and without the old quickbar or inventory controls", async () => {
+  it("renders the joined shell with combat hud, quickbar, and inventory controls", async () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/display name/i), {
@@ -399,7 +399,10 @@ describe("App join and reconnect flow", () => {
               ],
             },
             weaponState: {
+              weaponItemId: "weapon_pistol",
+              weaponType: "firearm",
               fireCooldownRemainingMs: 0,
+              isBlocking: false,
               isReloading: false,
               magazineAmmo: 5,
               reloadRemainingMs: 0,
@@ -429,7 +432,7 @@ describe("App join and reconnect flow", () => {
 
     expect(screen.getByText(/health 100\/100/i)).toBeInTheDocument();
     expect(screen.getByText(/ammo 5\/12/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /open inventory/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open inventory/i })).toBeInTheDocument();
   });
 
   it("shows reserve ammo only for the equipped weapon ammo type", async () => {
@@ -459,7 +462,10 @@ describe("App join and reconnect flow", () => {
               ],
             },
             weaponState: {
+              weaponItemId: "weapon_pistol",
+              weaponType: "firearm",
               fireCooldownRemainingMs: 0,
+              isBlocking: false,
               isReloading: false,
               magazineAmmo: 5,
               reloadRemainingMs: 0,
@@ -491,7 +497,7 @@ describe("App join and reconnect flow", () => {
     expect(screen.queryByText(/ammo 5\/42/i)).not.toBeInTheDocument();
   });
 
-  it("does not render the removed joined-state quickbar controls", async () => {
+  it("restores the joined-state quickbar controls", async () => {
     protocolDrainWorldUpdatesMock.mockReturnValue({
       deltas: [],
       snapshot: {
@@ -537,8 +543,67 @@ describe("App join and reconnect flow", () => {
       expect(screen.getByLabelText(/combat hud/i)).toBeInTheDocument();
     });
 
-    expect(screen.queryByRole("button", { name: /quickbar slot 1/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /open inventory/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1, weapon_pistol x1, equipped/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /open inventory/i })).toBeInTheDocument();
+  });
+
+  it("hides ammo readouts in the joined shell when the current weapon is not a firearm", async () => {
+    protocolDrainWorldUpdatesMock.mockReturnValue({
+      deltas: [],
+      snapshot: {
+        loot: [],
+        playerEntityId: "player_survivor",
+        players: [
+          {
+            displayName: "Melee Survivor",
+            entityId: "player_survivor",
+            health: { current: 91, isDead: false, max: 100 },
+            inventory: {
+              ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 12 }],
+              equippedWeaponSlot: 0,
+              slots: [
+                { itemId: "weapon_hatchet", quantity: 1 },
+                null,
+                null,
+                null,
+                null,
+                null,
+              ],
+            },
+            weaponState: {
+              weaponItemId: "weapon_hatchet",
+              weaponType: "melee",
+              fireCooldownRemainingMs: 0,
+              isBlocking: false,
+              isReloading: false,
+              magazineAmmo: 0,
+              reloadRemainingMs: 0,
+            },
+            transform: { rotation: 0, x: 0, y: 0 },
+            velocity: { x: 0, y: 0 },
+          },
+        ],
+        roomId: "room_browser-v1",
+        tick: 1,
+        type: "snapshot",
+        zombies: [],
+      },
+    });
+
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/display name/i), {
+      target: { value: "Survivor" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /review briefing/i }));
+    fireEvent.click(screen.getByRole("button", { name: /enter session/i }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/combat hud/i)).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/health 91\/100/i)).toBeInTheDocument();
+    expect(screen.queryByText(/ammo/i)).not.toBeInTheDocument();
   });
 
   it("bypasses the field briefing on a later same-session join after it was already dismissed", async () => {

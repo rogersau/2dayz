@@ -272,6 +272,161 @@ describe("createZombieSystem", () => {
     expect(state.players.get("player_test-2")?.health.current).toBe(76);
   });
 
+  it("reduces zombie attack damage while actively blocking with a melee weapon", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-block-melee",
+      displayName: "Blair",
+      position: { x: 1.5, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-block-melee");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.inventory.slots[0] = { itemId: "item_pipe", quantity: 1 };
+    player.inventory.equippedWeaponSlot = 0;
+    player.weaponState = {
+      weaponItemId: "item_pipe",
+      weaponType: "melee",
+      magazineAmmo: 0,
+      isBlocking: false,
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    };
+
+    queueInputIntent(state, player.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { block: true },
+    });
+
+    state.zombies.set("zombie_test-block-melee", {
+      entityId: "zombie_test-block-melee",
+      archetypeId: "zombie_shambler",
+      transform: { x: 1, y: 1, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    createZombieSystem().update(state, 0.1);
+
+    expect(player.weaponState.isBlocking).toBe(true);
+    expect(player.health.current).toBe(94);
+  });
+
+  it("reduces zombie attack damage while actively blocking unarmed", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-block-unarmed",
+      displayName: "Blair",
+      position: { x: 1.5, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-block-unarmed");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.inventory.equippedWeaponSlot = null;
+    player.weaponState = {
+      weaponItemId: "item_unarmed",
+      weaponType: "unarmed",
+      magazineAmmo: 0,
+      isBlocking: false,
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    };
+
+    queueInputIntent(state, player.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { block: true },
+    });
+
+    state.zombies.set("zombie_test-block-unarmed", {
+      entityId: "zombie_test-block-unarmed",
+      archetypeId: "zombie_shambler",
+      transform: { x: 1, y: 1, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    createZombieSystem().update(state, 0.1);
+
+    expect(player.weaponState.isBlocking).toBe(true);
+    expect(player.health.current).toBe(94);
+  });
+
+  it("does not reduce zombie attack damage while blocking with a firearm", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-block-firearm",
+      displayName: "Blair",
+      position: { x: 1.5, y: 1 },
+    });
+    createLifecycleSystem().update(state, 0);
+
+    const player = state.players.get("player_test-block-firearm");
+    if (!player) {
+      throw new Error("expected player to exist");
+    }
+
+    player.inventory.slots[0] = { itemId: "item_revolver", quantity: 1 };
+    player.inventory.equippedWeaponSlot = 0;
+    player.weaponState = {
+      weaponItemId: "item_revolver",
+      weaponType: "firearm",
+      magazineAmmo: 6,
+      isBlocking: false,
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    };
+
+    queueInputIntent(state, player.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { block: true },
+    });
+
+    state.zombies.set("zombie_test-block-firearm", {
+      entityId: "zombie_test-block-firearm",
+      archetypeId: "zombie_shambler",
+      transform: { x: 1, y: 1, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+
+    createZombieSystem().update(state, 0.1);
+
+    expect(player.weaponState.isBlocking).toBe(false);
+    expect(player.health.current).toBe(88);
+  });
+
   it("marks a zombie dirty when it re-enters attack range during cooldown", () => {
     const state = createRoomState({ roomId: "room_test" });
 

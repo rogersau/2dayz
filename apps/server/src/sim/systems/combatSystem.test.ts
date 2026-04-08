@@ -23,13 +23,50 @@ const spawnPlayer = (state: ReturnType<typeof createRoomState>, entityId: string
   player.inventory.equippedWeaponSlot = 0;
   player.inventory.ammoStacks = [{ ammoItemId: "item_pistol-ammo", quantity: 12 }];
   player.weaponState = {
+    weaponItemId: "item_revolver",
+    weaponType: "firearm",
     magazineAmmo: 6,
+    isBlocking: false,
     isReloading: false,
     reloadRemainingMs: 0,
     fireCooldownRemainingMs: 0,
   };
 
   return player;
+};
+
+const equipWeapon = (state: ReturnType<typeof createRoomState>, player: ReturnType<typeof spawnPlayer>, itemId: string) => {
+  const weaponDefinition = state.weaponDefinitions.get(itemId);
+  if (!weaponDefinition) {
+    throw new Error(`expected weapon definition for ${itemId}`);
+  }
+
+  player.inventory.slots[0] = { itemId, quantity: 1 };
+  player.inventory.equippedWeaponSlot = 0;
+  player.weaponState = {
+    weaponItemId: itemId,
+    weaponType: weaponDefinition.weaponType,
+    magazineAmmo: weaponDefinition.weaponType === "firearm" ? weaponDefinition.magazineSize : 0,
+    isBlocking: false,
+    isReloading: false,
+    reloadRemainingMs: 0,
+    fireCooldownRemainingMs: 0,
+  };
+
+  return weaponDefinition;
+};
+
+const stowWeapon = (player: ReturnType<typeof spawnPlayer>) => {
+  player.inventory.equippedWeaponSlot = null;
+  player.weaponState = {
+    weaponItemId: "item_unarmed",
+    weaponType: "unarmed",
+    magazineAmmo: 0,
+    isBlocking: false,
+    isReloading: false,
+    reloadRemainingMs: 0,
+    fireCooldownRemainingMs: 0,
+  };
 };
 
 describe("createCombatSystem", () => {
@@ -60,10 +97,20 @@ describe("createCombatSystem", () => {
     expect(attacker.weaponState.magazineAmmo).toBe(5);
   });
 
-  it("applies authoritative hitscan damage and consumes ammo when a valid shot lands", () => {
+  it("uses authored firearm damage, cadence, and range when a valid shot lands", () => {
     const state = createRoomState({ roomId: "room_test" });
     const attacker = spawnPlayer(state, "player_test-1", "Avery", 0, 0);
     const target = spawnPlayer(state, "player_test-2", "Blair", 4, 0);
+    const outOfRangeTarget = spawnPlayer(state, "player_test-3", "Casey", 6, 0);
+
+    const revolverDefinition = state.weaponDefinitions.get("item_revolver");
+    if (!revolverDefinition || revolverDefinition.weaponType !== "firearm") {
+      throw new Error("expected revolver definition");
+    }
+
+    revolverDefinition.damage = 22;
+    revolverDefinition.fireRate = 4;
+    revolverDefinition.range = 5;
 
     queueInputIntent(state, attacker.entityId, {
       sequence: 1,
@@ -72,10 +119,13 @@ describe("createCombatSystem", () => {
       actions: { fire: true },
     });
 
-    createCombatSystem().update(state, 0.1);
+    const combatSystem = createCombatSystem();
+    combatSystem.update(state, 0);
 
     expect(attacker.weaponState?.magazineAmmo).toBe(5);
-    expect(target.health.current).toBe(65);
+    expect(attacker.weaponState.fireCooldownRemainingMs).toBe(250);
+    expect(target.health.current).toBe(78);
+    expect(outOfRangeTarget.health.current).toBe(100);
     expect(state.events).toContainEqual(
       expect.objectContaining({
         type: "shot",
@@ -91,9 +141,21 @@ describe("createCombatSystem", () => {
         attackerEntityId: attacker.entityId,
         targetEntityId: target.entityId,
         weaponItemId: "item_revolver",
-        damage: 35,
+        damage: 22,
       }),
     );
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 2,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    combatSystem.update(state, 0);
+
+    expect(attacker.weaponState.magazineAmmo).toBe(5);
+    expect(target.health.current).toBe(78);
   });
 
   it("emits the current authoritative aim vector on shot events", () => {
@@ -148,7 +210,10 @@ describe("createCombatSystem", () => {
     createCombatSystem().update(state, 0.1);
 
     attacker.weaponState = {
+      weaponItemId: "item_revolver",
+      weaponType: "firearm",
       magazineAmmo: 0,
+      isBlocking: false,
       isReloading: true,
       reloadRemainingMs: 500,
       fireCooldownRemainingMs: 0,
@@ -164,6 +229,124 @@ describe("createCombatSystem", () => {
     expect(attacker.weaponState?.magazineAmmo).toBe(0);
     expect(target.health.current).toBe(100);
     expect(state.events).toHaveLength(0);
+  });
+
+  it("lands a melee attack at short range using pipe stats", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-pipe-1", "Avery", 0, 0);
+    const target = spawnPlayer(state, "player_test-pipe-2", "Blair", 1.25, 0);
+    const pipeDefinition = equipWeapon(state, attacker, "item_pipe");
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true, reload: true },
+    });
+
+    createCombatSystem().update(state, 0);
+
+    expect(attacker.weaponState).toMatchObject({
+      weaponItemId: "item_pipe",
+      weaponType: "melee",
+      magazineAmmo: 0,
+      isReloading: false,
+      fireCooldownRemainingMs: pipeDefinition.swingDurationMs,
+    });
+    expect(target.health.current).toBe(100 - pipeDefinition.damage);
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "combat",
+        attackerEntityId: attacker.entityId,
+        targetEntityId: target.entityId,
+        weaponItemId: "item_pipe",
+        damage: pipeDefinition.damage,
+      }),
+    );
+    expect(state.events).not.toContainEqual(expect.objectContaining({ type: "shot" }));
+  });
+
+  it("lands an unarmed punch after the weapon is stowed", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-unarmed-1", "Avery", 0, 0);
+    const target = spawnPlayer(state, "player_test-unarmed-2", "Blair", 0.8, 0);
+    stowWeapon(attacker);
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0);
+
+    expect(attacker.weaponState).toMatchObject({
+      weaponItemId: "item_unarmed",
+      weaponType: "unarmed",
+      magazineAmmo: 0,
+      isReloading: false,
+      fireCooldownRemainingMs: 300,
+    });
+    expect(target.health.current).toBe(92);
+    expect(state.events).toContainEqual(
+      expect.objectContaining({
+        type: "combat",
+        attackerEntityId: attacker.entityId,
+        targetEntityId: target.entityId,
+        weaponItemId: "item_unarmed",
+        damage: 8,
+      }),
+    );
+  });
+
+  it("does not auto-punch when an equipped firearm is empty", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-empty-1", "Avery", 0, 0);
+    const target = spawnPlayer(state, "player_test-empty-2", "Blair", 0.8, 0);
+    attacker.weaponState.magazineAmmo = 0;
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { fire: true },
+    });
+
+    createCombatSystem().update(state, 0);
+
+    expect(attacker.weaponState).toMatchObject({
+      weaponItemId: "item_revolver",
+      weaponType: "firearm",
+      magazineAmmo: 0,
+      fireCooldownRemainingMs: 0,
+    });
+    expect(target.health.current).toBe(100);
+    expect(state.events).toEqual([]);
+  });
+
+  it("guards reload so only firearms can start it", () => {
+    const state = createRoomState({ roomId: "room_test" });
+    const attacker = spawnPlayer(state, "player_test-reload-guard-1", "Avery", 0, 0);
+    equipWeapon(state, attacker, "item_pipe");
+
+    queueInputIntent(state, attacker.entityId, {
+      sequence: 1,
+      movement: { x: 0, y: 0 },
+      aim: { x: 1, y: 0 },
+      actions: { reload: true },
+    });
+
+    createCombatSystem().update(state, 0);
+
+    expect(attacker.weaponState).toMatchObject({
+      weaponItemId: "item_pipe",
+      weaponType: "melee",
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    });
+    expect(state.events).toEqual([]);
   });
 
   it("consumes ammo and applies fire-rate cooldown when a valid shot misses", () => {
@@ -240,7 +423,10 @@ describe("createCombatSystem", () => {
     const attacker = spawnPlayer(state, "player_test-5", "Elliot", 0, 0);
 
     attacker.weaponState = {
+      weaponItemId: "item_revolver",
+      weaponType: "firearm",
       magazineAmmo: 0,
+      isBlocking: false,
       isReloading: false,
       reloadRemainingMs: 0,
       fireCooldownRemainingMs: 0,

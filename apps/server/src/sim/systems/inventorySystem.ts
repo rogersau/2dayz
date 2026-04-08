@@ -2,6 +2,7 @@ import { INVENTORY_SLOT_COUNT } from "@2dayz/shared";
 
 import { queuePlayerRespawn, selectRespawnPoint } from "../../rooms/respawn";
 import type { RoomSimulationState, SimPlayer } from "../state";
+import { syncWeaponStateFromDefinition } from "../weapons";
 import { canPlayerPickUpLoot, hasLootCapacity } from "./lootSystem";
 
 const dropOffsetStep = 0.15;
@@ -19,6 +20,31 @@ const addAmmoToInventory = (player: SimPlayer, ammoItemId: string, quantity: num
   }
 
   player.inventory.ammoStacks.push({ ammoItemId, quantity });
+};
+
+const clearFirearmFields = (player: SimPlayer): void => {
+  player.weaponState.magazineAmmo = 0;
+  player.weaponState.isReloading = false;
+  player.weaponState.reloadRemainingMs = 0;
+  player.weaponState.fireCooldownRemainingMs = 0;
+};
+
+const syncEquippedWeaponState = (state: RoomSimulationState, player: SimPlayer): void => {
+  const slotIndex = player.inventory.equippedWeaponSlot;
+  const equippedSlot = slotIndex === null ? null : player.inventory.slots[slotIndex];
+  const weaponDefinition = equippedSlot ? state.weaponDefinitions.get(equippedSlot.itemId) : null;
+
+  if (!weaponDefinition) {
+    player.inventory.equippedWeaponSlot = null;
+    player.weaponState.weaponItemId = "item_unarmed";
+    player.weaponState.weaponType = "unarmed";
+    player.weaponState.isBlocking = false;
+    clearFirearmFields(player);
+    return;
+  }
+
+  player.weaponState = syncWeaponStateFromDefinition(player.weaponState, weaponDefinition);
+  player.weaponState.isBlocking = false;
 };
 
 export const consumeAmmoForReload = (player: SimPlayer, ammoItemId: string, magazineSize: number): number => {
@@ -82,6 +108,15 @@ const handlePickupAction = (state: RoomSimulationState, player: SimPlayer): void
 
   if (itemDefinition.category === "firearm") {
     player.inventory.equippedWeaponSlot = slotIndex;
+    if (loot.firearmState) {
+      player.weaponState = {
+        ...player.weaponState,
+        weaponItemId: loot.itemId,
+        weaponType: "firearm",
+        magazineAmmo: loot.firearmState.magazineAmmo,
+      };
+    }
+    syncEquippedWeaponState(state, player);
   }
 
   state.loot.delete(loot.entityId);
@@ -96,11 +131,33 @@ const handleEquipAction = (state: RoomSimulationState, player: SimPlayer): void 
     return;
   }
 
-  if (player.inventory.slots[action.toSlot] === null) {
+  if (action.toSlot < 0 || action.toSlot >= INVENTORY_SLOT_COUNT) {
+    return;
+  }
+
+  const slot = player.inventory.slots[action.toSlot];
+  const weaponDefinition = slot ? state.weaponDefinitions.get(slot.itemId) : null;
+
+  if (!weaponDefinition) {
+    player.inventory.equippedWeaponSlot = null;
+    syncEquippedWeaponState(state, player);
+    state.dirtyPlayerIds.add(player.entityId);
     return;
   }
 
   player.inventory.equippedWeaponSlot = action.toSlot;
+  syncEquippedWeaponState(state, player);
+  state.dirtyPlayerIds.add(player.entityId);
+};
+
+const handleStowAction = (state: RoomSimulationState, player: SimPlayer): void => {
+  const action = state.inputIntents.get(player.entityId)?.actions.inventory;
+  if (!action || action.type !== "stow") {
+    return;
+  }
+
+  player.inventory.equippedWeaponSlot = null;
+  syncEquippedWeaponState(state, player);
   state.dirtyPlayerIds.add(player.entityId);
 };
 
@@ -116,7 +173,7 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
   };
   let dropOffset = 0;
 
-  for (const slot of player.inventory.slots) {
+  for (const [slotIndex, slot] of player.inventory.slots.entries()) {
     if (!hasLootCapacity(state)) {
       break;
     }
@@ -129,6 +186,10 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
 
     state.loot.set(entityId, {
       entityId,
+      firearmState:
+        player.inventory.equippedWeaponSlot === slotIndex
+          ? { magazineAmmo: player.weaponState.magazineAmmo }
+          : undefined,
       itemId: slot.itemId,
       quantity: slot.quantity,
       position: {
@@ -171,6 +232,7 @@ const handleDeathDrops = (state: RoomSimulationState, player: SimPlayer): void =
   player.weaponState.isReloading = false;
   player.weaponState.reloadRemainingMs = 0;
   player.weaponState.fireCooldownRemainingMs = 0;
+  syncEquippedWeaponState(state, player);
 
   const respawnAt = selectRespawnPoint(state);
   state.events.push({
@@ -196,6 +258,7 @@ export const createInventorySystem = () => {
         if (!player.health.isDead) {
           handlePickupAction(state, player);
           handleEquipAction(state, player);
+          handleStowAction(state, player);
         }
 
         const intent = state.inputIntents.get(player.entityId);

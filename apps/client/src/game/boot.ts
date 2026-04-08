@@ -27,7 +27,9 @@ export const bootGame = ({
   const worldView = createWorldView({ map: thirdPersonSliceMap, scene });
   const inputController = createInputController({
     element: canvas,
+    getActiveWeaponType: () => store.getState().weaponState?.weaponType ?? "unarmed",
     isEnabled: () => store.getState().connectionState.phase === "joined",
+    onStowWeapon: () => store.stowWeapon(),
     onToggleInventory: () => store.toggleInventory(),
   });
   const combatEffectsView = createCombatEffectsView(scene);

@@ -252,6 +252,16 @@ describe("createReplicationSystem", () => {
     spawnPlayer(state, "player_test-1", "Avery", 0, 0);
     spawnPlayer(state, "player_test-2", "Blair", 25, 0);
 
+    state.players.get("player_test-2")!.weaponState = {
+      weaponItemId: "item_unarmed",
+      weaponType: "unarmed",
+      magazineAmmo: 0,
+      isBlocking: false,
+      isReloading: false,
+      reloadRemainingMs: 0,
+      fireCooldownRemainingMs: 0,
+    };
+
     state.dirtyPlayerIds.clear();
 
     const rawDelta = createRoomReplicationDelta(state);
@@ -279,8 +289,8 @@ describe("createReplicationSystem", () => {
           equippedWeaponSlot: 0,
           slots: [
             { itemId: "item_revolver", quantity: 1 },
+            { itemId: "item_pipe", quantity: 1 },
             { itemId: "item_bandage", quantity: 1 },
-            null,
             null,
             null,
             null,
@@ -289,7 +299,10 @@ describe("createReplicationSystem", () => {
         stamina: { current: 10, max: 10 },
         transform: { x: 2, y: 0, rotation: 0 },
         weaponState: {
+          weaponItemId: "item_revolver",
+          weaponType: "firearm",
           magazineAmmo: 6,
+          isBlocking: false,
           isReloading: false,
           reloadRemainingMs: 0,
           fireCooldownRemainingMs: 0,
