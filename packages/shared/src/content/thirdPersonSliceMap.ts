@@ -67,6 +67,38 @@ export const thirdPersonSliceMap: MapDefinition = {
       pointId: "point_respawn-north-entry",
       position: { x: 20, y: 3 },
     },
+    {
+      pointId: "point_respawn-northwest-lane",
+      position: { x: 4, y: 8 },
+    },
+    {
+      pointId: "point_respawn-west-yard",
+      position: { x: 5, y: 20 },
+    },
+    {
+      pointId: "point_respawn-central-lane",
+      position: { x: 9, y: 10 },
+    },
+    {
+      pointId: "point_respawn-southwest-yard",
+      position: { x: 15, y: 24 },
+    },
+    {
+      pointId: "point_respawn-south-center",
+      position: { x: 19, y: 20 },
+    },
+    {
+      pointId: "point_respawn-southeast-yard",
+      position: { x: 24, y: 24 },
+    },
+    {
+      pointId: "point_respawn-east-lane",
+      position: { x: 30, y: 9 },
+    },
+    {
+      pointId: "point_respawn-far-east-yard",
+      position: { x: 34, y: 24 },
+    },
   ],
   interactablePlacements: [
     {

@@ -31,6 +31,7 @@ describe("thirdPersonSliceMap", () => {
         "point_respawn-north-entry",
       ]),
     );
+    expect(map.respawnPoints).toHaveLength(12);
     expect(map.interactablePlacements).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
