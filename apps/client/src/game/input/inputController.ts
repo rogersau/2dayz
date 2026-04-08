@@ -32,11 +32,15 @@ const isTextEntryControl = (eventTarget: EventTarget | null) => {
 
 export const createInputController = ({
   element,
+  getActiveWeaponType,
   isEnabled,
+  onStowWeapon,
   onToggleInventory,
 }: {
   element: HTMLElement;
+  getActiveWeaponType?: () => "firearm" | "melee" | "unarmed" | null;
   isEnabled?: () => boolean;
+  onStowWeapon?: () => void;
   onToggleInventory?: () => void;
 }) => {
   const pressedKeys = new Set<string>();
@@ -46,6 +50,7 @@ export const createInputController = ({
   };
   let isFiring = false;
   let isAiming = false;
+  let isBlocking = false;
   let yaw = 0;
   let pitch = 0;
 
@@ -57,6 +62,7 @@ export const createInputController = ({
 
   const clearPointerCaptureState = () => {
     isAiming = false;
+    isBlocking = false;
     isFiring = false;
   };
 
@@ -109,6 +115,13 @@ export const createInputController = ({
       return;
     }
 
+    if (isMatchingKey(key, ACTION_KEYS.stow)) {
+      if (!event.repeat) {
+        onStowWeapon?.();
+      }
+      return;
+    }
+
     pressedKeys.add(key);
 
     if (isMatchingKey(key, ACTION_KEYS.reload)) {
@@ -140,7 +153,13 @@ export const createInputController = ({
 
     if (event.button === 2) {
       event.preventDefault();
-      isAiming = true;
+      const activeWeaponType = getActiveWeaponType?.() ?? "firearm";
+
+      if (activeWeaponType === "firearm") {
+        isAiming = true;
+      } else {
+        isBlocking = true;
+      }
       requestPointerCapture();
     }
   };
@@ -156,6 +175,7 @@ export const createInputController = ({
 
     if (event.button === 2) {
       isAiming = false;
+      isBlocking = false;
     }
   };
 
@@ -245,6 +265,7 @@ export const createInputController = ({
       const nextInput = inputMessageSchema.parse({
         actions: {
           ...(isAiming ? { aiming: true } : {}),
+          ...(isBlocking ? { block: true } : {}),
           ...(isFiring ? { fire: true } : {}),
           ...(isSprinting ? { sprint: true } : {}),
           ...(queuedActions.interact ? { interact: true } : {}),

@@ -1,10 +1,14 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Inventory } from "@2dayz/shared";
 
 import { QuickbarHud } from "./QuickbarHud";
+
+afterEach(() => {
+  cleanup();
+});
 
 const inventory: Inventory = {
   slots: [
@@ -47,5 +51,36 @@ describe("QuickbarHud", () => {
     fireEvent.click(slotFour);
 
     expect(onSelectSlot).toHaveBeenCalledWith(3);
+  });
+
+  it("shows a stowed state when no quickbar slot is equipped", () => {
+    render(
+      <QuickbarHud
+        inventory={{
+          ...inventory,
+          equippedWeaponSlot: null,
+        }}
+        onSelectSlot={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/stowed/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /quickbar slot 1, weapon_rifle x1, not equipped/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+
+  it("renders the status pill outside the slot row", () => {
+    const { container } = render(<QuickbarHud inventory={inventory} onSelectSlot={vi.fn()} />);
+
+    const quickbar = container.querySelector(".quickbar-hud");
+    const status = screen.getByText(/active slot 2/i);
+    const slots = container.querySelector(".quickbar-slots");
+
+    expect(quickbar).not.toBeNull();
+    expect(status.parentElement).toBe(quickbar);
+    expect(slots).toBeInTheDocument();
+    expect(slots?.children).toHaveLength(6);
   });
 });

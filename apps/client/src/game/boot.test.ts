@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ErrorReason, Inventory } from "@2dayz/shared";
+import type { ErrorReason, Inventory, WeaponState } from "@2dayz/shared";
 import { INVENTORY_SLOT_COUNT, thirdPersonSliceMap } from "@2dayz/shared";
 
 type TestConnectionState =
@@ -16,6 +16,7 @@ type TestStoreState = {
   latestTick: number;
   playerEntityId: string | null;
   roomId: string | null;
+  weaponState?: WeaponState | null;
   worldEntities: { loot: []; players: []; zombies: [] };
 };
 
@@ -540,6 +541,59 @@ describe("bootGame", () => {
     scheduledInterval?.();
 
     expect(sendInput).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes active weapon type and local stow callback into the input controller", () => {
+    const canvas = document.createElement("canvas");
+    const stowWeapon = vi.fn();
+    const store = {
+      getState: (): TestStoreState =>
+        createStoreState({
+          connectionState: { phase: "joined" },
+          playerEntityId: "player_survivor",
+          weaponState: {
+            weaponItemId: "weapon_hatchet",
+            weaponType: "melee",
+            fireCooldownRemainingMs: 0,
+            isBlocking: false,
+            isReloading: false,
+            magazineAmmo: 0,
+            reloadRemainingMs: 0,
+          },
+        }),
+      selectInventorySlot: vi.fn(),
+      stowWeapon,
+      subscribe: () => () => {},
+      toggleInventory: vi.fn(),
+    };
+
+    bootGame({
+      canvas,
+      socketClient: { sendInput: vi.fn() },
+      store: store as never,
+    });
+
+    expect(createInputControllerMock).toHaveBeenCalledTimes(1);
+    const firstCall = createInputControllerMock.mock.calls[0] as [
+      {
+        getActiveWeaponType: () => string | null | undefined;
+        onStowWeapon: () => void;
+      },
+    ] | undefined;
+
+    expect(firstCall).toBeDefined();
+
+    if (!firstCall) {
+      throw new Error("Expected createInputController to be called.");
+    }
+
+    const [{ getActiveWeaponType, onStowWeapon }] = firstCall;
+
+    expect(getActiveWeaponType()).toBe("melee");
+
+    onStowWeapon();
+
+    expect(stowWeapon).toHaveBeenCalledTimes(1);
   });
 
   it("merges queued inventory actions into the next authoritative input packet", () => {

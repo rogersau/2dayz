@@ -209,7 +209,64 @@ describe("socketClient", () => {
 
     expect(selfUpdate).toMatchObject({
       inventory: expect.objectContaining({
+        ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
         equippedWeaponSlot: 1,
+        slots: [
+          { itemId: "item_revolver", quantity: 1 },
+          { itemId: "item_pipe", quantity: 1 },
+          { itemId: "item_bandage", quantity: 1 },
+          null,
+          null,
+          null,
+        ],
+      }),
+      weaponState: expect.objectContaining({
+        weaponItemId: "item_pipe",
+        weaponType: "melee",
+        fireCooldownRemainingMs: 0,
+        isBlocking: false,
+        isReloading: false,
+        magazineAmmo: 0,
+        reloadRemainingMs: 0,
+      }),
+    });
+  });
+
+  it("applies mock authoritative stow actions through replicated inventory and weapon state", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({
+      mode: "mock",
+      protocolStore,
+    });
+
+    await socketClient.join({ displayName: "Survivor" });
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(
+      inputMessageSchema.parse({
+        actions: {
+          inventory: {
+            type: "stow",
+          },
+        },
+        aim: { x: 0, y: 0 },
+        movement: { x: 0, y: 0 },
+        sequence: 3,
+        type: "input",
+      }),
+    );
+
+    const { deltas } = protocolStore.drainWorldUpdates();
+    const selfUpdate = deltas[0]?.entityUpdates.find((update) => update.entityId === "player_survivor");
+
+    expect(selfUpdate).toMatchObject({
+      inventory: expect.objectContaining({
+        equippedWeaponSlot: null,
+      }),
+      weaponState: expect.objectContaining({
+        weaponItemId: "unarmed",
+        weaponType: "unarmed",
+        isBlocking: false,
       }),
     });
   });
@@ -230,6 +287,29 @@ describe("socketClient", () => {
     expect(self?.transform).toEqual({ rotation: 0, ...mockSpawn });
     expect(bandit?.transform).toEqual({ rotation: 0.2, ...mockBanditSpawn });
     expect(zombie?.transform).toEqual({ rotation: 0.1, ...mockZombieSpawn });
+    expect(self?.inventory).toEqual({
+      ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+      equippedWeaponSlot: 0,
+      slots: [
+        { itemId: "item_revolver", quantity: 1 },
+        { itemId: "item_pipe", quantity: 1 },
+        { itemId: "item_bandage", quantity: 1 },
+        null,
+        null,
+        null,
+      ],
+    });
+    expect(self).toMatchObject({
+      weaponState: {
+        weaponItemId: "item_revolver",
+        weaponType: "firearm",
+        fireCooldownRemainingMs: 0,
+        isBlocking: false,
+        isReloading: false,
+        magazineAmmo: 6,
+        reloadRemainingMs: 0,
+      },
+    });
   });
 
   it("emits mock combat deltas and eventually removes the mock zombie", async () => {
@@ -311,5 +391,46 @@ describe("socketClient", () => {
 
     expect(delta?.events).toEqual([]);
     expect(selfUpdate?.inventory?.ammoStacks).toEqual(initialSnapshot?.players[0]?.inventory.ammoStacks);
+  });
+
+  it("does not treat a melee weapon as a ranged firearm shot", async () => {
+    const protocolStore = createProtocolStore();
+    const socketClient = createSocketClient({ mode: "mock", protocolStore });
+
+    await socketClient.join({ displayName: "Survivor" });
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: {
+        inventory: {
+          type: "equip",
+          toSlot: 1,
+        },
+      },
+      aim: { x: 0, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    }));
+    protocolStore.drainWorldUpdates();
+
+    socketClient.sendInput(inputMessageSchema.parse({
+      actions: { fire: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    }));
+
+    const delta = protocolStore.drainWorldUpdates().deltas[0];
+    const selfUpdate = delta?.entityUpdates.find((update) => update.entityId === "player_survivor");
+
+    expect(delta?.events).toEqual([]);
+    expect(selfUpdate?.inventory?.ammoStacks).toEqual([{ ammoItemId: "item_pistol-ammo", quantity: 18 }]);
+    expect(selfUpdate?.weaponState).toMatchObject({
+      weaponItemId: "item_pipe",
+      weaponType: "melee",
+      magazineAmmo: 0,
+    });
   });
 });

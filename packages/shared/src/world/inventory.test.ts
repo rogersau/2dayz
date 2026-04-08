@@ -60,6 +60,12 @@ describe("inventory contracts", () => {
     ).toMatchObject({ type: "equip", toSlot: 1 });
 
     expect(
+      inventoryActionSchema.parse({
+        type: "stow",
+      }),
+    ).toMatchObject({ type: "stow" });
+
+    expect(
       deathDropSchema.parse({
         ownerEntityId: "player_1",
         roomId: "room_alpha",
@@ -94,6 +100,13 @@ describe("inventory contracts", () => {
         type: "pickup",
         pickupEntityId: "",
         toSlot: -1,
+      }),
+    ).toThrow();
+
+    expect(() =>
+      inventoryActionSchema.parse({
+        type: "stow",
+        toSlot: 0,
       }),
     ).toThrow();
 

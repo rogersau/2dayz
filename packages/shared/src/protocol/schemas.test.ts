@@ -35,6 +35,7 @@ describe("protocol schemas", () => {
         aim: { x: 0.25, y: 0.75 },
         actions: {
           aiming: true,
+          block: true,
           fire: true,
           inventory: {
             type: "equip",
@@ -76,7 +77,10 @@ describe("protocol schemas", () => {
               ],
             },
             weaponState: {
+              weaponItemId: "item_revolver",
+              weaponType: "firearm",
               magazineAmmo: 12,
+              isBlocking: false,
               isReloading: false,
               reloadRemainingMs: 0,
               fireCooldownRemainingMs: 120,
@@ -143,7 +147,10 @@ describe("protocol schemas", () => {
             transform: { x: 11, y: 5, rotation: 1.2 },
             velocity: { x: 1, y: 0 },
             weaponState: {
+              weaponItemId: "item_revolver",
+              weaponType: "firearm",
               magazineAmmo: 11,
+              isBlocking: false,
               isReloading: false,
               reloadRemainingMs: 0,
               fireCooldownRemainingMs: 80,
@@ -238,7 +245,10 @@ describe("protocol schemas", () => {
           {
             entityId: "player_1",
             weaponState: {
+              weaponItemId: "item_revolver",
+              weaponType: "firearm",
               magazineAmmo: 11,
+              isBlocking: true,
               isReloading: true,
               reloadRemainingMs: 999.5,
               fireCooldownRemainingMs: 83.33333333333333,
@@ -253,8 +263,11 @@ describe("protocol schemas", () => {
       entityUpdates: [
         {
           weaponState: {
+            weaponItemId: "item_revolver",
+            weaponType: "firearm",
             reloadRemainingMs: 999.5,
             fireCooldownRemainingMs: 83.33333333333333,
+            isBlocking: true,
           },
         },
       ],

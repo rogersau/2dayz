@@ -18,11 +18,12 @@ describe("ControlsOverlay", () => {
       "Click to capture mouse",
       "Mouse aim",
       "Left click fire",
-      "Right click aim",
+      "Right click aim or block",
       "Esc release mouse",
       "WASD move",
       "E interact",
       "R reload",
+      "X stow weapon",
       "Tab inventory",
     ]);
     expect(screen.getByText(/your first left click captures the mouse and fires\./i)).toBeInTheDocument();

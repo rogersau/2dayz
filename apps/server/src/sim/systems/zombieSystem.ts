@@ -9,6 +9,7 @@ const soundReachByType = {
   sprint: 5,
 } as const;
 const searchArrivalDistance = 0.25;
+const zombieBlockDamageMultiplier = 0.5;
 
 const getAliveZombieCount = (state: RoomSimulationState): number => {
   return [...state.zombies.values()].filter((zombie) => !zombie.health.isDead).length;
@@ -268,6 +269,33 @@ const clearSearchState = (zombie: SimZombie): void => {
   zombie.heardPosition = null;
 };
 
+const syncPlayerBlockingState = (state: RoomSimulationState): void => {
+  for (const player of state.players.values()) {
+    const intent = state.inputIntents.get(player.entityId);
+    const canBlock = player.weaponState.weaponType === "melee" || player.weaponState.weaponType === "unarmed";
+    const nextIsBlocking = Boolean(intent?.actions.block) && canBlock && !player.health.isDead;
+
+    if (player.weaponState.isBlocking === nextIsBlocking) {
+      continue;
+    }
+
+    player.weaponState.isBlocking = nextIsBlocking;
+    state.dirtyPlayerIds.add(player.entityId);
+  }
+};
+
+const resolveZombieAttackDamage = (target: RoomSimulationState["players"] extends Map<string, infer T> ? T : never, damage: number): number => {
+  if (!target.weaponState.isBlocking) {
+    return damage;
+  }
+
+  if (target.weaponState.weaponType !== "melee" && target.weaponState.weaponType !== "unarmed") {
+    return damage;
+  }
+
+  return Math.ceil(damage * zombieBlockDamageMultiplier);
+};
+
 const beginSearching = (zombie: SimZombie, sourceEntityId: string | null, position: { x: number; y: number }): void => {
   zombie.aggroTargetEntityId = null;
   zombie.lostTargetMs = 0;
@@ -286,6 +314,7 @@ export const createZombieSystem = () => {
   return {
     name: "zombie" as const,
     update(state: RoomSimulationState, deltaSeconds: number) {
+      syncPlayerBlockingState(state);
       cleanupDeadZombies(state);
       spawnZombiesForZones(state);
 
@@ -408,7 +437,8 @@ export const createZombieSystem = () => {
           state.dirtyZombieIds.add(zombie.entityId);
 
           if (zombie.attackCooldownRemainingMs === 0) {
-            target.health.current = Math.max(0, target.health.current - archetype.attackDamage);
+            const damage = resolveZombieAttackDamage(target, archetype.attackDamage);
+            target.health.current = Math.max(0, target.health.current - damage);
             target.health.isDead = target.health.current === 0;
             target.lastDamagedByEntityId = zombie.entityId;
             zombie.attackCooldownRemainingMs = attackCooldownMs;

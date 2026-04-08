@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { itemIdSchema } from "../ids";
 
-export const itemCategorySchema = z.enum(["firearm", "ammo", "healing", "utility"]);
+export const itemCategorySchema = z.enum(["firearm", "melee", "unarmed", "ammo", "healing", "utility"]);
 
 export const itemDefinitionSchema = z
   .object({

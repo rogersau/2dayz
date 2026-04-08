@@ -8,25 +8,30 @@ type QuickbarHudProps = {
 export const QuickbarHud = ({ inventory, onSelectSlot }: QuickbarHudProps) => {
   return (
     <section aria-label="Quickbar" className="quickbar-hud">
-      {inventory.slots.map((slot, index) => {
-        const itemLabel = slot ? `${slot.itemId} x${slot.quantity}` : "Empty";
-        const isEquipped = inventory.equippedWeaponSlot === index;
+      <div className="quickbar-status" aria-live="polite">
+        {inventory.equippedWeaponSlot === null ? "Stowed" : `Active slot ${inventory.equippedWeaponSlot + 1}`}
+      </div>
+      <div className="quickbar-slots">
+        {inventory.slots.map((slot, index) => {
+          const itemLabel = slot ? `${slot.itemId} x${slot.quantity}` : "Empty";
+          const isEquipped = inventory.equippedWeaponSlot === index;
 
-        return (
-          <button
-            aria-label={`Quickbar slot ${index + 1}, ${itemLabel}, ${isEquipped ? "equipped" : "not equipped"}`}
-            aria-pressed={isEquipped}
-            className="quickbar-slot"
-            data-equipped={isEquipped ? "true" : undefined}
-            key={index}
-            onClick={() => onSelectSlot(index)}
-            type="button"
-          >
-            <span className="quickbar-slot-number">{index + 1}</span>
-            <span className="quickbar-slot-item">{itemLabel}</span>
-          </button>
-        );
-      })}
+          return (
+            <button
+              aria-label={`Quickbar slot ${index + 1}, ${itemLabel}, ${isEquipped ? "equipped" : "not equipped"}`}
+              aria-pressed={isEquipped}
+              className="quickbar-slot"
+              data-equipped={isEquipped ? "true" : undefined}
+              key={index}
+              onClick={() => onSelectSlot(index)}
+              type="button"
+            >
+              <span className="quickbar-slot-number">{index + 1}</span>
+              <span className="quickbar-slot-item">{itemLabel}</span>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 };

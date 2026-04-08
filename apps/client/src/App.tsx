@@ -13,6 +13,7 @@ import { ConnectionBanner } from "./game/ui/ConnectionBanner";
 import { ControlsOverlay, hasDismissedControlsInSession } from "./game/ui/ControlsOverlay";
 import { CombatHud } from "./game/ui/CombatHud";
 import { DeathOverlay } from "./game/ui/DeathOverlay";
+import { Hud } from "./game/ui/Hud";
 import { JoinScreen } from "./game/ui/JoinScreen";
 import { useSessionToken } from "./game/ui/useSessionToken";
 
@@ -255,6 +256,12 @@ export const App = () => {
           <section className="game-shell" aria-label="game shell">
             <div className="game-hud-layer">
               <CombatHud health={state.health} inventoryAmmo={inventoryAmmo} weaponState={state.weaponState} />
+              <Hud
+                inventory={state.inventory}
+                isInventoryOpen={state.isInventoryOpen}
+                onSelectSlot={(slotIndex) => gameStore.selectInventorySlot(slotIndex)}
+                onToggleInventory={() => gameStore.toggleInventory()}
+              />
             </div>
           </section>
         ) : null}

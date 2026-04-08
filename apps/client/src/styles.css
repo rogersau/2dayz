@@ -258,6 +258,13 @@ button {
   padding: 16px;
 }
 
+.joined-hud-layout {
+  display: grid;
+  gap: 12px;
+  justify-items: end;
+  align-self: flex-end;
+}
+
 .combat-hud {
   position: relative;
   flex: 1;
@@ -374,8 +381,61 @@ button {
 
 .game-hud-layer .hud-card,
 .game-hud-layer .inventory-card,
-.game-hud-layer .death-overlay {
+.game-hud-layer .death-overlay,
+.game-hud-layer .quickbar-hud {
   pointer-events: auto;
+}
+
+.quickbar-hud {
+  display: grid;
+  gap: 8px;
+  width: min(100%, 420px);
+}
+
+.quickbar-status {
+  align-self: end;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(200, 179, 138, 0.2);
+  background: rgba(24, 21, 19, 0.9);
+  color: #d8d0c4;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.72rem;
+}
+
+.quickbar-slots {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickbar-slot {
+  display: grid;
+  gap: 6px;
+  min-height: 72px;
+  padding: 10px;
+  text-align: left;
+  border-radius: 14px;
+  border: 1px solid rgba(200, 179, 138, 0.16);
+  background: rgba(24, 21, 19, 0.9);
+  color: inherit;
+}
+
+.quickbar-slot[data-equipped="true"] {
+  border-color: rgba(216, 185, 128, 0.58);
+  box-shadow: inset 0 0 0 1px rgba(216, 185, 128, 0.24);
+}
+
+.quickbar-slot-number {
+  color: #d8b980;
+  font-size: 0.72rem;
+}
+
+.quickbar-slot-item {
+  font-size: 0.82rem;
+  color: #f2eadc;
+  overflow-wrap: anywhere;
 }
 
 .inventory-grid {
@@ -458,6 +518,18 @@ button {
     padding: 12px;
     justify-content: space-between;
   }
+
+   .joined-hud-layout {
+     width: 100%;
+   }
+
+   .quickbar-hud {
+     width: 100%;
+   }
+
+   .quickbar-slots {
+     grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 
   .combat-hud-panel {
     width: min(100%, 200px);

@@ -8,7 +8,7 @@ type CombatHudProps = {
 
 export const CombatHud = ({ health, inventoryAmmo, weaponState }: CombatHudProps) => {
   const healthLabel = health ? `Health ${health.current}/${health.max}` : "Health pending";
-  const ammoLabel = weaponState ? `Ammo ${weaponState.magazineAmmo}/${inventoryAmmo}` : `Ammo 0/${inventoryAmmo}`;
+  const ammoLabel = weaponState?.weaponType === "firearm" ? `Ammo ${weaponState.magazineAmmo}/${inventoryAmmo}` : null;
 
   return (
     <section aria-label="combat hud" className="combat-hud">
@@ -20,7 +20,7 @@ export const CombatHud = ({ health, inventoryAmmo, weaponState }: CombatHudProps
         <p className="combat-hud-kicker">Combat HUD</p>
         <div className="combat-hud-readouts">
           <p>{healthLabel}</p>
-          <p>{ammoLabel}</p>
+          {ammoLabel ? <p>{ammoLabel}</p> : null}
         </div>
       </div>
     </section>

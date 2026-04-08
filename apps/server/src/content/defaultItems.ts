@@ -29,4 +29,18 @@ export const defaultItems: ItemDefinition[] = [
     stackable: false,
     maxStack: 1,
   },
+  {
+    itemId: "item_pipe",
+    name: "Pipe",
+    category: "melee",
+    stackable: false,
+    maxStack: 1,
+  },
+  {
+    itemId: "item_unarmed",
+    name: "Fists",
+    category: "unarmed",
+    stackable: false,
+    maxStack: 1,
+  },
 ];

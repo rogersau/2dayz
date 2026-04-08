@@ -22,6 +22,12 @@ export const defaultLootTables: LootTable[] = [
         minQuantity: 6,
         maxQuantity: 18,
       },
+      {
+        itemId: "item_pipe",
+        weight: 1,
+        minQuantity: 1,
+        maxQuantity: 1,
+      },
     ],
   },
   {

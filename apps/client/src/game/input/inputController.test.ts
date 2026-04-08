@@ -218,6 +218,66 @@ describe("inputController", () => {
     controller.destroy();
   });
 
+  it("maps right click to block instead of aim when the active weapon is melee", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const { requestPointerLock } = installPointerLockMocks(element);
+
+    const controller = createInputController({
+      element,
+      getActiveWeaponType: () => "melee",
+    });
+
+    element.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, button: 2, cancelable: true }));
+
+    expect(requestPointerLock).toHaveBeenCalledTimes(1);
+    expect(controller.getViewState()).toEqual({
+      isAiming: false,
+      pitch: 0,
+      yaw: 0,
+    });
+    expect(controller.pollInput(1)).toEqual({
+      actions: { block: true },
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
+
+    window.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, button: 2 }));
+
+    expect(controller.pollInput(2)).toEqual({
+      actions: {},
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 2,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
+  it("calls the stow callback when X is pressed without sending a gameplay action", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const onStowWeapon = vi.fn();
+
+    const controller = createInputController({ element, onStowWeapon });
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
+
+    expect(onStowWeapon).toHaveBeenCalledTimes(1);
+    expect(controller.pollInput(1)).toEqual({
+      actions: {},
+      aim: { x: 1, y: 0 },
+      movement: { x: 0, y: 0 },
+      sequence: 1,
+      type: "input",
+    });
+
+    controller.destroy();
+  });
+
   it("clears aiming when pointer lock is lost outside mouse-up handling", () => {
     const element = document.createElement("div");
     document.body.append(element);

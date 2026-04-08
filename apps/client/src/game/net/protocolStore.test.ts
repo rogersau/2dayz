@@ -59,12 +59,30 @@ describe("protocolStore", () => {
         {
           displayName: "Survivor",
           entityId: "player_self",
+          health: { current: 100, isDead: false, max: 100 },
           inventory: {
-            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 18 }],
+            ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
             equippedWeaponSlot: 0,
-            slots: [{ itemId: "weapon_pistol", quantity: 1 }, null, null, null, null, null],
+            slots: [
+              { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_pipe", quantity: 1 },
+              { itemId: "item_bandage", quantity: 1 },
+              null,
+              null,
+              null,
+            ],
           },
+          lastProcessedInputSequence: 0,
           stamina: { current: 10, max: 10 },
+          weaponState: {
+            weaponItemId: "item_revolver",
+            weaponType: "firearm",
+            fireCooldownRemainingMs: 0,
+            isBlocking: false,
+            isReloading: false,
+            magazineAmmo: 6,
+            reloadRemainingMs: 0,
+          },
           transform: { rotation: 0, x: 0, y: 0 },
           velocity: { x: 0, y: 0 },
         },
@@ -97,18 +115,32 @@ describe("protocolStore", () => {
       entityUpdates: [
         {
           entityId: "player_self",
+          health: { current: 100, isDead: false, max: 100 },
           inventory: {
-            ammoStacks: [{ ammoItemId: "ammo_9mm", quantity: 6 }],
-            equippedWeaponSlot: 0,
+            ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+            equippedWeaponSlot: null,
             slots: [
-              { itemId: "weapon_pistol", quantity: 1 },
-              { itemId: "bandage", quantity: 1 },
-              null,
+              { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_pipe", quantity: 1 },
+              { itemId: "item_bandage", quantity: 1 },
               null,
               null,
               null,
             ],
           },
+          lastProcessedInputSequence: 0,
+          stamina: { current: 10, max: 10 },
+          weaponState: {
+            weaponItemId: "unarmed",
+            weaponType: "unarmed",
+            fireCooldownRemainingMs: 0,
+            isBlocking: false,
+            isReloading: false,
+            magazineAmmo: 6,
+            reloadRemainingMs: 0,
+          },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
         },
       ],
       removedEntityIds: ["loot_shells"],
@@ -144,6 +176,77 @@ describe("protocolStore", () => {
         },
       ],
       snapshot: null,
+    });
+  });
+
+  it("retains protocol fixtures with the current starter loadout and richer weapon state shape", () => {
+    const protocolStore = createProtocolStore();
+
+    protocolStore.ingest({
+      type: "snapshot",
+      tick: 1,
+      roomId: "room_browser-v1",
+      playerEntityId: "player_self",
+      players: [
+        {
+          displayName: "Survivor",
+          entityId: "player_self",
+          health: { current: 100, isDead: false, max: 100 },
+          inventory: {
+            ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+            equippedWeaponSlot: 0,
+            slots: [
+              { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_pipe", quantity: 1 },
+              { itemId: "item_bandage", quantity: 1 },
+              null,
+              null,
+              null,
+            ],
+          },
+          lastProcessedInputSequence: 0,
+          stamina: { current: 10, max: 10 },
+          weaponState: {
+            weaponItemId: "item_revolver",
+            weaponType: "firearm",
+            fireCooldownRemainingMs: 0,
+            isBlocking: false,
+            isReloading: false,
+            magazineAmmo: 6,
+            reloadRemainingMs: 0,
+          },
+          transform: { rotation: 0, x: 0, y: 0 },
+          velocity: { x: 0, y: 0 },
+        },
+      ],
+      loot: [],
+      zombies: [],
+    });
+
+    const drained = protocolStore.drainWorldUpdates();
+
+    expect(drained.snapshot?.players[0]).toMatchObject({
+      inventory: {
+        ammoStacks: [{ ammoItemId: "item_pistol-ammo", quantity: 18 }],
+        equippedWeaponSlot: 0,
+        slots: [
+          { itemId: "item_revolver", quantity: 1 },
+          { itemId: "item_pipe", quantity: 1 },
+          { itemId: "item_bandage", quantity: 1 },
+          null,
+          null,
+          null,
+        ],
+      },
+      weaponState: {
+        weaponItemId: "item_revolver",
+        weaponType: "firearm",
+        fireCooldownRemainingMs: 0,
+        isBlocking: false,
+        isReloading: false,
+        magazineAmmo: 6,
+        reloadRemainingMs: 0,
+      },
     });
   });
 });

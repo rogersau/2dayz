@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
 
+import { defaultWeapons } from "@2dayz/shared";
+
 import { createRoomReplicationDelta, createRoomReplicationSnapshot } from "./query";
 import { createRoomState, queueSpawnPlayer } from "./state";
 import { createLifecycleSystem } from "./systems/lifecycleSystem";
 
 describe("simulation query replication", () => {
+  it("hydrates the authored shared weapons into the runtime weapon lookup", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    expect([...state.weaponDefinitions.keys()]).toEqual(defaultWeapons.map((weapon) => weapon.itemId));
+  });
+
   it("includes loot and zombies in authoritative snapshots and player starter weapon state in deltas", () => {
     const state = createRoomState({ roomId: "room_test" });
 
@@ -47,19 +55,22 @@ describe("simulation query replication", () => {
             equippedWeaponSlot: 0,
             slots: [
               { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_pipe", quantity: 1 },
               { itemId: "item_bandage", quantity: 1 },
-              null,
               null,
               null,
               null,
             ],
           },
-          stamina: { current: 10, max: 10 },
-          weaponState: {
-            magazineAmmo: 6,
-            isReloading: false,
-            reloadRemainingMs: 0,
-            fireCooldownRemainingMs: 0,
+           stamina: { current: 10, max: 10 },
+           weaponState: {
+             weaponItemId: "item_revolver",
+             weaponType: "firearm",
+             magazineAmmo: 6,
+             isBlocking: false,
+             isReloading: false,
+             reloadRemainingMs: 0,
+             fireCooldownRemainingMs: 0,
           },
         },
       ],
@@ -90,21 +101,24 @@ describe("simulation query replication", () => {
             equippedWeaponSlot: 0,
             slots: [
               { itemId: "item_revolver", quantity: 1 },
+              { itemId: "item_pipe", quantity: 1 },
               { itemId: "item_bandage", quantity: 1 },
-              null,
               null,
               null,
               null,
             ],
           },
           lastProcessedInputSequence: 3,
-          stamina: { current: 10, max: 10 },
-          transform: { x: 1, y: 1, rotation: 0 },
-          weaponState: {
-            magazineAmmo: 6,
-            isReloading: false,
-            reloadRemainingMs: 0,
-            fireCooldownRemainingMs: 0,
+           stamina: { current: 10, max: 10 },
+           transform: { x: 1, y: 1, rotation: 0 },
+           weaponState: {
+             weaponItemId: "item_revolver",
+             weaponType: "firearm",
+             magazineAmmo: 6,
+             isBlocking: false,
+             isReloading: false,
+             reloadRemainingMs: 0,
+             fireCooldownRemainingMs: 0,
           },
         },
         {

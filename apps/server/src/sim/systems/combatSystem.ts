@@ -1,5 +1,8 @@
+import type { WeaponDefinition } from "@2dayz/shared";
+
 import { hasLineOfSight } from "../../world/lineOfSight";
 import type { RoomSimulationState, SimPlayer, SimZombie } from "../state";
+import { resolveActiveWeaponDefinition } from "../weapons";
 import { consumeAmmoForReload } from "./inventorySystem";
 
 const hitRadius = 0.75;
@@ -13,24 +16,10 @@ type HitTarget = {
   markDirty(): void;
 };
 
-const getEquippedWeapon = (state: RoomSimulationState, player: SimPlayer) => {
-  const slotIndex = player.inventory.equippedWeaponSlot;
-  if (slotIndex === null) {
-    return null;
-  }
-
-  const slot = player.inventory.slots[slotIndex];
-  if (!slot) {
-    return null;
-  }
-
-  const weaponDefinition = state.weaponDefinitions.get(slot.itemId);
-  if (!weaponDefinition) {
-    return null;
-  }
-
+const getActiveWeapon = (state: RoomSimulationState, player: SimPlayer) => {
+  const weaponDefinition = resolveActiveWeaponDefinition(state.weaponDefinitions, player.inventory);
   return {
-    itemId: slot.itemId,
+    itemId: weaponDefinition.itemId,
     weaponDefinition,
   };
 };
@@ -159,8 +148,8 @@ const updateWeaponTimers = (state: RoomSimulationState, deltaSeconds: number): v
       continue;
     }
 
-    const weapon = getEquippedWeapon(state, player);
-    if (weapon) {
+    const weapon = getActiveWeapon(state, player);
+    if (weapon.weaponDefinition.weaponType === "firearm") {
       consumeAmmoForReload(player, weapon.weaponDefinition.ammoItemId, weapon.weaponDefinition.magazineSize);
     }
 
@@ -170,8 +159,16 @@ const updateWeaponTimers = (state: RoomSimulationState, deltaSeconds: number): v
   }
 };
 
-const canFireShot = (player: SimPlayer, aim: { x: number; y: number }): boolean => {
-  return !player.weaponState.isReloading && player.weaponState.fireCooldownRemainingMs === 0 && player.weaponState.magazineAmmo > 0 && Math.hypot(aim.x, aim.y) > 0;
+const canFireAttack = (player: SimPlayer, weaponDefinition: WeaponDefinition, aim: { x: number; y: number }): boolean => {
+  if (player.weaponState.isReloading || player.weaponState.fireCooldownRemainingMs > 0 || Math.hypot(aim.x, aim.y) === 0) {
+    return false;
+  }
+
+  if (weaponDefinition.weaponType !== "firearm") {
+    return true;
+  }
+
+  return player.weaponState.magazineAmmo > 0;
 };
 
 export const createCombatSystem = ({ random = Math.random }: { random?: () => number } = {}) => {
@@ -184,50 +181,61 @@ export const createCombatSystem = ({ random = Math.random }: { random?: () => nu
           continue;
         }
 
-        const weapon = getEquippedWeapon(state, player);
-        if (!weapon) {
-          intent.actions.fire = undefined;
-          intent.actions.reload = undefined;
-          continue;
-        }
+        const weapon = getActiveWeapon(state, player);
+
+        const weaponDefinition = weapon.weaponDefinition;
 
         if (
+          weaponDefinition.weaponType === "firearm" &&
           intent.actions.reload &&
           !player.weaponState.isReloading &&
-          player.weaponState.magazineAmmo < weapon.weaponDefinition.magazineSize &&
-          player.inventory.ammoStacks.some((stack) => stack.ammoItemId === weapon.weaponDefinition.ammoItemId && stack.quantity > 0)
+          player.weaponState.magazineAmmo < weaponDefinition.magazineSize &&
+          player.inventory.ammoStacks.some((stack) => stack.ammoItemId === weaponDefinition.ammoItemId && stack.quantity > 0)
         ) {
           player.weaponState.isReloading = true;
-          player.weaponState.reloadRemainingMs = weapon.weaponDefinition.reloadTimeMs;
+          player.weaponState.reloadRemainingMs = weaponDefinition.reloadTimeMs;
           state.dirtyPlayerIds.add(player.entityId);
         }
 
-        if (intent.actions.fire && canFireShot(player, intent.aim)) {
-          player.weaponState.magazineAmmo -= 1;
-          player.weaponState.fireCooldownRemainingMs = 1000 / weapon.weaponDefinition.fireRate;
+        if (intent.actions.fire && canFireAttack(player, weaponDefinition, intent.aim)) {
+          if (weaponDefinition.weaponType === "firearm") {
+            player.weaponState.magazineAmmo -= 1;
+            player.weaponState.fireCooldownRemainingMs = 1000 / weaponDefinition.fireRate;
+          } else {
+            player.weaponState.fireCooldownRemainingMs = weaponDefinition.swingDurationMs;
+          }
+
           state.dirtyPlayerIds.add(player.entityId);
-          const spreadAim = applySpreadToAim(intent.aim, weapon.weaponDefinition.spread, random);
-          state.events.push({
-            type: "shot",
-            roomId: state.roomId,
-            attackerEntityId: player.entityId,
-            weaponItemId: weapon.itemId,
-            origin: {
-              x: player.transform.x,
-              y: player.transform.y,
-            },
-            aim: spreadAim,
-          });
-          const hitTarget = findHitTarget(state, player, spreadAim, weapon.weaponDefinition.range);
+
+          const resolvedAim =
+            weaponDefinition.weaponType === "firearm"
+              ? applySpreadToAim(intent.aim, weaponDefinition.spread, random)
+              : intent.aim;
+
+          if (weaponDefinition.weaponType === "firearm") {
+            state.events.push({
+              type: "shot",
+              roomId: state.roomId,
+              attackerEntityId: player.entityId,
+              weaponItemId: weapon.itemId,
+              origin: {
+                x: player.transform.x,
+                y: player.transform.y,
+              },
+              aim: resolvedAim,
+            });
+          }
+
+          const hitTarget = findHitTarget(state, player, resolvedAim, weaponDefinition.range);
           if (hitTarget) {
-            hitTarget.apply(weapon.weaponDefinition.damage);
+            hitTarget.apply(weaponDefinition.damage);
             state.events.push({
               type: "combat",
               roomId: state.roomId,
               attackerEntityId: player.entityId,
               targetEntityId: hitTarget.entityId,
               weaponItemId: weapon.itemId,
-              damage: weapon.weaponDefinition.damage,
+              damage: weaponDefinition.damage,
               remainingHealth: hitTarget.healthCurrent(),
               hitPosition: hitTarget.position,
             });
