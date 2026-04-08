@@ -376,7 +376,7 @@ describe("loadMapDefinition", () => {
           },
         ],
         lootPoints: [{ pointId: "point_loot-a", position: { x: 1, y: 1 }, tableId: "loot_residential" }],
-        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 11, y: 8 } }],
+        respawnPoints: [{ pointId: "point_respawn-a", position: { x: 1, y: 8 } }],
         interactablePlacements: [
           {
             placementId: "placement_crate-a",
@@ -394,7 +394,7 @@ describe("loadMapDefinition", () => {
           links: [{ from: "node_a", to: "node_b", cost: 4 }],
         },
       }),
-    ).toThrow(/respawn point|navigation node/i);
+    ).toThrow(/navigation node/i);
   });
 
   it("rejects duplicate navigation node ids before graph loading", () => {
