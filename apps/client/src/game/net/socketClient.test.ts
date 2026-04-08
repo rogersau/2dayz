@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { defaultTownMap, inputMessageSchema, roomJoinedMessageSchema } from "@2dayz/shared";
+import { inputMessageSchema, roomJoinedMessageSchema, thirdPersonSliceMap } from "@2dayz/shared";
 
 import { createProtocolStore } from "./protocolStore";
 import { createSocketClient } from "./socketClient";
 
 const requireAnchor = <T>(anchor: T | undefined, description: string): T => {
   if (!anchor) {
-    throw new Error(`${description} missing from defaultTownMap`);
+    throw new Error(`${description} missing from thirdPersonSliceMap`);
   }
 
   return anchor;
@@ -15,16 +15,16 @@ const requireAnchor = <T>(anchor: T | undefined, description: string): T => {
 
 describe("socketClient", () => {
   const mockSpawn = requireAnchor(
-    defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_main-road")?.position,
-    "node_main-road",
+    thirdPersonSliceMap.navigation.nodes.find((node) => node.nodeId === "node_north-lane")?.position,
+    "node_north-lane",
   );
   const mockBanditSpawn = requireAnchor(
-    defaultTownMap.navigation.nodes.find((node) => node.nodeId === "node_square")?.position,
-    "node_square",
+    thirdPersonSliceMap.navigation.nodes.find((node) => node.nodeId === "node_center-east")?.position,
+    "node_center-east",
   );
   const mockZombieSpawn = requireAnchor(
-    defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === "zone_town-center")?.center,
-    "zone_town-center",
+    thirdPersonSliceMap.zombieSpawnZones.find((zone) => zone.zoneId === "zone_north-lane")?.center,
+    "zone_north-lane",
   );
 
   afterEach(() => {
@@ -214,7 +214,7 @@ describe("socketClient", () => {
     });
   });
 
-  it("places both mock players and the zombie at exact shared default town positions", async () => {
+  it("places both mock players and the zombie at exact shared encounter-map positions", async () => {
     const protocolStore = createProtocolStore();
     const socketClient = createSocketClient({ mode: "mock", protocolStore });
 
@@ -252,7 +252,7 @@ describe("socketClient", () => {
     expect(deltas[0]?.events).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ type: "shot", origin: mockSpawn }),
-        expect.objectContaining({ type: "combat", targetEntityId: "zombie_1" }),
+        expect.objectContaining({ type: "combat", targetEntityId: "zombie_1", hitPosition: mockZombieSpawn }),
       ]),
     );
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ErrorReason, Inventory } from "@2dayz/shared";
-import { INVENTORY_SLOT_COUNT } from "@2dayz/shared";
+import { INVENTORY_SLOT_COUNT, thirdPersonSliceMap } from "@2dayz/shared";
 
 type TestConnectionState =
   | { phase: "idle" }
@@ -331,6 +331,7 @@ describe("bootGame", () => {
     });
 
     expect(createWorldViewMock).toHaveBeenCalledTimes(1);
+    expect(createWorldViewMock).toHaveBeenCalledWith({ map: thirdPersonSliceMap, scene: { kind: "scene" } });
 
     dispose();
 

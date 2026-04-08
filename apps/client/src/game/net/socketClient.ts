@@ -1,5 +1,4 @@
 import {
-  defaultTownMap,
   deltaMessageSchema,
   errorMessageSchema,
   inputMessageSchema,
@@ -9,6 +8,7 @@ import {
   roomStatusMessageSchema,
   serverMessageSchema,
   snapshotMessageSchema,
+  thirdPersonSliceMap,
   type ErrorReason,
   type InputMessage,
   type RoomJoinedMessage,
@@ -23,7 +23,7 @@ const MOCK_ZOMBIE_MAX_HEALTH = 40;
 
 const requireMapAnchor = <T>(anchor: T | undefined, description: string): T => {
   if (!anchor) {
-    throw new Error(`Missing required defaultTownMap anchor: ${description}`);
+    throw new Error(`Missing required thirdPersonSliceMap anchor: ${description}`);
   }
 
   return anchor;
@@ -31,21 +31,21 @@ const requireMapAnchor = <T>(anchor: T | undefined, description: string): T => {
 
 const getNodePosition = (nodeId: string) => {
   return requireMapAnchor(
-    defaultTownMap.navigation.nodes.find((node) => node.nodeId === nodeId)?.position,
+    thirdPersonSliceMap.navigation.nodes.find((node) => node.nodeId === nodeId)?.position,
     `navigation node ${nodeId}`,
   );
 };
 
 const getZombieZoneCenter = (zoneId: string) => {
   return requireMapAnchor(
-    defaultTownMap.zombieSpawnZones.find((zone) => zone.zoneId === zoneId)?.center,
+    thirdPersonSliceMap.zombieSpawnZones.find((zone) => zone.zoneId === zoneId)?.center,
     `zombie spawn zone ${zoneId}`,
   );
 };
 
 const getLootPointPosition = (pointId: string) => {
   return requireMapAnchor(
-    defaultTownMap.lootPoints.find((point) => point.pointId === pointId)?.position,
+    thirdPersonSliceMap.lootPoints.find((point) => point.pointId === pointId)?.position,
     `loot point ${pointId}`,
   );
 };
@@ -59,10 +59,10 @@ type MockMapAnchors = {
 
 const getMockMapAnchors = (): MockMapAnchors => {
   return {
-    banditSpawn: getNodePosition("node_square"),
-    lootSpawn: getLootPointPosition("point_loot-market-shelves"),
-    playerSpawn: getNodePosition("node_main-road"),
-    zombieSpawn: getZombieZoneCenter("zone_town-center"),
+    banditSpawn: getNodePosition("node_center-east"),
+    lootSpawn: getLootPointPosition("point_loot-field-cache"),
+    playerSpawn: getNodePosition("node_north-lane"),
+    zombieSpawn: getZombieZoneCenter("zone_north-lane"),
   };
 };
 

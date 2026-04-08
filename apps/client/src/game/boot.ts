@@ -1,5 +1,5 @@
 import type { ClientGameStore } from "./state/clientGameStore";
-import { SERVER_TICK_RATE, defaultTownMap } from "@2dayz/shared";
+import { SERVER_TICK_RATE, thirdPersonSliceMap } from "@2dayz/shared";
 
 import { createCamera } from "./createCamera";
 import { createRenderer } from "./createRenderer";
@@ -24,7 +24,7 @@ export const bootGame = ({
   const { renderer, resize: resizeRenderer } = createRenderer(canvas);
   const { camera, resize: resizeCamera } = createCamera(canvas);
   const { dispose: disposeScene, scene } = createScene();
-  const worldView = createWorldView({ map: defaultTownMap, scene });
+  const worldView = createWorldView({ map: thirdPersonSliceMap, scene });
   const inputController = createInputController({
     element: canvas,
     isEnabled: () => store.getState().connectionState.phase === "joined",
