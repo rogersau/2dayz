@@ -34,6 +34,7 @@ describe("protocol schemas", () => {
         movement: { x: 1, y: -1 },
         aim: { x: 0.25, y: 0.75 },
         actions: {
+          aiming: true,
           fire: true,
           inventory: {
             type: "equip",
@@ -73,6 +74,12 @@ describe("protocol schemas", () => {
               ammoStacks: [
                 { ammoItemId: "9mm-rounds", quantity: 12 },
               ],
+            },
+            weaponState: {
+              magazineAmmo: 12,
+              isReloading: false,
+              reloadRemainingMs: 0,
+              fireCooldownRemainingMs: 120,
             },
           },
         ],
@@ -135,6 +142,12 @@ describe("protocol schemas", () => {
             stamina: { current: 7, max: 10 },
             transform: { x: 11, y: 5, rotation: 1.2 },
             velocity: { x: 1, y: 0 },
+            weaponState: {
+              magazineAmmo: 11,
+              isReloading: false,
+              reloadRemainingMs: 0,
+              fireCooldownRemainingMs: 80,
+            },
           },
           {
             entityId: "zombie_1",

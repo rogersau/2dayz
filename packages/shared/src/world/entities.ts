@@ -3,6 +3,7 @@ import { z } from "zod";
 import { entityIdSchema, itemIdSchema, zombieArchetypeIdSchema } from "../ids";
 import { healthSchema, staminaSchema, transformSchema, vector2Schema, velocitySchema } from "./components";
 import { inventorySchema } from "./inventory";
+import { weaponStateSchema } from "./weapon";
 
 export const entityKindSchema = z.enum(["player", "zombie", "loot"]);
 
@@ -29,6 +30,7 @@ export const entityDeltaSchema = z
     quantity: z.number().int().positive().optional(),
     position: vector2Schema.optional(),
     state: z.enum(["idle", "roaming", "chasing", "attacking", "searching"]).optional(),
+    weaponState: weaponStateSchema.optional(),
   })
   .strict()
   .refine((value) => {
@@ -42,7 +44,8 @@ export const entityDeltaSchema = z
       value.itemId !== undefined ||
       value.quantity !== undefined ||
       value.position !== undefined ||
-      value.state !== undefined
+      value.state !== undefined ||
+      value.weaponState !== undefined
     );
   }, {
     message: "entity delta requires at least one update",

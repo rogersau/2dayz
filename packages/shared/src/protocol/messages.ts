@@ -6,6 +6,7 @@ import { entityDeltaSchema, lootEntitySchema, zombieEntitySchema } from "../worl
 import { healthSchema, staminaSchema, transformSchema, vector2Schema, velocitySchema } from "../world/components";
 import { inventoryActionSchema, inventorySchema } from "../world/inventory";
 import { roomMetadataSchema } from "../world/rooms";
+import { weaponStateSchema } from "../world/weapon";
 
 const axisValueSchema = z.number().min(-1).max(1);
 
@@ -36,6 +37,7 @@ export const inputMessageSchema = z
     aim: vector2Schema,
     actions: z
       .object({
+        aiming: z.boolean().optional(),
         fire: z.boolean().optional(),
         sprint: z.boolean().optional(),
         reload: z.boolean().optional(),
@@ -63,6 +65,7 @@ export const playerStateSchema = z
     inventory: inventorySchema,
     lastProcessedInputSequence: z.number().int().nonnegative().optional(),
     health: healthSchema.optional(),
+    weaponState: weaponStateSchema.optional(),
   })
   .strict();
 

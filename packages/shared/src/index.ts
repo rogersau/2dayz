@@ -7,6 +7,7 @@ export * from "./world/components";
 export * from "./world/entities";
 export * from "./world/inventory";
 export * from "./world/rooms";
+export * from "./world/weapon";
 export * from "./content/items";
 export * from "./content/weapons";
 export * from "./content/zombies";
