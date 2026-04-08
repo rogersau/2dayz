@@ -105,6 +105,36 @@ describe("createMovementSystem", () => {
     expect(player?.velocity).toEqual({ x: 6, y: 0 });
   });
 
+  it("uses base walking speed while aiming even if sprint is held", () => {
+    const state = createRoomState({
+      roomId: "room_test",
+      config: createRoomSimulationConfig({
+        maxPlayerSpeed: 4,
+        sprintSpeedMultiplier: 1.5,
+      }),
+    });
+
+    queueSpawnPlayer(state, {
+      entityId: "player_test-aim-walk-speed",
+      displayName: "Parker",
+      position: { x: 0, y: 0 },
+    });
+
+    createLifecycleSystem().update(state, 0);
+    queueInputIntent(state, "player_test-aim-walk-speed", {
+      ...defaultIntent,
+      movement: { x: 1, y: 0 },
+      aim: { x: 0, y: 1 },
+      actions: { aiming: true, sprint: true },
+    });
+
+    createMovementSystem().update(state, 1);
+
+    const player = state.players.get("player_test-aim-walk-speed");
+    expect(player?.transform).toMatchObject({ x: 4, y: 0, rotation: Math.PI / 2 });
+    expect(player?.velocity).toEqual({ x: 4, y: 0 });
+  });
+
   it("drains stamina only while sprinting and moving", () => {
     const state = createRoomState({
       roomId: "room_test",

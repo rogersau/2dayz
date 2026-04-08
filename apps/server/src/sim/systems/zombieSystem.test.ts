@@ -188,7 +188,7 @@ describe("createZombieSystem", () => {
 
     state.players.get("player_test-fixed-tick-loss")!.transform = { x: 19, y: 19, rotation: 0 };
 
-    for (let index = 0; index < 16; index += 1) {
+    for (let index = 0; index < 20; index += 1) {
       zombieSystem.update(state, 0.1);
     }
 
@@ -205,8 +205,8 @@ describe("createZombieSystem", () => {
       world: createBlockedHearingWorld(),
     });
 
-    const staleTarget = spawnPlayer(state, "player_test-stale-hidden", "Avery", { x: 8, y: 2 });
-    const hiddenNoisemaker = spawnPlayer(state, "player_test-fresh-hidden", "Blair", { x: 8, y: 3.5 });
+    const staleTarget = spawnPlayer(state, "player_test-stale-hidden", "Avery", { x: 6, y: 2 });
+    const hiddenNoisemaker = spawnPlayer(state, "player_test-fresh-hidden", "Blair", { x: 6, y: 3.5 });
     state.zombies.set("zombie_test-hidden-grace", {
       entityId: "zombie_test-hidden-grace",
       archetypeId: "zombie_shambler",
@@ -220,10 +220,10 @@ describe("createZombieSystem", () => {
     });
 
     const zombieSystem = createZombieSystem();
-    staleTarget.transform = { x: 8, y: 3.5, rotation: 0 };
+    staleTarget.transform = { x: 6, y: 3.5, rotation: 0 };
 
-    for (let index = 0; index < 16; index += 1) {
-      const heardPosition = { x: 8, y: 3.5 + index * 0.1 };
+    for (let index = 0; index < 20; index += 1) {
+      const heardPosition = { x: 6, y: 3.5 + index * 0.1 };
       hiddenNoisemaker.transform = { ...heardPosition, rotation: 0 };
       state.sprintNoiseEvents.push({
         playerEntityId: hiddenNoisemaker.entityId,
@@ -237,7 +237,7 @@ describe("createZombieSystem", () => {
     expect(zombie?.aggroTargetEntityId).toBeNull();
     expect(zombie?.state).toBe("searching");
     expect(asHearingZombie(zombie)?.heardTargetEntityId).toBe(hiddenNoisemaker.entityId);
-    expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: 8, y: 5 });
+    expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: 6, y: 5.4 });
   });
 
   it("applies zombie attack damage on a cooldown instead of every tick", () => {
@@ -344,10 +344,43 @@ describe("createZombieSystem", () => {
     expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: 8, y: 2 });
   });
 
+  it("does not hear a gunshot outside the compact hearing radius", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    spawnPlayer(state, "player_test-distant-shot", "Avery", { x: 15, y: 0 });
+    state.zombies.set("zombie_test-distant-shot", {
+      entityId: "zombie_test-distant-shot",
+      archetypeId: "zombie_shambler",
+      transform: { x: 0, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "idle",
+      aggroTargetEntityId: null,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 0,
+    });
+    state.events.push({
+      type: "shot",
+      roomId: state.roomId,
+      attackerEntityId: "player_test-distant-shot",
+      weaponItemId: "item_revolver",
+      origin: { x: 15, y: 0 },
+      aim: { x: 1, y: 0 },
+    });
+
+    createZombieSystem().update(state, 0.1);
+
+    const zombie = state.zombies.get("zombie_test-distant-shot");
+    expect(zombie?.aggroTargetEntityId).toBeNull();
+    expect(zombie?.state).toBe("idle");
+    expect(asHearingZombie(zombie)?.heardTargetEntityId).toBeNull();
+    expect(asHearingZombie(zombie)?.heardPosition).toBeNull();
+  });
+
   it("hears a gunshot with line of sight and immediately chases the shooter", () => {
     const state = createRoomState({ roomId: "room_test" });
 
-    spawnPlayer(state, "player_test-visible-shot", "Avery", { x: 11, y: 0 });
+    spawnPlayer(state, "player_test-visible-shot", "Avery", { x: 9, y: 0 });
     state.zombies.set("zombie_test-visible-shot", {
       entityId: "zombie_test-visible-shot",
       archetypeId: "zombie_shambler",
@@ -364,7 +397,7 @@ describe("createZombieSystem", () => {
       roomId: state.roomId,
       attackerEntityId: "player_test-visible-shot",
       weaponItemId: "item_revolver",
-      origin: { x: 11, y: 0 },
+      origin: { x: 9, y: 0 },
       aim: { x: 1, y: 0 },
     });
 
@@ -425,7 +458,7 @@ describe("createZombieSystem", () => {
       world: createBlockedHearingWorld(),
     });
 
-    const player = spawnPlayer(state, "player_test-sprint-heard", "Avery", { x: 8, y: 2 });
+    const player = spawnPlayer(state, "player_test-sprint-heard", "Avery", { x: 6, y: 2 });
     state.zombies.set("zombie_test-sprint-heard", {
       entityId: "zombie_test-sprint-heard",
       archetypeId: "zombie_shambler",
@@ -464,7 +497,7 @@ describe("createZombieSystem", () => {
       world: createBlockedHearingWorld(),
     });
 
-    const player = spawnPlayer(state, "player_test-heard-frozen", "Avery", { x: 8, y: 2 });
+    const player = spawnPlayer(state, "player_test-heard-frozen", "Avery", { x: 6, y: 2 });
     state.zombies.set("zombie_test-heard-frozen", {
       entityId: "zombie_test-heard-frozen",
       archetypeId: "zombie_shambler",
@@ -494,7 +527,7 @@ describe("createZombieSystem", () => {
     expect(firstHeardPosition).toEqual({ x: player.transform.x, y: player.transform.y });
 
     state.sprintNoiseEvents.length = 0;
-    player.transform = { x: 8, y: 3.5, rotation: player.transform.rotation };
+    player.transform = { x: 6, y: 3.5, rotation: player.transform.rotation };
     player.velocity = { x: 0, y: 0 };
 
     zombieSystem.update(state, 0.1);
@@ -512,8 +545,8 @@ describe("createZombieSystem", () => {
       world: createBlockedHearingWorld(),
     });
 
-    const chasingTarget = spawnPlayer(state, "player_test-chase-a", "Avery", { x: 8, y: 2 });
-    const hiddenNoisemaker = spawnPlayer(state, "player_test-chase-b", "Blair", { x: 8, y: 3.5 });
+    const chasingTarget = spawnPlayer(state, "player_test-chase-a", "Avery", { x: 6, y: 2 });
+    const hiddenNoisemaker = spawnPlayer(state, "player_test-chase-b", "Blair", { x: 6, y: 3.5 });
     state.zombies.set("zombie_test-preserve-chase", {
       entityId: "zombie_test-preserve-chase",
       archetypeId: "zombie_shambler",
@@ -548,8 +581,8 @@ describe("createZombieSystem", () => {
       world: createBlockedHearingWorld(),
     });
 
-    const staleTarget = spawnPlayer(state, "player_test-stale-target", "Avery", { x: 8, y: 2 });
-    const hiddenNoisemaker = spawnPlayer(state, "player_test-expiring-noise", "Blair", { x: 8, y: 3.5 });
+    const staleTarget = spawnPlayer(state, "player_test-stale-target", "Avery", { x: 6, y: 2 });
+    const hiddenNoisemaker = spawnPlayer(state, "player_test-expiring-noise", "Blair", { x: 6, y: 3.5 });
     state.zombies.set("zombie_test-expiring-chase", {
       entityId: "zombie_test-expiring-chase",
       archetypeId: "zombie_shambler",
@@ -559,7 +592,7 @@ describe("createZombieSystem", () => {
       state: "chasing",
       aggroTargetEntityId: staleTarget.entityId,
       attackCooldownRemainingMs: 0,
-      lostTargetMs: 1_450,
+      lostTargetMs: 1_950,
     });
     staleTarget.health.isDead = true;
     state.sprintNoiseEvents.push({
@@ -573,7 +606,31 @@ describe("createZombieSystem", () => {
     expect(zombie?.aggroTargetEntityId).toBeNull();
     expect(zombie?.state).toBe("searching");
     expect(asHearingZombie(zombie)?.heardTargetEntityId).toBe(hiddenNoisemaker.entityId);
-    expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: 8, y: 3.5 });
+    expect(asHearingZombie(zombie)?.heardPosition).toEqual({ x: 6, y: 3.5 });
+  });
+
+  it("keeps chasing until the full compact target-loss window elapses", () => {
+    const state = createRoomState({ roomId: "room_test" });
+
+    const staleTarget = spawnPlayer(state, "player_test-target-loss-window", "Avery", { x: 3, y: 0 });
+    state.zombies.set("zombie_test-target-loss-window", {
+      entityId: "zombie_test-target-loss-window",
+      archetypeId: "zombie_shambler",
+      transform: { x: 0, y: 0, rotation: 0 },
+      velocity: { x: 0, y: 0 },
+      health: { current: 60, max: 60, isDead: false },
+      state: "chasing",
+      aggroTargetEntityId: staleTarget.entityId,
+      attackCooldownRemainingMs: 0,
+      lostTargetMs: 1_950,
+    });
+    staleTarget.transform = { x: 20, y: 0, rotation: 0 };
+
+    createZombieSystem().update(state, 0.01);
+
+    const zombie = state.zombies.get("zombie_test-target-loss-window");
+    expect(zombie?.aggroTargetEntityId).toBe(staleTarget.entityId);
+    expect(zombie?.state).toBe("chasing");
   });
 
   it("returns to roaming or idle after reaching a heard position without reacquiring a target", () => {
@@ -651,7 +708,7 @@ describe("createZombieSystem", () => {
 
     const joined = runtime.joinPlayer({ displayName: "Avery" });
     runtime.tick();
-    runtime.simulationState.players.get(joined.playerEntityId)!.transform = { x: 8, y: 2, rotation: 0 };
+    runtime.simulationState.players.get(joined.playerEntityId)!.transform = { x: 6, y: 2, rotation: 0 };
     runtime.simulationState.zombies.set("zombie_test-runtime-sprint", {
       entityId: "zombie_test-runtime-sprint",
       archetypeId: "zombie_shambler",
@@ -676,7 +733,7 @@ describe("createZombieSystem", () => {
     const zombie = runtime.simulationState.zombies.get("zombie_test-runtime-sprint");
     expect(zombie?.state).toBe("searching");
     expect(asHearingZombie(zombie)?.heardTargetEntityId).toBe(joined.playerEntityId);
-    expect(asHearingZombie(zombie)?.heardPosition?.x).toBeGreaterThan(8);
+    expect(asHearingZombie(zombie)?.heardPosition?.x).toBeGreaterThan(6);
   });
 
   it("enforces maxZombies as a room-wide cap across spawn zones", () => {

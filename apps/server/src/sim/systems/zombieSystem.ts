@@ -2,11 +2,11 @@ import { hasLineOfSight } from "../../world/lineOfSight";
 import { findNextNavigationStep } from "../../world/navigation";
 import type { RoomSimulationState, SimZombie } from "../state";
 
-const targetLossMs = 1_500;
+const targetLossMs = 2_000;
 const attackCooldownMs = 500;
 const soundReachByType = {
-  shot: 14,
-  sprint: 8,
+  shot: 10,
+  sprint: 5,
 } as const;
 const searchArrivalDistance = 0.25;
 

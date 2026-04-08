@@ -80,7 +80,8 @@ export const createMovementSystem = (): MovementSystem => {
 
         const direction = normalizeMovement(intent.movement);
         const moving = direction.x !== 0 || direction.y !== 0;
-        const sprinting = Boolean(intent.actions.sprint) && moving && player.stamina.current > 0;
+        const sprinting =
+          Boolean(intent.actions.sprint) && !Boolean(intent.actions.aiming) && moving && player.stamina.current > 0;
         const speed = sprinting
           ? state.config.maxPlayerSpeed * state.config.sprintSpeedMultiplier
           : state.config.maxPlayerSpeed;
