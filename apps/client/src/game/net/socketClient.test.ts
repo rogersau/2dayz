@@ -29,6 +29,7 @@ describe("socketClient", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("rejects a second in-flight request while a join is already pending", async () => {
@@ -145,6 +146,118 @@ describe("socketClient", () => {
     socketClient.sendInput(input);
 
     expect(socket.sentMessages).toContain(JSON.stringify(input));
+  });
+
+  it("targets the server websocket port when the dev client is served from a different port", async () => {
+    class FakeWebSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+      static instances: FakeWebSocket[] = [];
+
+      readyState = FakeWebSocket.CONNECTING;
+
+      constructor(public readonly url: string) {
+        FakeWebSocket.instances.push(this);
+      }
+
+      addEventListener() {}
+      close() {}
+      removeEventListener() {}
+      send() {}
+    }
+
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    vi.stubGlobal("window", {
+      location: {
+        href: "http://127.0.0.1:5173/",
+        host: "127.0.0.1:5173",
+        protocol: "http:",
+      },
+    } as Window & typeof globalThis);
+
+    createSocketClient({
+      mode: "ws",
+      protocolStore: createProtocolStore(),
+    }).join({ displayName: "Scout" }).catch(() => undefined);
+
+    expect(FakeWebSocket.instances[0]?.url).toBe("ws://127.0.0.1:3201/ws");
+  });
+
+  it("uses the IPv4 loopback host for localhost-served dev sessions", async () => {
+    class FakeWebSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+      static instances: FakeWebSocket[] = [];
+
+      readyState = FakeWebSocket.CONNECTING;
+
+      constructor(public readonly url: string) {
+        FakeWebSocket.instances.push(this);
+      }
+
+      addEventListener() {}
+      close() {}
+      removeEventListener() {}
+      send() {}
+    }
+
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    vi.stubGlobal("window", {
+      location: {
+        href: "http://localhost:5173/",
+        host: "localhost:5173",
+        protocol: "http:",
+      },
+    } as Window & typeof globalThis);
+
+    createSocketClient({
+      mode: "ws",
+      protocolStore: createProtocolStore(),
+    }).join({ displayName: "Scout" }).catch(() => undefined);
+
+    expect(FakeWebSocket.instances[0]?.url).toBe("ws://127.0.0.1:3201/ws");
+  });
+
+  it("uses the configured server port for non-default dev client ports", async () => {
+    class FakeWebSocket {
+      static readonly CONNECTING = 0;
+      static readonly OPEN = 1;
+      static readonly CLOSING = 2;
+      static readonly CLOSED = 3;
+      static instances: FakeWebSocket[] = [];
+
+      readyState = FakeWebSocket.CONNECTING;
+
+      constructor(public readonly url: string) {
+        FakeWebSocket.instances.push(this);
+      }
+
+      addEventListener() {}
+      close() {}
+      removeEventListener() {}
+      send() {}
+    }
+
+    vi.stubEnv("VITE_SERVER_PORT", "3201");
+    vi.stubGlobal("WebSocket", FakeWebSocket as unknown as typeof WebSocket);
+    vi.stubGlobal("window", {
+      location: {
+        href: "http://127.0.0.1:5174/",
+        host: "127.0.0.1:5174",
+        protocol: "http:",
+      },
+    } as Window & typeof globalThis);
+
+    createSocketClient({
+      mode: "ws",
+      protocolStore: createProtocolStore(),
+    }).join({ displayName: "Scout" }).catch(() => undefined);
+
+    expect(FakeWebSocket.instances[0]?.url).toBe("ws://127.0.0.1:3201/ws");
   });
 
   it("applies mock authoritative movement and rotation with the same normalization and aim rules as the server", async () => {

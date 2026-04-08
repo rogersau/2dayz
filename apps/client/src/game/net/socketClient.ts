@@ -259,6 +259,39 @@ type SocketClientOptions = {
   wsUrl?: string;
 };
 
+const resolveDefaultWsUrl = () => {
+  if (typeof window === "undefined") {
+    return "ws://localhost:3000/ws";
+  }
+
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const configuredUrl = import.meta.env.VITE_SERVER_WS_URL as string | undefined;
+  const configuredPort = import.meta.env.VITE_SERVER_PORT as string | undefined;
+
+  if (configuredUrl) {
+    return configuredUrl;
+  }
+
+  const currentUrl = new URL(window.location.href);
+
+  if (configuredPort) {
+    currentUrl.port = configuredPort;
+  } else if (import.meta.env.DEV) {
+    currentUrl.port = "3201";
+  }
+
+  if (import.meta.env.DEV && currentUrl.hostname === "localhost") {
+    currentUrl.hostname = "127.0.0.1";
+  }
+
+  currentUrl.protocol = `${protocol}:`;
+  currentUrl.pathname = "/ws";
+  currentUrl.search = "";
+  currentUrl.hash = "";
+
+  return currentUrl.toString();
+};
+
 type PendingRequest = {
   reject: (error: SocketClientError) => void;
   resolve: (result: JoinResult) => void;
@@ -312,10 +345,7 @@ export const createSocketClient = ({
   };
 
   const resolvedUrl =
-    wsUrl ??
-    (typeof window !== "undefined"
-      ? `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws`
-      : "ws://localhost:3000/ws");
+    wsUrl ?? resolveDefaultWsUrl();
 
   const close = () => {
     if (mockWorldInterval) {

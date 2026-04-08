@@ -134,6 +134,7 @@ const installQuickbarSelectionSocketMock = async (page: import("@playwright/test
                       null,
                     ],
                   },
+                  stamina: { current: 10, max: 10 },
                   weaponState: {
                     fireCooldownRemainingMs: 0,
                     isReloading: false,

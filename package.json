@@ -4,7 +4,7 @@
   "packageManager": "pnpm@10.7.1",
   "scripts": {
     "dev": "concurrently -k -n client,server -c cyan,magenta \"pnpm dev:client\" \"pnpm dev:server\"",
-    "dev:client": "CLIENT_PORT=3200 pnpm --filter @2dayz/client dev -- --host 127.0.0.1 --port 3200",
+    "dev:client": "CLIENT_PORT=3200 VITE_SERVER_PORT=3201 pnpm --filter @2dayz/client dev -- --host 127.0.0.1 --port 3200",
     "dev:server": "CLIENT_ORIGIN=http://127.0.0.1:3200 HOST=127.0.0.1 PORT=3201 pnpm --filter @2dayz/server dev",
     "pretest": "node ./scripts/check-workspace-packages.cjs",
     "test": "pnpm --filter @2dayz/shared test && pnpm --filter @2dayz/server test && pnpm --filter @2dayz/client test",

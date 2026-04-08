@@ -150,6 +150,7 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         ...process.env,
+        VITE_SERVER_PORT: String(serverPort),
         CLIENT_ORIGIN: `http://127.0.0.1:${clientPort}`,
         HOST: "127.0.0.1",
         PORT: String(serverPort),
